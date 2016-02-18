@@ -203,7 +203,7 @@ class ProjectUploadTool(object):
         self._upload_project()
         for dirname, dirnames, filenames in os.walk(folder_path):
             if self.include_path(dirname):
-                self._upload_directory(dirname)
+                self._upload_directory(dirname, top=True)
                 for subdirname in dirnames:
                     if self.include_path(subdirname):
                         self._upload_directory(os.path.join(dirname, subdirname))
@@ -222,17 +222,19 @@ class ProjectUploadTool(object):
         self.proj = proj
         self.parent_lookup[''] = proj
 
-    def _find_parent(self, path):
+    def _find_parent(self, path, top):
+        if top:
+            path = ''
         parent = self.parent_lookup.get(path, None)
         if not parent:
             raise ValueError("no parent found for" + path)
         return parent
 
-    def _upload_directory(self, path):
+    def _upload_directory(self, path, top=False):
         basename = os.path.basename(path)
         folder_name = os.path.dirname(path)
         print "upload directory:", folder_name, basename
-        parent = self._find_parent(folder_name)
+        parent = self._find_parent(folder_name, top)
         child = self._find_child_by_name(parent, basename)
         if not child:
             parent.add_folder(basename)
@@ -250,11 +252,11 @@ class ProjectUploadTool(object):
                     return child
         return None
 
-    def upload_file(self, path):
+    def upload_file(self, path, top=False):
         basename = os.path.basename(path)
         parent_name = os.path.dirname(path)
         print "upload file:", parent_name, basename
-        parent = self._find_parent(parent_name)
+        parent = self._find_parent(parent_name, top)
         (mimetype, encoding) = mimetypes.guess_type(path)
         if not mimetype:
             mimetype = 'application/octet-stream'
