@@ -9,6 +9,10 @@ python setup.py install
 ```
 
 ###Use:
+Right now this requires a hack to setup an environment variable to hold an auth token generated from the apiexplorer:
+```
+export DUKE_DATA_SERVICE_AUTH='...'
+```
 See help screen:
 ```
 ddsclient -h
