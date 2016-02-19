@@ -6,6 +6,8 @@ setup(name='ddsclient',
         install_requires=[
           'requests',
         ],
+        test_suite='nose.collector',
+        tests_require=['nose'],
         entry_points={
             'console_scripts': [
                 'ddsclient = ddsc.__main__:main'
