@@ -2,6 +2,7 @@
 import json
 import requests
 
+
 class DataServiceApi(object):
     """
     Sends json messages and receives responses back from Duke Data Service api.
@@ -25,15 +26,23 @@ class DataServiceApi(object):
 
     def _post(self, url_suffix, post_data):
         (url, data_str, headers) = self._url_parts(url_suffix, post_data)
-        return self.http.post(url, data_str, headers=headers)
+        resp = self.http.post(url, data_str, headers=headers)
+        return self._check_err(resp, url_suffix, post_data)
 
-    def _put(self, url_suffix, post_data):
-        (url, data_str, headers) = self._url_parts(url_suffix, post_data)
-        return self.http.put(url, data_str, headers=headers)
+    def _put(self, url_suffix, put_data):
+        (url, data_str, headers) = self._url_parts(url_suffix, put_data)
+        resp = self.http.put(url, data_str, headers=headers)
+        return self._check_err(resp, url_suffix, put_data)
 
     def _get(self, url_suffix, get_data):
         (url, data_str, headers) = self._url_parts(url_suffix, get_data)
-        return self.http.get(url, headers=headers)
+        resp = self.http.get(url, headers=headers)
+        return self._check_err(resp, url_suffix, get_data)
+
+    def _check_err(self, resp, url_suffix, data):
+        if resp.status_code != 200 and resp.status_code != 201:
+            raise DataServiceError(resp, url_suffix, data)
+        return resp
 
     def create_project(self, project_name, desc):
         data = {
@@ -113,3 +122,17 @@ class DataServiceApi(object):
             return requests.post(host + url, data=chunk, headers=http_headers)
         else:
             raise ValueError("Unsupported http_verb:" + http_verb)
+
+
+class DataServiceError(Exception):
+    def __init__(self, response, url_suffix, request_data):
+        if response.status_code == 500:
+            resp_json = {'reason':'Internal Server Error', 'suggestion':'Contact DDS support.'}
+        else:
+            resp_json = response.json()
+        Exception.__init__(self,'Error {} on {} reason:{} suggestion:{}'.format(
+            response.status_code, url_suffix, resp_json.get('reason',''), resp_json.get('suggestion','')
+        ))
+        self.response = resp_json
+        self.url_suffix = url_suffix
+        self.request_data = request_data
