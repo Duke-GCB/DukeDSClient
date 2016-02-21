@@ -1,6 +1,6 @@
 from unittest import TestCase
 import json
-from ddsc.remotecontent import RemoteProject, RemoteFolder, RemoteFile
+from ddsc.remotestore import RemoteProject, RemoteFolder, RemoteFile
 
 
 class TestProjectFolderFile(TestCase):

@@ -1,6 +1,8 @@
 import os
 import hashlib
 import mimetypes
+from util import KindType
+
 
 class LocalContent(object):
     """
@@ -8,20 +10,54 @@ class LocalContent(object):
     """
     def __init__(self):
         self.remote_id = ''
-        self.kind = 'dds-project'
+        self.kind = KindType.project_str
         self.children = []
+        self.sent_to_remote = False
 
     def add_path(self, path):
         abspath = os.path.abspath(path)
         self.children.append(_build_project_tree(abspath))
 
-    def __repr__(self):
-        return 'project: {}'.format(self.children)
+    def add_paths(self, path_list):
+        for path in path_list:
+            self.add_path(path)
+
+    def accept(self, visitor):
+        _visit_content(self, None, visitor)
+
+    def __str__(self):
+        child_str = ', '.join([str(child) for child in self.children])
+        return 'project: [{}]'.format(child_str)
 
     def update_remote_ids(self, remote_project):
         if remote_project:
             self.remote_id = remote_project.id
+            self.sent_to_remote = True
             _update_remote_children(remote_project, self.children)
+
+    def count_items(self):
+        projects = 0
+        folders = 0
+        files = 0
+        if self.sent_to_remote:
+            projects = 1
+        for child in self.children:
+            (child_folders, child_files) = child.count_items()
+            folders += child_folders
+            files += child_files
+        return projects, folders, files
+
+
+def _visit_content(item, parent, visitor):
+    if KindType.is_project(item):
+        visitor.visit_project(item, parent)
+    elif KindType.is_folder(item):
+        visitor.visit_folder(item, parent)
+    else:
+        visitor.visit_file(item, parent)
+    if not KindType.is_file(item):
+        for child in item.children:
+            _visit_content(child, item, visitor)
 
 def _name_to_child_map(children):
     name_to_child = {}
@@ -78,17 +114,19 @@ class LocalFolder(object):
         self.remote_id = ''
         self.is_file = False
         self.kind = 'dds-folder'
+        self.sent_to_remote = False
 
     def add_child(self, child):
         self.children.append(child)
 
     def update_remote_ids(self, remote_folder):
         self.remote_id = remote_folder.id
+        self.sent_to_remote = True
         _update_remote_children(remote_folder, self.children)
 
-    def __repr__(self):
-        return 'folder:{} {}'.format(self.name, self.children)
-
+    def __str__(self):
+        child_str = ', '.join([str(child) for child in self.children])
+        return 'folder:{} [{}]'.format(self.name, child_str)
 
 class LocalFile(object):
     """
@@ -106,6 +144,7 @@ class LocalFile(object):
             mimetype = 'application/octet-stream'
         self.mimetype = mimetype
         self.kind = 'dds-file'
+        self.sent_to_remote = False
 
     def get_hashpair(self):
         hash = HashUtil()
@@ -114,9 +153,9 @@ class LocalFile(object):
 
     def update_remote_ids(self, remote_file):
         self.remote_id = remote_file.id
+        self.sent_to_remote = True
 
-
-    def __repr__(self):
+    def __str__(self):
         return 'file:{}'.format(self.name)
 
 
@@ -137,3 +176,76 @@ class HashUtil(object):
 
     def hexdigest(self):
         return "md5", self.hash.hexdigest()
+
+
+class LocalOnlyCounter(object):
+    def __init__(self):
+        self.projects = 0
+        self.folders = 0
+        self.files = 0
+
+    def visit_project(self, item, parent):
+        if not item.remote_id:
+            self.projects += 1
+
+    def visit_folder(self, item, parent):
+        if not item.remote_id:
+            self.folders += 1
+
+    def visit_file(self, item, parent):
+        # Always sending files right, no way to know if different without downloading.
+        self.files += 1
+
+    def total_items(self):
+        return self.projects + self.folders + self.files
+
+    def result_str(self):
+        return '{}, {}, {}'.format(self.plural_fmt('project', self.projects),
+                                 self.plural_fmt('folder', self.folders),
+                                 self.plural_fmt('file', self.files))
+
+    def plural_fmt(self, name, cnt):
+        if cnt == 1:
+            return '{} {}'.format(cnt, name)
+        else:
+            return '{} {}s'.format(cnt, name)
+
+
+class UploadReport(object):
+    def __init__(self):
+        self.sent_items = []
+        self.max_filename = None
+
+    def visit_project(self, item, parent):
+        if item.sent_to_remote:
+            self.sent_items.append(UploadedItem('Project', item.remote_id))
+
+    def visit_folder(self, item, parent):
+        if item.sent_to_remote:
+            self.sent_items.append(UploadedItem(item.path, item.remote_id))
+
+    def visit_file(self, item, parent):
+        if item.sent_to_remote:
+            self.sent_items.append(UploadedItem(item.path, item.remote_id))
+
+    def format_pair(self, first, second):
+        return '{}    {}'.format(first.ljust(self.max_filename), second)
+
+    def report_header(self):
+        return self.format_pair('Sent the following files:', 'REMOTE ID')
+
+    def report_content(self):
+        return [self.format_pair(item.name, item.id) for item in self.sent_items]
+
+    def __str__(self):
+        self.max_filename = max([len(item.name) for item in self.sent_items])
+        lines = [self.report_header()]
+        lines.extend(self.report_content())
+        return '\n'.join(lines)
+
+
+class UploadedItem(object):
+    def __init__(self, name, id):
+        self.name = name
+        self.id = id
+
