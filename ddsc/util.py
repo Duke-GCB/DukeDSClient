@@ -55,6 +55,7 @@ class ProgressPrinter(object):
     def __init__(self, total):
         self.total = total
         self.cnt = 0
+        self.max_width = 0
 
     def sending_item(self, item):
         percent_done = int(float(self.cnt)/float(self.total)* 100.0)
@@ -63,12 +64,15 @@ class ProgressPrinter(object):
             name = 'project'
         else:
             name = item.path
-        sys.stdout.write('\rProgress: {}% - sending {}'.format(percent_done, name))
+        #left justify message so we cover up the previous one
+        message = '\rProgress: {}% - sending {}'.format(percent_done, name)
+        self.max_width = max(len(message), self.max_width)
+        sys.stdout.write(message.ljust(self.max_width))
         sys.stdout.flush()
         self.cnt += 1
 
     def finished(self):
-        sys.stdout.write('\rDone: 100%\n')
+        sys.stdout.write('\rDone: 100%'.ljust(self.max_width) + '\n')
         sys.stdout.flush()
 
 

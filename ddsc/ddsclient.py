@@ -38,7 +38,7 @@ class DDSClient(object):
         progress_printer.finished()
 
     def _print_report(self):
-        report = UploadReport()
+        report = UploadReport(self.config.project_name)
         self.local_content.accept(report)
         print(report)
 

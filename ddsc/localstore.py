@@ -1,4 +1,5 @@
 import os
+import datetime
 import hashlib
 import mimetypes
 from util import KindType
@@ -235,9 +236,10 @@ class LocalOnlyCounter(object):
 
 
 class UploadReport(object):
-    def __init__(self):
+    def __init__(self, project_name):
         self.sent_items = []
         self.max_filename = None
+        self.project_name = project_name
 
     def visit_project(self, item, parent):
         if item.sent_to_remote:
@@ -255,7 +257,10 @@ class UploadReport(object):
         return '{}    {}'.format(first.ljust(self.max_filename), second)
 
     def report_header(self):
-        return self.format_pair('Sent the following files:', 'REMOTE ID')
+        report_header_pair = self.format_pair('Sent the following files:', 'REMOTE ID')
+        return "Upload Report for Project: '{}' {}\n{}".format(self.project_name,
+                                                                  datetime.datetime.utcnow(),
+                                                                  report_header_pair)
 
     def report_content(self):
         return [self.format_pair(item.name, item.id) for item in self.sent_items]
