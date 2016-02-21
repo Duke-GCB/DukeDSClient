@@ -93,7 +93,6 @@ class RemoteFolder(object):
         return 'folder: {} id:{} {}'.format(self.name, self.id, self.children)
 
 
-
 class RemoteFile(object):
     """
     File data from a remote store project_id_children or folder_id_children request.
@@ -115,28 +114,6 @@ class RemoteFile(object):
         return 'file: {} id:{} size:{}'.format(self.name, self.id, self.size)
 
 
-    def create_remote_content(self, local_content):
-        self._try_create_remote_project(local_content)
-        for local_child in local_content.children:
-            self._try_create_remote_child(local_content.remote_id, local_content, local_child)
-
-    def _try_create_remote_project(self, local_content):
-        if not local_content.remote_id:
-            result = self.data_service.create_project(self.project_name, self.project_name)
-            local_content.remote_id = result.json()['id']
-
-    def _try_create_remote_child(self, project_id, parent, local_child):
-            if local_child.is_file:
-                file_on_disk = FileOnDisk(self.data_service, local_child)
-                file_on_disk.upload(project_id, parent.kind, parent.remote_id)
-            else:
-                if not local_child.remote_id:
-                    result = self.data_service.create_folder(local_child.name, parent.kind, parent.remote_id)
-                    local_child.remote_id = result.json()['id']
-                for sub_child in local_child.children:
-                    self._try_create_remote_child(project_id, local_child, sub_child)
-
-
 class FileOnDisk(object):
     """Return a chunks lazily."""
     def __init__(self, dsa, local_file):
@@ -144,30 +121,31 @@ class FileOnDisk(object):
         self.local_file = local_file
         self.filename = local_file.path
         self.content_type = local_file.mimetype
+        self.chunk_num = 0
+        self.upload_id = None
 
     def upload(self, project_id, parent_kind, parent_id):
         size = self.local_file.size
         (hash_alg, hash_value) = self.local_file.get_hashpair()
         name = self.local_file.name
         resp = self.dsa.create_upload(project_id, name, self.content_type, size, hash_value, hash_alg)
-        upload_id = resp.json()['id']
-        self._send_file_chunks(upload_id)
-        self.dsa.complete_upload(upload_id)
-        result = self.dsa.create_file(parent_kind, parent_id, upload_id)
+        self.upload_id = resp.json()['id']
+        self._send_file_chunks()
+        self.dsa.complete_upload(self.upload_id)
+        result = self.dsa.create_file(parent_kind, parent_id, self.upload_id)
         return result.json()['id']
 
-    def _send_file_chunks(self, upload_id):
-        with open(self.filename,'rb') as infile:
-            number = 0
-            for chunk in read_in_chunks(infile, self.dsa.bytes_per_chunk):
-                (chunk_hash_alg, chunk_hash_value) = hash_chunk(chunk)
-                resp = self.dsa.create_upload_url(upload_id, number, len(chunk),
-                                                  chunk_hash_value, chunk_hash_alg)
-                if resp.status_code == 200:
-                    self._send_file_external(resp.json(), chunk)
-                    number += 1
-                else:
-                    raise ValueError("Failed to retrieve upload url status:" + str(resp.status_code))
+    def _send_file_chunks(self):
+        self.local_file.process_chunks(self.dsa.bytes_per_chunk, self.process_chunk)
+
+    def process_chunk(self, chunk, chunk_hash_alg, chunk_hash_value):
+        resp = self.dsa.create_upload_url(self.upload_id, self.chunk_num, len(chunk),
+                                          chunk_hash_value, chunk_hash_alg)
+        if resp.status_code == 200:
+            self._send_file_external(resp.json(), chunk)
+            self.chunk_num += 1
+        else:
+            raise ValueError("Failed to retrieve upload url status:" + str(resp.status_code))
 
     def _send_file_external(self, url_json, chunk):
         http_verb = url_json['http_verb']
@@ -186,21 +164,6 @@ class FileOnDisk(object):
         resp = self.dsa.send_external(http_verb, host, url, http_headers, chunk)
         if resp.status_code != 200 and resp.status_code != 201:
             raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code))
-
-def hash_chunk(chunk):
-    """Creates a hash from the bytes in chunk."""
-    hash = HashUtil()
-    hash.add_chunk(chunk)
-    return hash.hexdigest()
-
-
-def read_in_chunks(infile, blocksize):
-    """Return a chunks lazily."""
-    while True:
-        data = infile.read(blocksize)
-        if not data:
-            break
-        yield data
 
 
 class RemoteContentSender(object):

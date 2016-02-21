@@ -155,6 +155,29 @@ class LocalFile(object):
         self.remote_id = remote_file.id
         self.sent_to_remote = True
 
+    def process_chunks(self, bytes_per_chunk, processor):
+        with open(self.path,'rb') as infile:
+            number = 0
+            for chunk in LocalFile.read_in_chunks(infile, bytes_per_chunk):
+                (chunk_hash_alg, chunk_hash_value) = LocalFile.hash_chunk(chunk)
+                processor(chunk, chunk_hash_alg, chunk_hash_value)
+
+    @staticmethod
+    def read_in_chunks(infile, blocksize):
+        """Return a chunks lazily."""
+        while True:
+            data = infile.read(blocksize)
+            if not data:
+                break
+            yield data
+
+    @staticmethod
+    def hash_chunk(chunk):
+        """Creates a hash from the bytes in chunk."""
+        hash = HashUtil()
+        hash.add_chunk(chunk)
+        return hash.hexdigest()
+
     def __str__(self):
         return 'file:{}'.format(self.name)
 
