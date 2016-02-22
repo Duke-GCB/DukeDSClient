@@ -40,6 +40,7 @@ class RemoteContentFetch(object):
         return folder
 
 
+
 class RemoteProject(object):
     """
     Project data from a remote store projects request.

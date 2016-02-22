@@ -33,7 +33,6 @@ class LocalContent(object):
     def update_remote_ids(self, remote_project):
         if remote_project:
             self.remote_id = remote_project.id
-            self.sent_to_remote = True
             _update_remote_children(remote_project, self.children)
 
     def count_items(self):
@@ -122,7 +121,6 @@ class LocalFolder(object):
 
     def update_remote_ids(self, remote_folder):
         self.remote_id = remote_folder.id
-        self.sent_to_remote = True
         _update_remote_children(remote_folder, self.children)
 
     def __str__(self):
@@ -237,43 +235,48 @@ class LocalOnlyCounter(object):
 
 class UploadReport(object):
     def __init__(self, project_name):
-        self.sent_items = []
-        self.max_filename = None
+        self.report_items = []
         self.project_name = project_name
+        self._add_report_item('Sent filename','ID', 'SIZE')
+
+    def _add_report_item(self, name, remote_id, size):
+        self.report_items.append(ReportItem(name, remote_id, size))
 
     def visit_project(self, item, parent):
         if item.sent_to_remote:
-            self.sent_items.append(UploadedItem('Project', item.remote_id))
+            self._add_report_item('Project', item.remote_id, '')
 
     def visit_folder(self, item, parent):
         if item.sent_to_remote:
-            self.sent_items.append(UploadedItem(item.path, item.remote_id))
+            self._add_report_item(item.path, item.remote_id, '')
 
     def visit_file(self, item, parent):
         if item.sent_to_remote:
-            self.sent_items.append(UploadedItem(item.path, item.remote_id))
-
-    def format_pair(self, first, second):
-        return '{}    {}'.format(first.ljust(self.max_filename), second)
+            self._add_report_item(item.path, item.remote_id, item.size)
 
     def report_header(self):
-        report_header_pair = self.format_pair('Sent the following files:', 'REMOTE ID')
-        return "Upload Report for Project: '{}' {}\n{}".format(self.project_name,
-                                                                  datetime.datetime.utcnow(),
-                                                                  report_header_pair)
+        return "Upload Report for Project: '{}' {}".format(self.project_name, datetime.datetime.utcnow())
 
     def report_content(self):
-        return [self.format_pair(item.name, item.id) for item in self.sent_items]
+        max_name = max([len(item.name) for item in self.report_items])
+        max_remote_id = max([len(item.remote_id) for item in self.report_items])
+        return [item.str(max_name, max_remote_id) for item in self.report_items]
 
     def __str__(self):
-        self.max_filename = max([len(item.name) for item in self.sent_items])
         lines = [self.report_header()]
         lines.extend(self.report_content())
         return '\n'.join(lines)
 
 
-class UploadedItem(object):
-    def __init__(self, name, id):
+class ReportItem(object):
+    def __init__(self, name, remote_id, size):
         self.name = name
-        self.id = id
+        self.remote_id = remote_id
+        self.size = size
+
+    def str(self, max_name, max_remote_id):
+        name_str = self.name.ljust(max_name)
+        remote_id_str = self.remote_id.ljust(max_remote_id)
+        return '{}    {}    {}'.format(name_str, remote_id_str, self.size)
+
 

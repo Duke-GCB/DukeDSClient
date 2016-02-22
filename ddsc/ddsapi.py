@@ -130,7 +130,7 @@ class DataServiceError(Exception):
             resp_json = {'reason':'Internal Server Error', 'suggestion':'Contact DDS support.'}
         else:
             resp_json = response.json()
-        Exception.__init__(self,'Error {} on {} reason:{} suggestion:{}'.format(
+        Exception.__init__(self,'Error {} on {} Reason:{} Suggestion:{}'.format(
             response.status_code, url_suffix, resp_json.get('reason',''), resp_json.get('suggestion','')
         ))
         self.response = resp_json

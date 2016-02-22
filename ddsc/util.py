@@ -1,6 +1,7 @@
 import os
 import sys
 import argparse
+import urlparse
 
 
 class Configuration(object):
@@ -32,6 +33,8 @@ class Configuration(object):
             if not os.path.exists(path):
                 raise ValueError('You tried to upload ' + path + ', but that path does not exist.')
 
+    def get_url_base(self):
+        return urlparse.urlparse(self.url).hostname
 
 class KindType(object):
     file_str = 'dds-file'

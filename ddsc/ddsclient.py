@@ -16,6 +16,7 @@ class DDSClient(object):
         self._compare_local_with_remote()
         self._send_different_local_content()
         self._print_report()
+        self._print_url()
 
     def _load_local_content(self):
         self.local_content = LocalContent()
@@ -42,5 +43,10 @@ class DDSClient(object):
         self.local_content.accept(report)
         print(report)
 
-
+    def _print_url(self):
+        msg = 'URL to view project'
+        url_base = self.config.get_url_base()
+        project_id = self.local_content.remote_id
+        url = '{}: https://{}/portal/#/project/{}'.format(msg, url_base, project_id)
+        print(url)
 
