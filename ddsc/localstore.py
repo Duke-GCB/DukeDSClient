@@ -9,15 +9,16 @@ class LocalContent(object):
     """
     Represents a list of folder/file trees on the filesystem.
     """
-    def __init__(self):
+    def __init__(self, allow_symlink):
         self.remote_id = ''
         self.kind = KindType.project_str
         self.children = []
         self.sent_to_remote = False
+        self.allow_symlink = allow_symlink
 
     def add_path(self, path):
         abspath = os.path.abspath(path)
-        self.children.append(_build_project_tree(abspath))
+        self.children.append(_build_project_tree(abspath, self.allow_symlink))
 
     def add_paths(self, path_list):
         for path in path_list:
@@ -79,19 +80,19 @@ def _update_remote_children(remote_parent, children):
             local_child.update_remote_ids(remote_child)
 
 
-def _build_project_tree(path):
+def _build_project_tree(path, allow_symlink):
     result = None
     if os.path.isfile(path):
         result = LocalFile(path)
     else:
-        result = _build_folder_tree(os.path.abspath(path))
+        result = _build_folder_tree(os.path.abspath(path), allow_symlink)
     return result
 
 
-def _build_folder_tree(top_abspath):
+def _build_folder_tree(top_abspath, allow_symlink):
     path_to_content = {}
     child_to_parent = {}
-    for dir_name, child_dirs, child_files in os.walk(top_abspath):
+    for dir_name, child_dirs, child_files in os.walk(top_abspath, followlinks=allow_symlink):
         abspath = os.path.abspath(dir_name)
         folder = LocalFolder(abspath)
         path_to_content[abspath] = folder
@@ -160,10 +161,18 @@ class LocalFile(object):
         return hash.hexdigest()
 
     def update_remote_ids(self, remote_file):
-        self.remote_id = remote_file.id
-        (alg, hash) = self.get_hashpair()
-        if alg == remote_file.hash_alg and hash == remote_file.hash:
+        # Since right now the remote server allows duplicates
+        # this could be called multiple times for the same local file
+        # as long as one matches we have the file uploaded.
+
+        # if we don't have a uuid yet any will do
+        if not self.need_to_send:
+            self.remote_id = remote_file.id
+        # but we prefer the one that matches our hash
+        (alg, file_hash) = self.get_hashpair()
+        if alg == remote_file.hash_alg and file_hash == remote_file.file_hash:
             self.need_to_send = False
+            self.remote_id = remote_file.id
 
     def set_remote_id_after_send(self, remote_id):
         self.sent_to_remote = True

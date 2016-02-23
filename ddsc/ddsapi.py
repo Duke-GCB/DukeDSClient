@@ -23,7 +23,7 @@ class DataServiceApi(object):
     def _url_parts(self, url_suffix, url_data, content_type):
         url = self.base_url + url_suffix
         send_data = url_data
-        if content_type == 'application/json':
+        if content_type == ContentType.json:
             send_data = json.dumps(url_data)
         headers = {
             'Content-Type': content_type,
@@ -136,9 +136,9 @@ class DataServiceApi(object):
         }
         return self._get('/users', data, content_type=ContentType.form)
 
-    def set_user_project_permission(self, project_id, user_id, permission_type):
+    def set_user_project_permission(self, project_id, user_id, auth_role):
         put_data = {
-            "auth_role[id]": 'file_downloader'
+            "auth_role[id]": auth_role
         }
         return self._put("/projects/" + project_id + "/permissions/" + user_id, put_data,
                          content_type=ContentType.form)

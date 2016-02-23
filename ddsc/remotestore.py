@@ -42,8 +42,8 @@ class RemoteContentFetch(object):
     def _read_file(self, file_json):
         remote_file = RemoteFile(file_json)
         response = self.data_service.get_file(remote_file.id)
-        hash = response.json()['upload']['hash']
-        remote_file.set_hash(hash['value'], hash['algorithm'])
+        file_hash = response.json()['upload']['hash']
+        remote_file.set_hash(file_hash['value'], file_hash['algorithm'])
         return remote_file
 
 
@@ -123,10 +123,11 @@ class RemoteFile(object):
         self.name = json_data['name']
         self.is_deleted = json_data['is_deleted']
         self.size = json_data['upload']['size']
-        self.hash = None
+        self.file_hash = None
+        self.hash_alg = None
 
-    def set_hash(self, hash, hash_alg):
-        self.hash = hash
+    def set_hash(self, file_hash, hash_alg):
+        self.file_hash = file_hash
         self.hash_alg = hash_alg
 
     def get_paths(self, parent):

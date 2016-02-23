@@ -22,10 +22,10 @@ class DDSClient(object):
         self._print_report()
         self._print_url()
         if user:
-            self._add_user_to_project(user)
+            self._add_user_to_project(user, self.config.add_user_type)
 
     def _load_local_content(self):
-        self.local_content = LocalContent()
+        self.local_content = LocalContent(allow_symlink=self.config.allow_symlink)
         self.local_content.add_paths(self.config.folders)
 
     def _fetch_remote_content(self):
@@ -55,10 +55,6 @@ class DDSClient(object):
         url = '{}: https://{}/portal/#/project/{}'.format(msg, url_base, project_id)
         print(url)
 
-    def _add_user_to_project(self, user):
-        self.data_service.set_user_project_permission(self.local_content.remote_id, user.id, 'file_downloader')
-
-#Error 400 on /projects/a4a6ec53-2034-4a6b-b7a9-0ffcf821479d/permissions/77882934-5923-4d4b-b202-e4cf671e5439 Reason: Suggestion:
-
-#project:               a4a6ec53-2034-4a6b-b7a9-0ffcf821479d
-#user:                                                                   77882934-5923-4d4b-b202-e4cf671e5439
+    def _add_user_to_project(self, user, auth_role):
+        self.data_service.set_user_project_permission(self.local_content.remote_id, user.id, auth_role)
+        print("Added user {} with {} permissions.".format(user.full_name, auth_role))
