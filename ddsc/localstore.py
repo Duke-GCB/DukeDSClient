@@ -35,6 +35,10 @@ class LocalContent(object):
             self.remote_id = remote_project.id
             _update_remote_children(remote_project, self.children)
 
+    def set_remote_id_after_send(self, remote_id):
+        self.remote_id = remote_id
+        self.sent_to_remote = True
+
     def count_items(self):
         projects = 0
         folders = 0
@@ -58,6 +62,7 @@ def _visit_content(item, parent, visitor):
     if not KindType.is_file(item):
         for child in item.children:
             _visit_content(child, item, visitor)
+
 
 def _name_to_child_map(children):
     name_to_child = {}
@@ -123,6 +128,10 @@ class LocalFolder(object):
         self.remote_id = remote_folder.id
         _update_remote_children(remote_folder, self.children)
 
+    def set_remote_id_after_send(self, remote_id):
+        self.sent_to_remote = True
+        self.remote_id = remote_id
+
     def __str__(self):
         child_str = ', '.join([str(child) for child in self.children])
         return 'folder:{} [{}]'.format(self.name, child_str)
@@ -152,7 +161,13 @@ class LocalFile(object):
 
     def update_remote_ids(self, remote_file):
         self.remote_id = remote_file.id
+        (alg, hash) = self.get_hashpair()
+        if alg == remote_file.hash_alg and hash == remote_file.hash:
+            self.need_to_send = False
+
+    def set_remote_id_after_send(self, remote_id):
         self.sent_to_remote = True
+        self.remote_id = remote_id
 
     def process_chunks(self, bytes_per_chunk, processor):
         with open(self.path,'rb') as infile:
@@ -215,8 +230,8 @@ class LocalOnlyCounter(object):
             self.folders += 1
 
     def visit_file(self, item, parent):
-        # Always sending files right, no way to know if different without downloading.
-        self.files += 1
+        if item.need_to_send:
+            self.files += 1
 
     def total_items(self):
         return self.projects + self.folders + self.files

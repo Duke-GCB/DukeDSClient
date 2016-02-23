@@ -21,12 +21,14 @@ class Configuration(object):
                       )
         parser = argparse.ArgumentParser(description=description)
         parser.add_argument("project_name", help="Name of the project to create or add to.")
-        parser.add_argument("folder", help="The folder you want to add to the project.")
+        parser.add_argument("folders", help="The folders/files you want to add to the project.", nargs='+')
+        parser.add_argument("--adduser", help="Add a user to the project with their full name.", dest='add_username')
         parsed_args = parser.parse_args(args=args)
         self.project_name = parsed_args.project_name
-        self.folders = [parsed_args.folder]
-        self._check_args()
         self.project_desc = self.project_name
+        self.folders = parsed_args.folders
+        self.add_username = parsed_args.add_username
+        self._check_args()
 
     def _check_args(self):
         for path in self.folders:

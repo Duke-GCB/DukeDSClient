@@ -3,6 +3,11 @@ import json
 import requests
 
 
+class ContentType(object):
+    json = 'application/json'
+    form = 'application/x-www-form-urlencoded'
+
+
 class DataServiceApi(object):
     """
     Sends json messages and receives responses back from Duke Data Service api.
@@ -15,28 +20,30 @@ class DataServiceApi(object):
         self.bytes_per_chunk = 5242880
         self.http = http
 
-    def _url_parts(self, url_suffix, url_data):
+    def _url_parts(self, url_suffix, url_data, content_type):
         url = self.base_url + url_suffix
-        data_str = json.dumps(url_data)
+        send_data = url_data
+        if content_type == 'application/json':
+            send_data = json.dumps(url_data)
         headers = {
-            'Content-Type': 'application/json',
+            'Content-Type': content_type,
             'Authorization': self.auth
         }
-        return url, data_str, headers
+        return url, send_data, headers
 
-    def _post(self, url_suffix, post_data):
-        (url, data_str, headers) = self._url_parts(url_suffix, post_data)
+    def _post(self, url_suffix, post_data, content_type=ContentType.json):
+        (url, data_str, headers) = self._url_parts(url_suffix, post_data, content_type=content_type)
         resp = self.http.post(url, data_str, headers=headers)
         return self._check_err(resp, url_suffix, post_data)
 
-    def _put(self, url_suffix, put_data):
-        (url, data_str, headers) = self._url_parts(url_suffix, put_data)
+    def _put(self, url_suffix, put_data, content_type=ContentType.json):
+        (url, data_str, headers) = self._url_parts(url_suffix, put_data, content_type=content_type)
         resp = self.http.put(url, data_str, headers=headers)
         return self._check_err(resp, url_suffix, put_data)
 
-    def _get(self, url_suffix, get_data):
-        (url, data_str, headers) = self._url_parts(url_suffix, get_data)
-        resp = self.http.get(url, headers=headers)
+    def _get(self, url_suffix, get_data, content_type=ContentType.json):
+        (url, data_str, headers) = self._url_parts(url_suffix, get_data, content_type=content_type)
+        resp = self.http.get(url, headers=headers, params=data_str)
         return self._check_err(resp, url_suffix, get_data)
 
     def _check_err(self, resp, url_suffix, data):
@@ -123,6 +130,22 @@ class DataServiceApi(object):
         else:
             raise ValueError("Unsupported http_verb:" + http_verb)
 
+    def get_users_by_fullname(self, full_name):
+        data = {
+            "full_name_contains": full_name,
+        }
+        return self._get('/users', data, content_type=ContentType.form)
+
+    def set_user_project_permission(self, project_id, user_id, permission_type):
+        put_data = {
+            "auth_role[id]": 'file_downloader'
+        }
+        return self._put("/projects/" + project_id + "/permissions/" + user_id, put_data,
+                         content_type=ContentType.form)
+
+    def get_file(self, file_id):
+        return self._get('/files/' + file_id, {})
+
 
 class DataServiceError(Exception):
     def __init__(self, response, url_suffix, request_data):
@@ -131,7 +154,7 @@ class DataServiceError(Exception):
         else:
             resp_json = response.json()
         Exception.__init__(self,'Error {} on {} Reason:{} Suggestion:{}'.format(
-            response.status_code, url_suffix, resp_json.get('reason',''), resp_json.get('suggestion','')
+            response.status_code, url_suffix, resp_json.get('reason',resp_json.get('error','')), resp_json.get('suggestion','')
         ))
         self.response = resp_json
         self.url_suffix = url_suffix

@@ -28,7 +28,7 @@ class RemoteContentFetch(object):
             if kind == 'dds-folder':
                 parent.add_child(self._read_folder(child))
             elif kind == 'dds-file':
-                parent.add_child(RemoteFile(child))
+                parent.add_child(self._read_file(child))
             else:
                 raise ValueError("Unknown child type {}".format(kind))
 
@@ -39,6 +39,24 @@ class RemoteContentFetch(object):
             self._add_child_recur(folder, child)
         return folder
 
+    def _read_file(self, file_json):
+        remote_file = RemoteFile(file_json)
+        response = self.data_service.get_file(remote_file.id)
+        hash = response.json()['upload']['hash']
+        remote_file.set_hash(hash['value'], hash['algorithm'])
+        return remote_file
+
+
+    def lookup_user_by_name(self, fullname):
+        res = self.data_service.get_users_by_fullname(fullname)
+        json_data = res.json()
+        results = json_data['results']
+        found_cnt = len(results)
+        if found_cnt == 0:
+            raise ValueError("User not found:" + fullname)
+        elif found_cnt > 1:
+            raise ValueError("Multiple users with name:" + fullname)
+        return RemoteUser(results[0])
 
 
 class RemoteProject(object):
@@ -105,6 +123,11 @@ class RemoteFile(object):
         self.name = json_data['name']
         self.is_deleted = json_data['is_deleted']
         self.size = json_data['upload']['size']
+        self.hash = None
+
+    def set_hash(self, hash, hash_alg):
+        self.hash = hash
+        self.hash_alg = hash_alg
 
     def get_paths(self, parent):
         paths = set()
@@ -113,6 +136,16 @@ class RemoteFile(object):
 
     def __str__(self):
         return 'file: {} id:{} size:{}'.format(self.name, self.id, self.size)
+
+
+class RemoteUser(object):
+    def __init__(self, json_data):
+        self.id = json_data['id']
+        self.username = json_data['username']
+        self.full_name = json_data['full_name']
+
+    def __str__(self):
+        return 'id:{} username:{} full_name:{}'.format(self.id, self.username, self.full_name)
 
 
 class FileOnDisk(object):
@@ -178,20 +211,19 @@ class RemoteContentSender(object):
         if not item.remote_id:
             self.watcher.sending_item(item)
             result = self.data_service.create_project(self.project_name, self.project_name)
-            item.remote_id = result.json()['id']
-            item.sent_to_remote = True
+            item.set_remote_id_after_send(result.json()['id'])
             self.project_id = item.remote_id
 
     def visit_folder(self, item, parent):
         if not item.remote_id:
             self.watcher.sending_item(item)
             result = self.data_service.create_folder(item.name, parent.kind, parent.remote_id)
-            item.remote_id = result.json()['id']
-            item.sent_to_remote = True
+            item.set_remote_id_after_send(result.json()['id'])
 
     def visit_file(self, item, parent):
-        # Always sending files right, no way to know if different without downloading.
-        self.watcher.sending_item(item)
-        file_on_disk = FileOnDisk(self.data_service, item)
-        item.remote_id = file_on_disk.upload(self.project_id, parent.kind, parent.remote_id)
-        item.sent_to_remote = True
+        if item.need_to_send:
+            self.watcher.sending_item(item)
+            file_on_disk = FileOnDisk(self.data_service, item)
+            remote_id = file_on_disk.upload(self.project_id, parent.kind, parent.remote_id)
+            item.set_remote_id_after_send(remote_id)
+

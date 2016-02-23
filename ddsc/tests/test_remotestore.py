@@ -1,6 +1,6 @@
 from unittest import TestCase
 import json
-from ddsc.remotestore import RemoteProject, RemoteFolder, RemoteFile
+from ddsc.remotestore import RemoteProject, RemoteFolder, RemoteFile, RemoteUser
 
 
 class TestProjectFolderFile(TestCase):
@@ -149,3 +149,25 @@ class TestProjectFolderFile(TestCase):
         self.assertEquals('bigWigToWig', file.name)
         self.assertEquals(False, file.is_deleted)
         self.assertEquals(1874572, file.size)
+
+
+class TestRemoteUser(TestCase):
+    def test_parse_user(self):
+        users_json_str = """{
+            "results": [
+            {
+              "id": "12789123897123978",
+              "username": "js123",
+              "full_name": "John Smith"
+            }
+            ]
+        }
+        """
+        blob = json.loads(users_json_str)
+        project_json = blob['results'][0]
+        user = RemoteUser(project_json)
+        self.assertEquals('12789123897123978', user.id)
+        self.assertEquals('js123', user.username)
+        self.assertEquals('John Smith', user.full_name)
+        self.assertEquals('id:12789123897123978 username:js123 full_name:John Smith', str(user))
+
