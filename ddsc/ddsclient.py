@@ -1,17 +1,27 @@
 from localstore import LocalContent, LocalOnlyCounter, UploadReport
-from remotestore import RemoteContentFetch, RemoteContentSender, RemoteUser
+from remotestore import RemoteContentFetch, RemoteContentSender
 from util import ProgressPrinter
 from ddsapi import DataServiceApi
 
 
 class DDSClient(object):
+    """
+    Processes request in config, checking local store, checking remote store, sending changes, and printing a report.
+    """
     def __init__(self, config):
+        """
+        Creates a client object based on the configuration passed in.
+        :param config: util.Configuration
+        """
         self.config = config
         self.data_service = DataServiceApi(config.auth, config.url)
         self.remote_fetch = RemoteContentFetch(self.data_service)
         self.local_content = None
 
     def run(self):
+        """
+        Check local store, check remote store, send changes, and printing a report/url.
+        """
         user = None
         if self.config.add_username:
             user = self.remote_fetch.lookup_user_by_name(self.config.add_username)
@@ -29,7 +39,7 @@ class DDSClient(object):
         self.local_content.add_paths(self.config.folders)
 
     def _fetch_remote_content(self):
-        self.remote_project = self.remote_fetch.fetch_remote_project(self.config.project_name, self.config.folders)
+        self.remote_project = self.remote_fetch.fetch_remote_project(self.config.project_name)
 
     def _compare_local_with_remote(self):
         self.local_content.update_remote_ids(self.remote_project)

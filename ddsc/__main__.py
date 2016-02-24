@@ -1,4 +1,4 @@
-"""Duke data service folder upload project ."""
+"""Duke data service folder upload project."""
 
 import sys
 from util import Configuration
