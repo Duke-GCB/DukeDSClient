@@ -9,7 +9,7 @@ class TestProjectFolderFile(TestCase):
             {
               "results": [
                 {
-                  "kind": "dds-project",
+                  "kind": "dds-projectNOPE",
                   "id": "bc6d2ac6-4a52-4421-b6ef-89b96731e843",
                   "name": "test4",
                   "description": "test4desc",
