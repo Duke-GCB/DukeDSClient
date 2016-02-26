@@ -1,7 +1,8 @@
-from util import KindType
+from ddsapi import KindType
+from localstore import ProjectWalker
 
 
-class RemoteContentFetch(object):
+class RemoteStore(object):
     """
     Fetches project tree data from remote store.
     """
@@ -54,7 +55,7 @@ class RemoteContentFetch(object):
         if kind == KindType.folder_str:
             parent.add_child(self._read_folder(child))
         elif kind == KindType.file_str:
-            parent.add_child(self._read_file(child))
+            parent.add_child(self._read_file_metadata(child))
         else:
             raise ValueError("Unknown child type {}".format(kind))
 
@@ -70,7 +71,7 @@ class RemoteContentFetch(object):
             self._add_child(folder, child)
         return folder
 
-    def _read_file(self, file_json):
+    def _read_file_metadata(self, file_json):
         """
         Create RemoteFile based on file_json and fetching it's hash.
         :param file_json: dict JSON data back from remote store
@@ -79,30 +80,48 @@ class RemoteContentFetch(object):
         remote_file = RemoteFile(file_json)
         response = self.data_service.get_file(remote_file.id)
         file_hash = response.json()['upload']['hash']
-        remote_file.set_hash(file_hash['value'], file_hash['algorithm'])
+        if file_hash:
+            remote_file.set_hash(file_hash['value'], file_hash['algorithm'])
         return remote_file
 
-    def lookup_user_by_name(self, fullname):
+    def upload_differences(self, local_project, project_name, progress_printer):
+        sender = RemoteContentSender(self.data_service, local_project.remote_id, project_name, progress_printer)
+        sender.walk_project(local_project)
+
+    def lookup_user_by_name(self, full_name):
         """
-        Query remote store for a single user with the name fullname or raise error.
-        :param fullname: str Users full name separated by a space.
-        :return: RemoteUser user info for single user with fullname
+        Query remote store for a single user with the name full_name or raise error.
+        :param full_name: str Users full name separated by a space.
+        :return: RemoteUser user info for single user with full_name
         """
-        res = self.data_service.get_users_by_fullname(fullname)
+        res = self.data_service.get_users_by_full_name(full_name)
         json_data = res.json()
         results = json_data['results']
         found_cnt = len(results)
         if found_cnt == 0:
-            raise ValueError("User not found:" + fullname)
+            raise ValueError("User not found:" + full_name)
         elif found_cnt > 1:
-            raise ValueError("Multiple users with name:" + fullname)
-        return RemoteUser(results[0])
+            raise ValueError("Multiple users with name:" + full_name)
+        user = RemoteUser(results[0])
+        if user.full_name.lower() != full_name.lower():
+            raise ValueError("User not found:" + full_name)
+        return user
+
+    def set_user_project_permission(self, project, user, auth_role):
+        """
+        Update remote store for user giving auth_role permissions on project.
+        :param project: RemoteProject project to give permissions to
+        :param user: RemoteUser user who we are giving permissions to
+        :param auth_role: str type of authorization to give user(project_admin)
+        """
+        self.data_service.set_user_project_permission(project.id, user.id, auth_role)
 
 
 class RemoteProject(object):
     """
     Project data from a remote store projects request.
     Represents the top of a tree.
+    Has kind property to allow project tree traversal with ProjectWalker.
     """
     def __init__(self, json_data):
         """
@@ -131,6 +150,7 @@ class RemoteFolder(object):
     """
     Folder data from a remote store project_id_children or folder_id_children request.
     Represents a leaf or branch in a project tree.
+    Has kind property to allow project tree traversal with ProjectWalker.
     """
     def __init__(self, json_data):
         """
@@ -158,6 +178,7 @@ class RemoteFile(object):
     """
     File data from a remote store project_id_children or folder_id_children request.
     Represents a leaf in a project tree.
+    Has kind property to allow project tree traversal with ProjectWalker.
     """
     def __init__(self, json_data):
         """
@@ -206,13 +227,13 @@ class FileContentSender(object):
     """
     Sends the data that local_file makes up to the remote store in chunks.
     """
-    def __init__(self, dsa, local_file):
+    def __init__(self, data_service, local_file):
         """
         Setup for sending to remote store.
-        :param dsa: DataServiceApi data service we are sending the content to.
+        :param data_service: DataServiceApi data service we are sending the content to.
         :param local_file: LocalFile file we are sending to remote store
         """
-        self.dsa = dsa
+        self.data_service = data_service
         self.local_file = local_file
         self.filename = local_file.path
         self.content_type = local_file.mimetype
@@ -230,18 +251,18 @@ class FileContentSender(object):
         size = self.local_file.size
         (hash_alg, hash_value) = self.local_file.get_hashpair()
         name = self.local_file.name
-        resp = self.dsa.create_upload(project_id, name, self.content_type, size, hash_value, hash_alg)
+        resp = self.data_service.create_upload(project_id, name, self.content_type, size, hash_value, hash_alg)
         self.upload_id = resp.json()['id']
         self._send_file_chunks()
-        self.dsa.complete_upload(self.upload_id)
-        result = self.dsa.create_file(parent_kind, parent_id, self.upload_id)
+        self.data_service.complete_upload(self.upload_id)
+        result = self.data_service.create_file(parent_kind, parent_id, self.upload_id)
         return result.json()['id']
 
     def _send_file_chunks(self):
         """
         Have the file feed us chunks we can upload.
         """
-        self.local_file.process_chunks(self.dsa.bytes_per_chunk, self.process_chunk)
+        self.local_file.process_chunks(self.data_service.bytes_per_chunk, self.process_chunk)
 
     def process_chunk(self, chunk, chunk_hash_alg, chunk_hash_value):
         """
@@ -251,8 +272,8 @@ class FileContentSender(object):
         :param chunk_hash_alg: str the algorithm used to hash chunk
         :param chunk_hash_value: str the hash value of chunk
         """
-        resp = self.dsa.create_upload_url(self.upload_id, self.chunk_num, len(chunk),
-                                          chunk_hash_value, chunk_hash_alg)
+        resp = self.data_service.create_upload_url(self.upload_id, self.chunk_num, len(chunk),
+                                                   chunk_hash_value, chunk_hash_alg)
         if resp.status_code == 200:
             self._send_file_external(resp.json(), chunk)
             self.chunk_num += 1
@@ -270,7 +291,7 @@ class FileContentSender(object):
         host = url_json['host']
         url = url_json['url']
         http_headers = url_json['http_headers']
-        resp = self.dsa.send_external(http_verb, host, url, http_headers, chunk)
+        resp = self.data_service.send_external(http_verb, host, url, http_headers, chunk)
         if resp.status_code != 200 and resp.status_code != 201:
             raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code))
 
@@ -278,7 +299,6 @@ class FileContentSender(object):
 class RemoteContentSender(object):
     """
     Sends project, folder, and files to remote store.
-    Expects to have visit_project, visit_folder, visit_file called via LocalContent.accept.
     """
     def __init__(self, data_service, project_id, project_name, watcher):
         """
@@ -293,7 +313,15 @@ class RemoteContentSender(object):
         self.project_name = project_name
         self.watcher = watcher
 
-    def visit_project(self, item, parent):
+    def walk_project(self, project):
+        """
+        For each project, folder, and files send to remote store if necessary.
+        :param project: LocalProject project who's contents we want to walk/send.
+        """
+        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
+        ProjectWalker.walk_project(project, self)
+
+    def visit_project(self, item):
         """
         Send a project to remote store if necessary.
         :param item: LocalProject we should send
@@ -324,7 +352,7 @@ class RemoteContentSender(object):
         """
         if item.need_to_send:
             self.watcher.sending_item(item)
-            file_on_disk = FileContentSender(self.data_service, item)
-            remote_id = file_on_disk.upload(self.project_id, parent.kind, parent.remote_id)
+            file_content_sender = FileContentSender(self.data_service, item)
+            remote_id = file_content_sender.upload(self.project_id, parent.kind, parent.remote_id)
             item.set_remote_id_after_send(remote_id)
 

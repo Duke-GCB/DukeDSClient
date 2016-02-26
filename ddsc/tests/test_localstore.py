@@ -2,7 +2,7 @@ from unittest import TestCase
 import os
 import shutil
 import tarfile
-from ddsc.localstore import LocalFile, LocalFolder, LocalContent
+from ddsc.localstore import LocalFile, LocalFolder, LocalProject
 
 
 class TestProjectFolderFile(TestCase):
@@ -71,32 +71,32 @@ class TestProjectContent(TestCase):
         self.assertEquals('DukeDSClient', content.name)
 
     def test_empty_str(self):
-        content = LocalContent(False)
+        content = LocalProject(False)
         self.assertEquals('project: []', str(content))
 
     def test_top_level_file_str(self):
-        content = LocalContent(False)
+        content = LocalProject(False)
         content.add_path('/tmp/DukeDsClientTestFolder/note.txt')
         self.assertEquals('project: [file:note.txt]', str(content))
 
     def test_empty_folder_str(self):
-        content = LocalContent(False)
+        content = LocalProject(False)
         content.add_path('/tmp/DukeDsClientTestFolder/emptyfolder')
         self.assertEquals('project: [folder:emptyfolder []]', str(content))
 
     def test_empty_folder_and_file_str(self):
-        content = LocalContent(False)
+        content = LocalProject(False)
         content.add_path('/tmp/DukeDsClientTestFolder/emptyfolder')
         content.add_path('/tmp/DukeDsClientTestFolder/note.txt')
         self.assertEquals('project: [folder:emptyfolder [], file:note.txt]', str(content))
 
     def test_one_folder_str(self):
-        content = LocalContent(False)
+        content = LocalProject(False)
         content.add_path('/tmp/DukeDsClientTestFolder/scripts')
         self.assertEquals('project: [folder:scripts [file:makemoney.sh]]', str(content))
 
     def test_nested_folder_str(self):
-        content = LocalContent(False)
+        content = LocalProject(False)
         content.add_path('/tmp/DukeDsClientTestFolder/results')
         self.assertEquals(('project: [folder:results ['
                            'file:result1929.txt, '
@@ -106,7 +106,7 @@ class TestProjectContent(TestCase):
                            ']]'), str(content))
 
     def test_big_folder_str(self):
-        content = LocalContent(False)
+        content = LocalProject(False)
         content.add_path('/tmp/DukeDsClientTestFolder')
         self.assertEquals(('project: [folder:DukeDsClientTestFolder ['
                            'file:note.txt, '

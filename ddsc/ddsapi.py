@@ -2,6 +2,9 @@
 import json
 import requests
 
+# Swift is currently configured for 5MB file upload chunk size.
+SWIFT_BYTES_PER_CHUNK = 5242880
+
 
 class ContentType(object):
     """
@@ -9,6 +12,27 @@ class ContentType(object):
     """
     json = 'application/json'
     form = 'application/x-www-form-urlencoded'
+
+
+class KindType(object):
+    """
+    Holds the types of files supported by DDS.
+    """
+    file_str = 'dds-file'
+    folder_str = 'dds-folder'
+    project_str = 'dds-project'
+
+    @staticmethod
+    def is_file(item):
+        return item.kind == KindType.file_str
+
+    @staticmethod
+    def is_folder(item):
+        return item.kind == KindType.folder_str
+
+    @staticmethod
+    def is_project(item):
+        return item.kind == KindType.project_str
 
 
 class DataServiceApi(object):
@@ -26,7 +50,7 @@ class DataServiceApi(object):
         """
         self.auth = auth
         self.base_url = url
-        self.bytes_per_chunk = 5242880
+        self.bytes_per_chunk = SWIFT_BYTES_PER_CHUNK
         self.http = http
 
     def _url_parts(self, url_suffix, url_data, content_type):
@@ -245,7 +269,7 @@ class DataServiceApi(object):
         else:
             raise ValueError("Unsupported http_verb:" + http_verb)
 
-    def get_users_by_fullname(self, full_name):
+    def get_users_by_full_name(self, full_name):
         """
         Send GET request to /users filtering by those full name contains full_name.
         :param full_name: str name of the user we are searching for
@@ -290,10 +314,10 @@ class DataServiceError(Exception):
         :param url_suffix: str url we were trying to connect to
         :param request_data: object data we were sending to url
         """
+        resp_json = response.json()
         if response.status_code == 500:
-            resp_json = {'reason':'Internal Server Error', 'suggestion':'Contact DDS support.'}
-        else:
-            resp_json = response.json()
+            if not resp_json.get('reason'):
+                resp_json = {'reason':'Internal Server Error', 'suggestion':'Contact DDS support.'}
         Exception.__init__(self,'Error {} on {} Reason:{} Suggestion:{}'.format(
             response.status_code, url_suffix, resp_json.get('reason',resp_json.get('error','')), resp_json.get('suggestion','')
         ))
