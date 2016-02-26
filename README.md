@@ -1,5 +1,5 @@
 # DukeDSClient
-Command line tool to upload the contents of a folder into a project on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
+Command line tool to upload/manage project on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
 
 ###Install:
 ```
@@ -27,9 +27,9 @@ See general help screen:
 ```
 ddsclient -h
 ```
-See help screen for a paricular command:
+See help screen for a particular command:
 ```
-ddsclient upload -h
+ddsclient <command> -h
 ```
 
 All commands take the form:
@@ -52,11 +52,11 @@ Example: Upload a folder named 'results' to new or existing project named 'Analy
 ddsclient upload -p 'Analyzed Mouse RNA' results
 ```
 
-###Add User To project:
+###Add User To Project:
 ```
 ddsclient add_user -p <ProjectName> -u <UserFullName> --auth_role 'project_admin'
 ```
-Example: Grant permission to user named 'John Bradley' for a project named ''Analyzed Mouse RNA':
+Example: Grant permission to user named 'John Bradley' for a project named ''Analyzed Mouse RNA' with default permissions:
 ```
 ddsclient add_user -p 'Analyzed Mouse RNA' -u 'John Bradley'
 ```
