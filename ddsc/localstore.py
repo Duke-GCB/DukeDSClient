@@ -2,7 +2,7 @@ import os
 import datetime
 import hashlib
 import mimetypes
-from ddsapi import KindType
+from ddsc.ddsapi import KindType, SWIFT_BYTES_PER_CHUNK
 
 
 class LocalProject(object):
@@ -246,6 +246,9 @@ class LocalFile(object):
                 for chunk in LocalFile.read_in_chunks(infile, bytes_per_chunk):
                     (chunk_hash_alg, chunk_hash_value) = LocalFile.hash_chunk(chunk)
                     processor(chunk, chunk_hash_alg, chunk_hash_value)
+
+    def count_chunks(self, bytes_per_chunk):
+        return int(float(self.size) / float(bytes_per_chunk))
 
     @staticmethod
     def read_in_chunks(infile, blocksize):
@@ -512,10 +515,12 @@ class LocalOnlyCounter(object):
     """
     Visitor that counts items that need to be sent in LocalContent.
     """
-    def __init__(self):
+    def __init__(self, bytes_per_chunk):
         self.projects = 0
         self.folders = 0
         self.files = 0
+        self.chunks = 0
+        self.bytes_per_chunk = bytes_per_chunk
 
     def walk_project(self, project):
         """
@@ -550,13 +555,14 @@ class LocalOnlyCounter(object):
         """
         if item.need_to_send:
             self.files += 1
+            self.chunks += item.count_chunks(self.bytes_per_chunk)
 
     def total_items(self):
         """
-        Total number of items that need to be sent.
+        Total number of files/folders/chunks that need to be sent.
         :return: int number of items to be sent.
         """
-        return self.projects + self.folders + self.files
+        return self.projects + self.folders + self.chunks
 
     def result_str(self):
         """

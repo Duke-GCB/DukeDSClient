@@ -1,10 +1,16 @@
+from __future__ import print_function
 import os
 import sys
-import urlparse
-from localstore import LocalProject, LocalOnlyCounter, UploadReport
-from remotestore import RemoteStore, RemoteContentSender
-from ddsapi import DataServiceApi, KindType
-from cmdparser import CommandParser
+try:
+     from urllib.parse import urlparse
+except ImportError:
+     from urlparse import urlparse
+
+from ddsc.localstore import LocalProject, LocalOnlyCounter, UploadReport
+from ddsc.remotestore import RemoteStore, RemoteContentSender
+from ddsc.ddsapi import DataServiceApi, KindType, SWIFT_BYTES_PER_CHUNK
+from ddsc.cmdparser import CommandParser
+
 
 DDS_DEFAULT_URL = 'https://uatest.dataservice.duke.edu/api/v1'
 
@@ -39,7 +45,7 @@ class Config(object):
         :return: str root url of the data service (eg: https://uatest.dataservice.duke.edu)
         """
         url = self.get_data_service_url()
-        return urlparse.urlparse(url).hostname
+        return urlparse(url).hostname
 
 
 class DDSClient(object):
@@ -140,7 +146,7 @@ class UploadCommand(object):
         :param local_project: LocalProject project we will send data from
         :return: LocalOnlyCounter contains counts for various items
         """
-        different_items = LocalOnlyCounter()
+        different_items = LocalOnlyCounter(SWIFT_BYTES_PER_CHUNK)
         different_items.walk_project(local_project)
         return different_items
 
@@ -149,7 +155,7 @@ class UploadCommand(object):
         Print a summary of what is to be done.
         :param different_items: LocalOnlyCounter item that contains the summary
         """
-        print 'Uploading {}.'.format(different_items.result_str())
+        print('Uploading {}.'.format(different_items.result_str()))
 
     def _upload_differences(self, local_project, project_name, different_items_cnt):
         """
@@ -201,7 +207,7 @@ class AddUserCommand(object):
         project = self._fetch_project(project_name)
         user = self.remote_store.lookup_user_by_name(user_full_name)
         self.remote_store.set_user_project_permission(project, user, auth_role)
-        print 'Gave user {} {} permissions for {}.'.format(user_full_name, auth_role, project_name)
+        print('Gave user {} {} permissions for {}.'.format(user_full_name, auth_role, project_name))
 
     def _fetch_project(self, project_name):
         remote_project = self.remote_store.fetch_remote_project(project_name)

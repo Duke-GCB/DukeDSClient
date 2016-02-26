@@ -1,5 +1,5 @@
-from ddsapi import KindType
-from localstore import ProjectWalker
+from ddsc.ddsapi import KindType
+from ddsc.localstore import ProjectWalker
 
 
 class RemoteStore(object):
@@ -227,7 +227,7 @@ class FileContentSender(object):
     """
     Sends the data that local_file makes up to the remote store in chunks.
     """
-    def __init__(self, data_service, local_file):
+    def __init__(self, data_service, local_file, watcher):
         """
         Setup for sending to remote store.
         :param data_service: DataServiceApi data service we are sending the content to.
@@ -239,6 +239,7 @@ class FileContentSender(object):
         self.content_type = local_file.mimetype
         self.chunk_num = 0
         self.upload_id = None
+        self.watcher = watcher
 
     def upload(self, project_id, parent_kind, parent_id):
         """
@@ -272,6 +273,7 @@ class FileContentSender(object):
         :param chunk_hash_alg: str the algorithm used to hash chunk
         :param chunk_hash_value: str the hash value of chunk
         """
+        self.watcher.sending_item(self.local_file)
         resp = self.data_service.create_upload_url(self.upload_id, self.chunk_num, len(chunk),
                                                    chunk_hash_value, chunk_hash_alg)
         if resp.status_code == 200:
@@ -351,8 +353,7 @@ class RemoteContentSender(object):
         :param parent: LocalContent/LocalFolder that contains this file
         """
         if item.need_to_send:
-            self.watcher.sending_item(item)
-            file_content_sender = FileContentSender(self.data_service, item)
+            file_content_sender = FileContentSender(self.data_service, item, self.watcher)
             remote_id = file_content_sender.upload(self.project_id, parent.kind, parent.remote_id)
             item.set_remote_id_after_send(remote_id)
 

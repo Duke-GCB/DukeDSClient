@@ -1,7 +1,7 @@
 """Duke data service folder upload project."""
 
 import sys
-from ddsclient import DDSClient, Config
+from ddsc.ddsclient import DDSClient, Config
 
 
 def main(args=None):

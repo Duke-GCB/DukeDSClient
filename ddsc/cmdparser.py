@@ -141,4 +141,7 @@ class CommandParser(object):
         :param args: [str] command line arguments
         """
         parsed_args = self.parser.parse_args(args)
-        parsed_args.func(parsed_args)
+        if hasattr(parsed_args, 'func'):
+            parsed_args.func(parsed_args)
+        else:
+            self.parser.print_help()
