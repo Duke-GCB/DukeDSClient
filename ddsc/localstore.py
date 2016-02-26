@@ -2,23 +2,24 @@ import os
 import datetime
 import hashlib
 import mimetypes
-from util import KindType
+from ddsapi import KindType
 
 
-class LocalContent(object):
+class LocalProject(object):
     """
     Represents a list of folder/file trees on the filesystem.
+    Has kind property to allow project tree traversal with ProjectWalker.
     """
-    def __init__(self, allow_symlink):
+    def __init__(self, followsymlinks):
         """
         Creates a list of local file system content that can be sent to a remote project.
-        :param allow_symlink: bool follow symbolic links when looking for content
+        :param followsymlinks: bool follow symbolic links when looking for content
         """
         self.remote_id = ''
         self.kind = KindType.project_str
         self.children = []
         self.sent_to_remote = False
-        self.allow_symlink = allow_symlink
+        self.followsymlinks = followsymlinks
 
     def add_path(self, path):
         """
@@ -26,7 +27,7 @@ class LocalContent(object):
         :param path: str path to add
         """
         abspath = os.path.abspath(path)
-        self.children.append(_build_project_tree(abspath, self.allow_symlink))
+        self.children.append(_build_project_tree(abspath, self.followsymlinks))
 
     def add_paths(self, path_list):
         """
@@ -35,13 +36,6 @@ class LocalContent(object):
         """
         for path in path_list:
             self.add_path(path)
-
-    def accept(self, visitor):
-        """
-        Traverse the content trees with a visitor.
-        :param visitor: object who implements visit_project, visit_folder, visit_file
-        """
-        _visit_content(self, None, visitor)
 
     def update_remote_ids(self, remote_project):
         """
@@ -65,24 +59,6 @@ class LocalContent(object):
         return 'project: [{}]'.format(child_str)
 
 
-def _visit_content(item, parent, visitor):
-    """
-    Recursively visit nodes in the project tree.
-    :param item: LocalContent/LocalFolder/LocalFile we are traversing down from
-    :param parent: LocalContent/LocalFolder parent or None
-    :param visitor: object visiting the tree
-    """
-    if KindType.is_project(item):
-        visitor.visit_project(item, parent)
-    elif KindType.is_folder(item):
-        visitor.visit_folder(item, parent)
-    else:
-        visitor.visit_file(item, parent)
-    if not KindType.is_file(item):
-        for child in item.children:
-            _visit_content(child, item, visitor)
-
-
 def _name_to_child_map(children):
     """
     Create a map of name to child based on a list.
@@ -97,7 +73,7 @@ def _name_to_child_map(children):
 
 def _update_remote_children(remote_parent, children):
     """
-    Update remote_ids based on on parent.
+    Update remote_ids based on on parent matching up the names of children.
     :param remote_parent: RemoteProject/RemoteFolder who has children
     :param children: [LocalFolder,LocalFile] children to set remote_ids based on remote children
     """
@@ -108,31 +84,31 @@ def _update_remote_children(remote_parent, children):
             local_child.update_remote_ids(remote_child)
 
 
-def _build_project_tree(path, allow_symlink):
+def _build_project_tree(path, followsymlinks):
     """
     Build a tree of LocalFolder with children or just a LocalFile based on a path.
     :param path: str path to a directory to walk
-    :param allow_symlink: bool should we follow symlinks when walking
+    :param followsymlinks: bool should we follow symlinks when walking
     :return: the top node of the tree LocalFile or LocalFolder
     """
     result = None
     if os.path.isfile(path):
         result = LocalFile(path)
     else:
-        result = _build_folder_tree(os.path.abspath(path), allow_symlink)
+        result = _build_folder_tree(os.path.abspath(path), followsymlinks)
     return result
 
 
-def _build_folder_tree(top_abspath, allow_symlink):
+def _build_folder_tree(top_abspath, followsymlinks):
     """
     Build a tree of LocalFolder with children based on a path.
     :param top_abspath: str path to a directory to walk
-    :param allow_symlink: bool should we follow symlinks when walking
+    :param followsymlinks: bool should we follow symlinks when walking
     :return: the top node of the tree LocalFolder
     """
     path_to_content = {}
     child_to_parent = {}
-    for dir_name, child_dirs, child_files in os.walk(top_abspath, followlinks=allow_symlink):
+    for dir_name, child_dirs, child_files in os.walk(top_abspath, followlinks=followsymlinks):
         abspath = os.path.abspath(dir_name)
         folder = LocalFolder(abspath)
         path_to_content[abspath] = folder
@@ -152,6 +128,7 @@ def _build_folder_tree(top_abspath, allow_symlink):
 class LocalFolder(object):
     """
     A folder on disk.
+    Has kind property to allow project tree traversal with ProjectWalker.
     """
     def __init__(self, path):
         """
@@ -197,6 +174,7 @@ class LocalFolder(object):
 class LocalFile(object):
     """
     Represents a file on disk.
+    Has kind property to allow project tree traversal with ProjectWalker.
     """
     def __init__(self, path):
         """
@@ -218,7 +196,7 @@ class LocalFile(object):
 
     def get_hashpair(self):
         """
-        Return a tupil of algorithm name(md5) and a hash of the entire file.
+        Return a tuple of algorithm name(md5) and a hash of the entire file.
         :return: (str, str) format (<algorithm>, <hashvalue>)
         """
         hash = HashUtil()
@@ -254,14 +232,20 @@ class LocalFile(object):
     def process_chunks(self, bytes_per_chunk, processor):
         """
         Lazily processes the contents of the file given a max size per chunk.
+        Zero byte files will process one empty chunk to conform to the remote store.
         :param bytes_per_chunk: int size of chunks
         :param processor: function to process the data
         """
-        with open(self.path,'rb') as infile:
-            number = 0
-            for chunk in LocalFile.read_in_chunks(infile, bytes_per_chunk):
-                (chunk_hash_alg, chunk_hash_value) = LocalFile.hash_chunk(chunk)
-                processor(chunk, chunk_hash_alg, chunk_hash_value)
+        if self.size == 0:
+            chunk = ''
+            (chunk_hash_alg, chunk_hash_value) = LocalFile.hash_chunk(chunk)
+            processor(chunk, chunk_hash_alg, chunk_hash_value)
+        else:
+            with open(self.path,'rb') as infile:
+                number = 0
+                for chunk in LocalFile.read_in_chunks(infile, bytes_per_chunk):
+                    (chunk_hash_alg, chunk_hash_value) = LocalFile.hash_chunk(chunk)
+                    processor(chunk, chunk_hash_alg, chunk_hash_value)
 
     @staticmethod
     def read_in_chunks(infile, blocksize):
@@ -324,18 +308,24 @@ class HashUtil(object):
 class LocalOnlyCounter(object):
     """
     Visitor that counts items that need to be sent in LocalContent.
-    Meant to be passed to the LocalContent.accept method.
     """
     def __init__(self):
         self.projects = 0
         self.folders = 0
         self.files = 0
 
-    def visit_project(self, item, parent):
+    def walk_project(self, project):
+        """
+        Increment counters for each project, folder, and files calling visit methods below.
+        :param project: LocalProject project we will count items of.
+        """
+        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
+        ProjectWalker.walk_project(project, self)
+
+    def visit_project(self, item):
         """
         Increments counter if the project is not already remote.
         :param item: LocalProject
-        :param parent: None always None since projects don't have parents
         """
         if not item.remote_id:
             self.projects += 1
@@ -391,7 +381,6 @@ class LocalOnlyCounter(object):
 class UploadReport(object):
     """
     Creates a text report of items that were sent to the remote store.
-    Does this via LocalStore.accept visit_* methods.
     """
     def __init__(self, project_name):
         """
@@ -400,19 +389,26 @@ class UploadReport(object):
         """
         self.report_items = []
         self.project_name = project_name
-        self._add_report_item('Sent filename','ID', 'SIZE')
+        self._add_report_item('SENT FILENAME','ID', 'SIZE', 'HASH')
 
-    def _add_report_item(self, name, remote_id, size):
-        self.report_items.append(ReportItem(name, remote_id, size))
+    def _add_report_item(self, name, remote_id, size='', file_hash=''):
+        self.report_items.append(ReportItem(name, remote_id, size, file_hash))
 
-    def visit_project(self, item, parent):
+    def walk_project(self, project):
+        """
+        Create report items for each project, folder, and files if necessary calling visit_* methods below.
+        :param project: LocalProject project we will count items of.
+        """
+        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
+        ProjectWalker.walk_project(project, self)
+
+    def visit_project(self, item):
         """
         Add project to the report if it was sent.
         :param item: LocalContent project level item
-        :param parent: None not used here
         """
         if item.sent_to_remote:
-            self._add_report_item('Project', item.remote_id, '')
+            self._add_report_item('Project', item.remote_id)
 
     def visit_folder(self, item, parent):
         """
@@ -421,7 +417,7 @@ class UploadReport(object):
         :param parent: LocalFolder/LocalContent not used here
         """
         if item.sent_to_remote:
-            self._add_report_item(item.path, item.remote_id, '')
+            self._add_report_item(item.path, item.remote_id)
 
     def visit_file(self, item, parent):
         """
@@ -430,19 +426,25 @@ class UploadReport(object):
         :param parent: LocalFolder/LocalContent not used here
         """
         if item.sent_to_remote:
-            self._add_report_item(item.path, item.remote_id, item.size)
+            (alg, file_hash) = item.get_hashpair()
+            self._add_report_item(item.path, item.remote_id, item.size, file_hash)
 
-    def report_header(self):
-        return "Upload Report for Project: '{}' {}".format(self.project_name, datetime.datetime.utcnow())
+    def _report_header(self):
+        return "Upload Report for Project: '{}' {}\n".format(self.project_name, datetime.datetime.utcnow())
 
-    def report_body(self):
-        max_name = max([len(item.name) for item in self.report_items])
-        max_remote_id = max([len(item.remote_id) for item in self.report_items])
-        return [item.str_with_sizes(max_name, max_remote_id) for item in self.report_items]
+    def _report_body(self):
+        max_name = UploadReport.max_len([item.name for item in self.report_items])
+        max_remote_id = UploadReport.max_len([item.remote_id for item in self.report_items])
+        max_size = UploadReport.max_len([item.size for item in self.report_items])
+        return [item.str_with_sizes(max_name, max_remote_id, max_size) for item in self.report_items]
+
+    @staticmethod
+    def max_len(values):
+        return max([len(x) for x in values])
 
     def __str__(self):
-        lines = [self.report_header()]
-        lines.extend(self.report_body())
+        lines = [self._report_header()]
+        lines.extend(self._report_body())
         return '\n'.join(lines)
 
 
@@ -450,7 +452,7 @@ class ReportItem(object):
     """
     Item sent to remote store that is part of the UploadReport.
     """
-    def __init__(self, name, remote_id, size):
+    def __init__(self, name, remote_id, size='', file_hash=''):
         """
         Setup properties for use in str method
         :param name: str name of the
@@ -460,9 +462,10 @@ class ReportItem(object):
         """
         self.name = name
         self.remote_id = remote_id
-        self.size = size
+        self.size = str(size)
+        self.file_hash = file_hash
 
-    def str_with_sizes(self, max_name, max_remote_id):
+    def str_with_sizes(self, max_name, max_remote_id, max_size):
         """
         Create string for report based on internal properties using sizes to line up columns.
         :param max_name: int width of the name column
@@ -471,4 +474,108 @@ class ReportItem(object):
         """
         name_str = self.name.ljust(max_name)
         remote_id_str = self.remote_id.ljust(max_remote_id)
-        return '{}    {}    {}'.format(name_str, remote_id_str, self.size)
+        size_str = self.size.ljust(max_size)
+        return '{}    {}    {}    {}'.format(name_str, remote_id_str, size_str, self.file_hash)
+
+
+class ProjectWalker(object):
+    @staticmethod
+    def walk_project(project, visitor):
+        """
+
+        :param project: LocalProject project we want to visit all children of.
+        :param visitor: object must implement visit_project, visit_folder, visit_file
+        :return:
+        """
+        ProjectWalker._visit_content(project, None, visitor)
+
+    @staticmethod
+    def _visit_content(item, parent, visitor):
+        """
+        Recursively visit nodes in the project tree.
+        :param item: LocalContent/LocalFolder/LocalFile we are traversing down from
+        :param parent: LocalContent/LocalFolder parent or None
+        :param visitor: object visiting the tree
+        """
+        if KindType.is_project(item):
+            visitor.visit_project(item)
+        elif KindType.is_folder(item):
+            visitor.visit_folder(item, parent)
+        else:
+            visitor.visit_file(item, parent)
+        if not KindType.is_file(item):
+            for child in item.children:
+                ProjectWalker._visit_content(child, item, visitor)
+
+
+class LocalOnlyCounter(object):
+    """
+    Visitor that counts items that need to be sent in LocalContent.
+    """
+    def __init__(self):
+        self.projects = 0
+        self.folders = 0
+        self.files = 0
+
+    def walk_project(self, project):
+        """
+        Increment counters for each project, folder, and files calling visit methods below.
+        :param project: LocalProject project we will count items of.
+        """
+        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
+        ProjectWalker.walk_project(project, self)
+
+    def visit_project(self, item):
+        """
+        Increments counter if the project is not already remote.
+        :param item: LocalProject
+        """
+        if not item.remote_id:
+            self.projects += 1
+
+    def visit_folder(self, item, parent):
+        """
+        Increments counter if item is not already remote
+        :param item: LocalFolder
+        :param parent: LocalFolder/LocalProject
+        """
+        if not item.remote_id:
+            self.folders += 1
+
+    def visit_file(self, item, parent):
+        """
+        Increments counter if item needs to be sent.
+        :param item: LocalFile
+        :param parent: LocalFolder/LocalProject
+        """
+        if item.need_to_send:
+            self.files += 1
+
+    def total_items(self):
+        """
+        Total number of items that need to be sent.
+        :return: int number of items to be sent.
+        """
+        return self.projects + self.folders + self.files
+
+    def result_str(self):
+        """
+        Return a string representing the totals contained herein.
+        :return: str counts/types string
+        """
+        return '{}, {}, {}'.format(LocalOnlyCounter.plural_fmt('project', self.projects),
+                                   LocalOnlyCounter.plural_fmt('folder', self.folders),
+                                   LocalOnlyCounter.plural_fmt('file', self.files))
+
+    @staticmethod
+    def plural_fmt(name, cnt):
+        """
+        pluralize name if necessary and combine with cnt
+        :param name: str name of the item type
+        :param cnt: int number items of this type
+        :return: str name and cnt joined
+        """
+        if cnt == 1:
+            return '{} {}'.format(cnt, name)
+        else:
+            return '{} {}s'.format(cnt, name)
