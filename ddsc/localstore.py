@@ -1,4 +1,5 @@
 import os
+import math
 import datetime
 import hashlib
 import mimetypes
@@ -248,7 +249,7 @@ class LocalFile(object):
                     processor(chunk, chunk_hash_alg, chunk_hash_value)
 
     def count_chunks(self, bytes_per_chunk):
-        return int(float(self.size) / float(bytes_per_chunk))
+        return math.ceil(float(self.size) / float(bytes_per_chunk))
 
     @staticmethod
     def read_in_chunks(infile, blocksize):
