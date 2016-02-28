@@ -2,8 +2,20 @@
 Command line parser for the application.
 """
 import os
+import sys
 import argparse
 
+
+def to_unicode(s):
+    """
+    Convert a command line string to utf8 unicode.
+    :param s: string to convert to unicode
+    :return: unicode string for argument
+    """
+    if sys.version_info >= (3,0,0):
+        return str(s)
+    else:
+        return unicode(s, 'utf8')
 
 def _add_project_name_arg(arg_parser):
     """
@@ -12,6 +24,7 @@ def _add_project_name_arg(arg_parser):
     """
     arg_parser.add_argument("-p",
                            metavar='ProjectName',
+                           type=to_unicode,
                            dest='project_name',
                            help="Name of the remote project to upload local files to.",
                            required=True)
@@ -23,6 +36,7 @@ def _paths_must_exists(path):
     :param path: str path to check
     :return: str same path passed in
     """
+    path = to_unicode(path)
     if not os.path.exists(path):
      raise argparse.ArgumentTypeError("{} is not a valid file/folder.".format(path))
     return path
@@ -58,6 +72,7 @@ def _add_user_full_name_arg(arg_parser):
     """
     arg_parser.add_argument("-user_full_name",
                             metavar='UserFullName',
+                            type=to_unicode,
                             dest='user_full_name',
                             help="Specifies full name of the person in 'Firstname LastName' format.",
                             required=True)
@@ -70,6 +85,7 @@ def _add_auth_role_arg(arg_parser):
     """
     arg_parser.add_argument("--auth_role",
                             metavar='AuthRole',
+                            type=to_unicode,
                             dest='auth_role',
                             help="Specifies authorization role for the user ('project_admin').",
                             default='project_admin')
