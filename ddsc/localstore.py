@@ -393,7 +393,7 @@ class UploadReport(object):
         """
         self.report_items = []
         self.project_name = project_name
-        self._add_report_item('SENT FILENAME','ID', 'SIZE', 'HASH')
+        self._add_report_item('SENT FILENAME', 'ID', 'SIZE', 'HASH')
 
     def _add_report_item(self, name, remote_id, size='', file_hash=''):
         self.report_items.append(ReportItem(name, remote_id, size, file_hash))
@@ -434,7 +434,7 @@ class UploadReport(object):
             self._add_report_item(item.path, item.remote_id, item.size, file_hash)
 
     def _report_header(self):
-        return "Upload Report for Project: '{}' {}\n".format(self.project_name, datetime.datetime.utcnow())
+        return u"Upload Report for Project: '{}' {}\n".format(self.project_name, datetime.datetime.utcnow())
 
     def _report_body(self):
         max_name = UploadReport.max_len([item.name for item in self.report_items])
@@ -446,7 +446,7 @@ class UploadReport(object):
     def max_len(values):
         return max([len(x) for x in values])
 
-    def __str__(self):
+    def get_content(self):
         lines = [self._report_header()]
         lines.extend(self._report_body())
         return '\n'.join(lines)
@@ -479,7 +479,7 @@ class ReportItem(object):
         name_str = self.name.ljust(max_name)
         remote_id_str = self.remote_id.ljust(max_remote_id)
         size_str = self.size.ljust(max_size)
-        return '{}    {}    {}    {}'.format(name_str, remote_id_str, size_str, self.file_hash)
+        return u'{}    {}    {}    {}'.format(name_str, remote_id_str, size_str, self.file_hash)
 
 
 class ProjectWalker(object):

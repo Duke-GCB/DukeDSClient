@@ -2,12 +2,12 @@ from __future__ import print_function
 import os
 import sys
 try:
-     from urllib.parse import urlparse
+    from urllib.parse import urlparse
 except ImportError:
-     from urlparse import urlparse
+    from urlparse import urlparse
 
 from ddsc.localstore import LocalProject, LocalOnlyCounter, UploadReport
-from ddsc.remotestore import RemoteStore, RemoteContentSender
+from ddsc.remotestore import RemoteStore
 from ddsc.ddsapi import DataServiceApi, KindType, SWIFT_BYTES_PER_CHUNK
 from ddsc.cmdparser import CommandParser
 
@@ -176,7 +176,7 @@ class UploadCommand(object):
         report = UploadReport(project_name)
         report.walk_project(local_project)
         print('\n')
-        print(report)
+        print(report.get_content())
         print('\n')
 
     def _print_url(self, local_project):
@@ -207,12 +207,12 @@ class AddUserCommand(object):
         project = self._fetch_project(project_name)
         user = self.remote_store.lookup_user_by_name(user_full_name)
         self.remote_store.set_user_project_permission(project, user, auth_role)
-        print('Gave user {} {} permissions for {}.'.format(user_full_name, auth_role, project_name))
+        print(u'Gave user {} {} permissions for {}.'.format(user_full_name, auth_role, project_name))
 
     def _fetch_project(self, project_name):
         remote_project = self.remote_store.fetch_remote_project(project_name)
         if not remote_project:
-            raise ValueError('There is no project with the name {}'.format(project_name))
+            raise ValueError(u'There is no project with the name {}'.format(project_name).encode('utf-8'))
         return remote_project
 
 
@@ -242,7 +242,7 @@ class ProgressPrinter(object):
         else:
             name = item.path
         # left justify message so we cover up the previous one
-        message = '\rProgress: {}% - sending {}'.format(percent_done, name)
+        message = u'\rProgress: {}% - sending {}'.format(percent_done, name)
         self.max_width = max(len(message), self.max_width)
         sys.stdout.write(message.ljust(self.max_width))
         sys.stdout.flush()
