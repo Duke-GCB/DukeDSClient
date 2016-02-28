@@ -479,7 +479,7 @@ class ReportItem(object):
         name_str = self.name.ljust(max_name)
         remote_id_str = self.remote_id.ljust(max_remote_id)
         size_str = self.size.ljust(max_size)
-        return '{}    {}    {}    {}'.format(name_str, remote_id_str, size_str, self.file_hash)
+        return u'{}    {}    {}    {}'.format(name_str, remote_id_str, size_str, self.file_hash)
 
 
 class ProjectWalker(object):

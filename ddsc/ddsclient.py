@@ -242,7 +242,7 @@ class ProgressPrinter(object):
         else:
             name = item.path
         # left justify message so we cover up the previous one
-        message = '\rProgress: {}% - sending {}'.format(percent_done, name)
+        message = u'\rProgress: {}% - sending {}'.format(percent_done, name)
         self.max_width = max(len(message), self.max_width)
         sys.stdout.write(message.ljust(self.max_width))
         sys.stdout.flush()
