@@ -158,7 +158,8 @@ class TestRemoteUser(TestCase):
             {
               "id": "12789123897123978",
               "username": "js123",
-              "full_name": "John Smith"
+              "full_name": "John Smith",
+              "email": "john.smith@duke.edu"
             }
             ]
         }

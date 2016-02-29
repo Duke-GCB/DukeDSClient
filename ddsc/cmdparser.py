@@ -65,18 +65,29 @@ def _add_follow_symlinks_arg(arg_parser):
                             dest='follow_symlinks')
 
 
-def _add_user_full_name_arg(arg_parser):
+def _add_user_arg(arg_parser):
     """
-    Adds user_full_name parameter to a parser.
+    Adds username parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
-    arg_parser.add_argument("-user_full_name",
-                            metavar='UserFullName',
+    arg_parser.add_argument("-user",
+                            metavar='Username',
                             type=to_unicode,
-                            dest='user_full_name',
-                            help="Specifies full name of the person in 'Firstname LastName' format.",
-                            required=True)
+                            dest='username',
+                            help="Specifies username to give permissions to(you must specify either -email or this flag).")
 
+
+def _add_email_arg(arg_parser):
+    """
+    Adds user_email parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    """
+    arg_parser.add_argument("-email",
+                            metavar='UserEmail',
+                            type=to_unicode,
+                            dest='email',
+                            help="Specifies email of the person we want to give permission"
+                                 "(you must specify either -user or this flag).")
 
 def _add_auth_role_arg(arg_parser):
     """
@@ -135,7 +146,9 @@ class CommandParser(object):
         """
         add_user_parser = self.subparsers.add_parser('add_user')
         _add_project_name_arg(add_user_parser)
-        _add_user_full_name_arg(add_user_parser)
+        user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
+        _add_user_arg(user_or_email)
+        _add_email_arg(user_or_email)
         _add_auth_role_arg(add_user_parser)
         self.add_user_func = add_user_func
         add_user_parser.set_defaults(func=self._add_user)
@@ -146,10 +159,11 @@ class CommandParser(object):
         :param args: Namespace arguments parsed from command line.
         """
         project_name = add_user_args.project_name
-        user_full_name = add_user_args.user_full_name
+        username = add_user_args.username
+        email = add_user_args.email
         auth_role = add_user_args.auth_role
         if self.add_user_func:
-            self.add_user_func(project_name, user_full_name, auth_role)
+            self.add_user_func(project_name, username, email, auth_role)
 
     def run_command(self, args):
         """

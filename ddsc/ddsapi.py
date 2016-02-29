@@ -280,6 +280,19 @@ class DataServiceApi(object):
         }
         return self._get('/users', data, content_type=ContentType.form)
 
+    def get_users_by_page_and_offset(self, page, per_page):
+        """
+        Send GET request to /users filtering by those full name contains full_name.
+        :param page: which page of the users list do we want
+        :param per_page: how many items should be on each page
+        :return: requests.Response containing the successful result
+        """
+        data = {
+            "page": page,
+            "per_page": per_page,
+        }
+        return self._get('/users', data, content_type=ContentType.form)
+
     def set_user_project_permission(self, project_id, user_id, auth_role):
         """
         Send PUT request to /projects/{project_id}/permissions/{user_id/ with auth_role value.

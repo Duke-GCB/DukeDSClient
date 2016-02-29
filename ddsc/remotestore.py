@@ -1,6 +1,7 @@
 from ddsc.ddsapi import KindType
 from ddsc.localstore import ProjectWalker
 
+FETCH_ALL_USERS_PAGE_SIZE = 25
 
 class RemoteStore(object):
     """
@@ -106,6 +107,52 @@ class RemoteStore(object):
         if user.full_name.lower() != full_name.lower():
             raise ValueError("User not found:" + full_name)
         return user
+
+    def lookup_user_by_username(self, username):
+        """
+        Finds the single user who has this username or raises ValueError.
+        :param username: str username we are looking for
+        :return: RemoteUser user we found
+        """
+        matches = [user for user in self.fetch_all_users() if user.username == username]
+        if not matches:
+            raise ValueError('Username not found: {}.'.format(username))
+        if len(matches) > 1:
+            raise ValueError('Multiple users with same username found: {}.'.format(username))
+        return matches[0]
+
+    def lookup_user_by_email(self, email):
+        """
+        Finds the single user who has this email or raises ValueError.
+        :param email: str email we are looking for
+        :return: RemoteUser user we found
+        """
+        matches = [user for user in self.fetch_all_users() if user.email == email]
+        if not matches:
+            raise ValueError('Email not found: {}.'.format(email))
+        if len(matches) > 1:
+            raise ValueError('Multiple users with same email found: {}.'.format(email))
+        return matches[0]
+
+    def fetch_all_users(self):
+        """
+        Retrieves all users from data service.
+        :return: [RemoteUser] list of all users we downloaded
+        """
+        page = 1
+        per_page = FETCH_ALL_USERS_PAGE_SIZE
+        users = []
+        while True:
+            result = self.data_service.get_users_by_page_and_offset(page, per_page)
+            user_list_json = result.json()
+            for user_json in user_list_json['results']:
+                users.append(RemoteUser(user_json))
+            total_pages = int(result.headers["x-total-pages"])
+            result_page = int(result.headers["x-page"])
+            if result_page == total_pages:
+                break;
+            page += 1
+        return users
 
     def set_user_project_permission(self, project, user, auth_role):
         """
@@ -218,6 +265,7 @@ class RemoteUser(object):
         self.id = json_data['id']
         self.username = json_data['username']
         self.full_name = json_data['full_name']
+        self.email = json_data['email']
 
     def __str__(self):
         return 'id:{} username:{} full_name:{}'.format(self.id, self.username, self.full_name)
