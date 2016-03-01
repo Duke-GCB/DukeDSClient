@@ -35,11 +35,11 @@ class TestProjectFolderFile(TestCase):
         blob = json.loads(projects_sample_json)
         project_json = blob['results'][0]
         project = RemoteProject(project_json)
-        self.assertEquals('dds-project', project.kind)
-        self.assertEquals('bc6d2ac6-4a52-4421-b6ef-89b96731e843', project.id)
-        self.assertEquals('test4', project.name)
-        self.assertEquals('test4desc', project.description)
-        self.assertEquals(False, project.is_deleted)
+        self.assertEqual('dds-project', project.kind)
+        self.assertEqual('bc6d2ac6-4a52-4421-b6ef-89b96731e843', project.id)
+        self.assertEqual('test4', project.name)
+        self.assertEqual('test4desc', project.description)
+        self.assertEqual(False, project.is_deleted)
 
     def test_folder_item(self):
         projects_id_children_sample_json = """
@@ -82,10 +82,10 @@ class TestProjectFolderFile(TestCase):
         blob = json.loads(projects_id_children_sample_json)
         folder_json = blob['results'][0]
         folder = RemoteFolder(folder_json)
-        self.assertEquals('dds-folder', folder.kind)
-        self.assertEquals('cf99a8f1-aebd-4640-8854-f34d03b7511e', folder.id)
-        self.assertEquals('thistest', folder.name)
-        self.assertEquals(False, folder.is_deleted)
+        self.assertEqual('dds-folder', folder.kind)
+        self.assertEqual('cf99a8f1-aebd-4640-8854-f34d03b7511e', folder.id)
+        self.assertEqual('thistest', folder.name)
+        self.assertEqual(False, folder.is_deleted)
 
     def test_file_item(self):
         folders_id_children_sample_json = """
@@ -144,11 +144,11 @@ class TestProjectFolderFile(TestCase):
         blob = json.loads(folders_id_children_sample_json)
         file_json = blob['results'][0]
         file = RemoteFile(file_json)
-        self.assertEquals('dds-file', file.kind)
-        self.assertEquals('3a14eac9-90f4-4667-9999-1625dd6c3d9a', file.id)
-        self.assertEquals('bigWigToWig', file.name)
-        self.assertEquals(False, file.is_deleted)
-        self.assertEquals(1874572, file.size)
+        self.assertEqual('dds-file', file.kind)
+        self.assertEqual('3a14eac9-90f4-4667-9999-1625dd6c3d9a', file.id)
+        self.assertEqual('bigWigToWig', file.name)
+        self.assertEqual(False, file.is_deleted)
+        self.assertEqual(1874572, file.size)
 
 
 class TestRemoteUser(TestCase):
@@ -158,7 +158,8 @@ class TestRemoteUser(TestCase):
             {
               "id": "12789123897123978",
               "username": "js123",
-              "full_name": "John Smith"
+              "full_name": "John Smith",
+              "email": "john.smith@duke.edu"
             }
             ]
         }
@@ -166,8 +167,8 @@ class TestRemoteUser(TestCase):
         blob = json.loads(users_json_str)
         project_json = blob['results'][0]
         user = RemoteUser(project_json)
-        self.assertEquals('12789123897123978', user.id)
-        self.assertEquals('js123', user.username)
-        self.assertEquals('John Smith', user.full_name)
-        self.assertEquals('id:12789123897123978 username:js123 full_name:John Smith', str(user))
+        self.assertEqual('12789123897123978', user.id)
+        self.assertEqual('js123', user.username)
+        self.assertEqual('John Smith', user.full_name)
+        self.assertEqual('id:12789123897123978 username:js123 full_name:John Smith', str(user))
 

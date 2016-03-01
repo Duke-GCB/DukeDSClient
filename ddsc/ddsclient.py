@@ -87,15 +87,17 @@ class DDSClient(object):
         command = UploadCommand(self.create_remote_store(), self.config.get_url_base())
         command.upload(project_name, folders, follow_symlinks)
 
-    def add_user(self, project_name, user_full_name, auth_role):
+    def add_user(self, project_name, username, email, auth_role):
         """
         Run add_user command for the specified arguments and a remote store based on config.
+        Either username or email must be specified.
         :param project_name: str name of the pre-existing remote project to add this user to
-        :param user_full_name: str full name (firstname lastname) of the pre-existing user we want to add
+        :param username: str username of person to give permissions, will be None if email is specified
+        :param email: str email of person to give permissions, will be None if username is specified
         :param auth_role: str auth_role we want to give to the user(project_admin)
         """
         command = AddUserCommand(self.create_remote_store())
-        command.add_user(project_name, user_full_name, auth_role)
+        command.add_user(project_name, username, email, auth_role)
 
     def create_remote_store(self):
         """
@@ -197,17 +199,22 @@ class AddUserCommand(object):
         """
         self.remote_store = remote_store
 
-    def add_user(self, project_name, user_full_name, auth_role):
+    def add_user(self, project_name, username, email, auth_role):
         """
         Give the user with user_full_name the auth_role permissions on the remote project with project_name.
         :param project_name: str name of the pre-existing project to set permissions on
-        :param user_full_name: str full name (LastName FirstName) of the user you want to give permissions to
+        :param username: str username of person to give permissions, will be None if email is specified
+        :param email: str email of person to give permissions, will be None if username is specified
         :param auth_role: str type of permission(project_admin)
         """
         project = self._fetch_project(project_name)
-        user = self.remote_store.lookup_user_by_name(user_full_name)
+        user = None
+        if username:
+            user = self.remote_store.lookup_user_by_username(username)
+        else :
+            user = self.remote_store.lookup_user_by_email(email)
         self.remote_store.set_user_project_permission(project, user, auth_role)
-        print(u'Gave user {} {} permissions for {}.'.format(user_full_name, auth_role, project_name))
+        print(u'Gave user {} {} permissions for {}.'.format(user.full_name, auth_role, project_name))
 
     def _fetch_project(self, project_name):
         remote_project = self.remote_store.fetch_remote_project(project_name)
