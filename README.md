@@ -60,7 +60,7 @@ ddsclient upload -p 'Analyzed Mouse RNA' results
 ```
 ddsclient add_user -p <ProjectName> -user <Username> --auth_role 'project_admin'
 ```
-Example: Grant permission to user with username 'jpb123' for a project named ''Analyzed Mouse RNA' with default permissions:
+Example: Grant permission to user with username 'jpb123' for a project named 'Analyzed Mouse RNA' with default permissions:
 ```
 ddsclient add_user -p 'Analyzed Mouse RNA' -user 'jpb123'
 ```
