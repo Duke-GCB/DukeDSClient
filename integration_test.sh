@@ -25,11 +25,11 @@ python3 setup.py -q test
 export PROJ="python$PROJECT_PREFIX"
 echo "test upload $PROJ"
 python -m ddsc upload -p $PROJ ddsc
-python -m ddsc add_user -p $PROJ -email $USER_EMAIL
+python -m ddsc add_user -p $PROJ --email $USER_EMAIL
 
 export PROJ="python3$PROJECT_PREFIX"
 echo "test upload $PROJ"
 python3 -m ddsc upload -p $PROJ ddsc
-python -m ddsc add_user -p $PROJ -user $USERNAME
+python -m ddsc add_user -p $PROJ --user $USERNAME
 
 echo "Success check data on portal"

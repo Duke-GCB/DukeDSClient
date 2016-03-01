@@ -70,11 +70,12 @@ def _add_user_arg(arg_parser):
     Adds username parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
-    arg_parser.add_argument("-user",
+    arg_parser.add_argument("--user",
                             metavar='Username',
                             type=to_unicode,
                             dest='username',
-                            help="Specifies username to give permissions to(you must specify either -email or this flag).")
+                            help="Username(NetID) to give permissions. "
+                                 "You must specify either --email or this flag.")
 
 
 def _add_email_arg(arg_parser):
@@ -82,12 +83,12 @@ def _add_email_arg(arg_parser):
     Adds user_email parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
-    arg_parser.add_argument("-email",
+    arg_parser.add_argument("--email",
                             metavar='UserEmail',
                             type=to_unicode,
                             dest='email',
-                            help="Specifies email of the person we want to give permission"
-                                 "(you must specify either -user or this flag).")
+                            help="Email of the person you want to give permission."
+                                 " You must specify either --user or this flag.")
 
 def _add_auth_role_arg(arg_parser):
     """
@@ -144,7 +145,8 @@ class CommandParser(object):
         when chosen.
         :param add_user_func: func Called when this option is chosen: upload_func(project_name, user_full_name, auth_role).
         """
-        add_user_parser = self.subparsers.add_parser('add_user')
+        description = "Gives user permission to access a remote project."
+        add_user_parser = self.subparsers.add_parser('add_user', description=description)
         _add_project_name_arg(add_user_parser)
         user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
         _add_user_arg(user_or_email)
