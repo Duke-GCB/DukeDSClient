@@ -56,16 +56,31 @@ ddsclient upload -p 'Analyzed Mouse RNA' results
 ```
 
 ###Add User To Project:
+#### Using duke netid username:
 ```
-ddsclient add_user -p <ProjectName> -u <UserFullName> --auth_role 'project_admin'
+ddsclient add_user -p <ProjectName> -user <Username> --auth_role 'project_admin'
 ```
-Example: Grant permission to user named 'John Bradley' for a project named ''Analyzed Mouse RNA' with default permissions:
+Example: Grant permission to user with username 'jpb123' for a project named ''Analyzed Mouse RNA' with default permissions:
 ```
-ddsclient add_user -p 'Analyzed Mouse RNA' -u 'John Bradley'
+ddsclient add_user -p 'Analyzed Mouse RNA' -user 'jpb123'
 ```
+
+#### Using email:
+```
+ddsclient add_user -p <ProjectName> -user <Username> --auth_role 'project_admin'
+```
+Example: Grant permission to user with email 'ada.lovelace@duke.edu' for a project named 'Analyzed Mouse RNA' with default permissions:
+```
+ddsclient add_user -p 'Analyzed Mouse RNA' -email 'ada.lovelace@duke.edu'
+```
+
 
 ###Testing:
 From the root directory run the following:
 ```
 python setup.py test
 ```
+
+### Data Service Web Portal:
+[Duke Data Service Portal](https://uatest.dataservice.duke.edu).
+This also requires a [Duke NetID](https://oit.duke.edu/email-accounts/netid/).
