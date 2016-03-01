@@ -56,7 +56,7 @@ ddsclient upload -p 'Analyzed Mouse RNA' results
 ```
 
 ###Add User To Project:
-#### Using duke netid username:
+#### Using duke netid:
 ```
 ddsclient add_user -p <ProjectName> -user <Username> --auth_role 'project_admin'
 ```
