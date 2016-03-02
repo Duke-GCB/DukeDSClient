@@ -24,12 +24,24 @@ python3 setup.py -q test
 
 export PROJ="python$PROJECT_PREFIX"
 echo "test upload $PROJ"
-python -m ddsc upload -p $PROJ ddsc
+python -m ddsc upload -p $PROJ ddsc/tests
 python -m ddsc add_user -p $PROJ --email $USER_EMAIL
 
-export PROJ="python3$PROJECT_PREFIX"
-echo "test upload $PROJ"
-python3 -m ddsc upload -p $PROJ ddsc
-python -m ddsc add_user -p $PROJ --user $USERNAME
+echo "test download $PROJ"
+rm -rf /tmp/$PROJ
+python -m ddsc download -p $PROJ /tmp/$PROJ
+echo "differences:"
+diff --brief -r ddsc/tests /tmp/$PROJ/tests
+
+export PROJ2="python3$PROJECT_PREFIX"
+echo "test upload $PROJ2"
+python3 -m ddsc upload -p $PROJ2 ddsc/tests
+python3 -m ddsc add_user -p $PROJ2 --user $USERNAME
+
+echo "test download $PROJ2"
+rm -rf /tmp/$PROJ2
+python3 -m ddsc download -p $PROJ /tmp/$PROJ2
+echo "differences:"
+diff --brief -r ddsc/tests /tmp/$PROJ2/tests
 
 echo "Success check data on portal"

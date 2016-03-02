@@ -55,6 +55,20 @@ Example: Upload a folder named 'results' to new or existing project named 'Analy
 ddsclient upload -p 'Analyzed Mouse RNA' results
 ```
 
+### Download:
+```
+ddsclient download -p <ProjectName> <Folder>
+```
+This will download the contents of ProjectName into the specified folder.
+Currently it replaces pre-existing files and creates missing directories.
+It will create Folder if it doesn't already exist.
+
+Example: Download the contents of project named 'Mouse RNA' into '/tmp/mouserna' :
+```
+ddsclient download -p 'Mouse RNA' /tmp/mouserna
+```
+
+
 ###Add User To Project:
 #### Using duke netid:
 ```

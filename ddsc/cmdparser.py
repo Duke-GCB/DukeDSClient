@@ -26,7 +26,7 @@ def _add_project_name_arg(arg_parser):
                            metavar='ProjectName',
                            type=to_unicode,
                            dest='project_name',
-                           help="Name of the remote project to upload local files to.",
+                           help="Name of the remote project to manage.",
                            required=True)
 
 
@@ -52,6 +52,16 @@ def _add_folders_positional_arg(arg_parser):
                            nargs="+",
                            help="Names of the files and/or folders to upload to the remote project.",
                            type=_paths_must_exists)
+
+
+def _add_folder_positional_arg(arg_parser):
+    """
+    Adds folders and/or filenames parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    """
+    arg_parser.add_argument("folder",
+                           metavar='Folder',
+                           help="Names of the folder to download the project contents into.")
 
 
 def _add_follow_symlinks_arg(arg_parser):
@@ -114,6 +124,7 @@ class CommandParser(object):
         self.subparsers = self.parser.add_subparsers()
         self.upload_func = None
         self.add_user_func = None
+        self.download_func = None
 
     def register_upload_command(self, upload_func):
         """
@@ -125,19 +136,7 @@ class CommandParser(object):
         _add_project_name_arg(upload_parser)
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
-        self.upload_func = upload_func
-        upload_parser.set_defaults(func=self._upload)
-
-    def _upload(self, upload_args):
-        """
-        Call upload function passing values from upload_args.
-        :param args: Namespace arguments parsed from command line.
-        """
-        project_name = upload_args.project_name
-        folders = upload_args.folders
-        follow_symlinks = upload_args.follow_symlinks
-        if self.upload_func:
-            self.upload_func(project_name, folders, follow_symlinks)
+        upload_parser.set_defaults(func=upload_func)
 
     def register_add_user_command(self, add_user_func):
         """
@@ -152,20 +151,14 @@ class CommandParser(object):
         _add_user_arg(user_or_email)
         _add_email_arg(user_or_email)
         _add_auth_role_arg(add_user_parser)
-        self.add_user_func = add_user_func
-        add_user_parser.set_defaults(func=self._add_user)
+        add_user_parser.set_defaults(func=add_user_func)
 
-    def _add_user(self, add_user_args):
-        """
-        Call add_user function passing values from add_user_args.
-        :param args: Namespace arguments parsed from command line.
-        """
-        project_name = add_user_args.project_name
-        username = add_user_args.username
-        email = add_user_args.email
-        auth_role = add_user_args.auth_role
-        if self.add_user_func:
-            self.add_user_func(project_name, username, email, auth_role)
+    def register_download_command(self, download_func):
+        description = "Download the contents of a remote remote project to a local folder."
+        download_parser = self.subparsers.add_parser('download', description=description)
+        _add_project_name_arg(download_parser)
+        _add_folder_positional_arg(download_parser)
+        download_parser.set_defaults(func=download_func)
 
     def run_command(self, args):
         """

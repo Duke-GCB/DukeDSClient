@@ -141,6 +141,15 @@ class DataServiceApi(object):
         """
         return self._get("/projects", {})
 
+    def get_file_url(self, file_id):
+        """
+        Send GET to /files/{}/url returning a url to download the file.
+        Raises DataServiceError on error.
+        :param file_id: str uuid of the file we want to download
+        :return: requests.Response containing the successful result
+        """
+        return self._get("/files/{}/url".format(file_id), {})
+
     def create_folder(self, folder_name, parent_kind_str, parent_uuid):
         """
         Send POST to /folders to create a new folder with specified name and parent.
@@ -266,6 +275,20 @@ class DataServiceApi(object):
             return requests.put(host + url, data=chunk, headers=http_headers)
         elif http_verb == 'POST':
             return requests.post(host + url, data=chunk, headers=http_headers)
+        else:
+            raise ValueError("Unsupported http_verb:" + http_verb)
+
+    def receive_external(self, http_verb, host, url, http_headers):
+        """
+        Retrieve a streaming request for a file.
+        :param http_verb: str GET is only supported right now
+        :param host: str host we are requesting the file from
+        :param url: str url to ask the host for
+        :param http_headers: object headers to send with the request
+        :return: requests.Response containing the successful result
+        """
+        if http_verb == 'GET':
+            return requests.get(host + url, headers=http_headers, stream=True)
         else:
             raise ValueError("Unsupported http_verb:" + http_verb)
 

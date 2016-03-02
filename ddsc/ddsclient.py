@@ -7,9 +7,10 @@ except ImportError:
     from urlparse import urlparse
 
 from ddsc.localstore import LocalProject, LocalOnlyCounter, UploadReport
-from ddsc.remotestore import RemoteStore
+from ddsc.remotestore import RemoteStore, RemoteContentDownloader
 from ddsc.ddsapi import DataServiceApi, KindType, SWIFT_BYTES_PER_CHUNK
 from ddsc.cmdparser import CommandParser
+from ddsc.util import ProgressPrinter
 
 
 DDS_DEFAULT_URL = 'https://uatest.dataservice.duke.edu/api/v1'
@@ -73,31 +74,29 @@ class DDSClient(object):
         :return: CommandParser parser with commands attached.
         """
         parser = CommandParser()
-        parser.register_upload_command(self.upload)
-        parser.register_add_user_command(self.add_user)
+        parser.register_upload_command(self._setup_run_command(UploadCommand))
+        parser.register_add_user_command(self._setup_run_command(AddUserCommand))
+        parser.register_download_command(self._setup_run_command(DownloadCommand))
         return parser
 
-    def upload(self, project_name, folders, follow_symlinks):
+    def _setup_run_command(self, command_constructor):
         """
-        Run upload command for the specified arguments and a remote store based on config.
-        :param project_name: str name of the remote project to create/upload items to
-        :param folders: [str] list of paths to upload to remote store if necessary
-        :param follow_symlinks: bool should we include symbolically linked directories
+        Create f(args) to run that will create the specified object and call run when invoked.
+        The reason for this complexity is deferring the creation of expensive objects until
+        we have decided to run a command. For instance setting up the data service api if we are just running -h.
+        :param command_constructor: class specifies object to create and pass args to(eventually).
+        :return: func function that will let the command created by command_constructor run with arguments.
         """
-        command = UploadCommand(self.create_remote_store(), self.config.get_url_base())
-        command.upload(project_name, folders, follow_symlinks)
+        return lambda args: self._run_command(command_constructor, args)
 
-    def add_user(self, project_name, username, email, auth_role):
+    def _run_command(self, command_constructor, args):
         """
-        Run add_user command for the specified arguments and a remote store based on config.
-        Either username or email must be specified.
-        :param project_name: str name of the pre-existing remote project to add this user to
-        :param username: str username of person to give permissions, will be None if email is specified
-        :param email: str email of person to give permissions, will be None if username is specified
-        :param auth_role: str auth_role we want to give to the user(project_admin)
+        Run command_constructor and call run(args) on the resulting object
+        :param command_constructor: class of an object that implements run(args)
+        :param args: object arguments for specific command created by CommandParser
         """
-        command = AddUserCommand(self.create_remote_store())
-        command.add_user(project_name, username, email, auth_role)
+        command = command_constructor(self)
+        command.run(args)
 
     def create_remote_store(self):
         """
@@ -109,24 +108,29 @@ class DDSClient(object):
 
 
 class UploadCommand(object):
-    def __init__(self, remote_store, base_url):
+    def __init__(self, ddsclient):
         """
         Pass in the remote_store so we can access the remote data.
         :param remote_store: RemoteStore data store we will be sending and receiving data from.
         :param base_url: str base url for creating a portal access url
         """
-        self.remote_store = remote_store
-        self.base_url = base_url
+        self.remote_store = ddsclient.create_remote_store()
+        self.base_url = ddsclient.config.get_url_base()
 
-    def upload(self, project_name, folders, follow_symlinks):
+    def run(self, args):
+        #project_name, folders, follow_symlinks):
         """
         Upload contents of folders to a project with project_name on remote store.
         If follow_symlinks we will traverse symlinked directories.
         If content is already on remote site it will not be sent.
-        :param project_name:
+        :param args:
         :param folders:
         :param follow_symlinks:
         """
+        project_name = args.project_name
+        folders = args.folders
+        follow_symlinks = args.follow_symlinks
+
         remote_project = self.remote_store.fetch_remote_project(project_name)
         local_project = self._load_local_project(folders, follow_symlinks)
         local_project.update_remote_ids(remote_project)
@@ -165,7 +169,7 @@ class UploadCommand(object):
         :param local_project: LocalProject project we will send data from
         :param different_items_cnt: int count of items to be sent for progress bar
         """
-        progress_printer = ProgressPrinter(different_items_cnt)
+        progress_printer = ProgressPrinter(different_items_cnt, msg_verb='sending')
         self.remote_store.upload_differences(local_project,
                                              project_name,
                                              progress_printer)
@@ -191,15 +195,29 @@ class UploadCommand(object):
         print(url)
 
 
-class AddUserCommand(object):
-    def __init__(self, remote_store):
+class DownloadCommand(object):
+    def __init__(self, ddsclient):
         """
         Pass in the remote_store so we can access the remote data.
         :param remote_store: RemoteStore data store we will be sending and receiving data from.
         """
-        self.remote_store = remote_store
+        self.remote_store = ddsclient.create_remote_store()
 
-    def add_user(self, project_name, username, email, auth_role):
+    def run(self, args):
+        remote_project = self.remote_store.fetch_remote_project(args.project_name)
+        downloader = RemoteContentDownloader(self.remote_store, args.folder)
+        downloader.walk_project(remote_project)
+
+
+class AddUserCommand(object):
+    def __init__(self, ddsclient):
+        """
+        Pass in the remote_store so we can access the remote data.
+        :param remote_store: RemoteStore data store we will be sending and receiving data from.
+        """
+        self.remote_store = ddsclient.create_remote_store()
+
+    def run(self, args):
         """
         Give the user with user_full_name the auth_role permissions on the remote project with project_name.
         :param project_name: str name of the pre-existing project to set permissions on
@@ -207,6 +225,10 @@ class AddUserCommand(object):
         :param email: str email of person to give permissions, will be None if username is specified
         :param auth_role: str type of permission(project_admin)
         """
+        project_name = args.project_name
+        username = args.username
+        email = args.email
+        auth_role = args.auth_role
         project = self._fetch_project(project_name)
         user = None
         if username:
@@ -223,41 +245,3 @@ class AddUserCommand(object):
         return remote_project
 
 
-class ProgressPrinter(object):
-    """
-    Prints a progress bar(percentage) to the terminal, expects to have sending_item and finished called.
-    Replaces the same line again and again as progress changes.
-    """
-    def __init__(self, total):
-        """
-        Setup printer expecting to have sending_item called total times.
-        :param total: int the number of items we are expecting, used to determine progress
-        """
-        self.total = total
-        self.cnt = 0
-        self.max_width = 0
-
-    def sending_item(self, item):
-        """
-        Update progress that item is about to be sent.
-        :param item: LocalFile, LocalFolder, or LocalContent(project) that is about to be sent.
-        """
-        percent_done = int(float(self.cnt)/float(self.total) * 100.0)
-        name = ''
-        if KindType.is_project(item):
-            name = 'project'
-        else:
-            name = item.path
-        # left justify message so we cover up the previous one
-        message = u'\rProgress: {}% - sending {}'.format(percent_done, name)
-        self.max_width = max(len(message), self.max_width)
-        sys.stdout.write(message.ljust(self.max_width))
-        sys.stdout.flush()
-        self.cnt += 1
-
-    def finished(self):
-        """
-        Must be called to print final progress label.
-        """
-        sys.stdout.write('\rDone: 100%'.ljust(self.max_width) + '\n')
-        sys.stdout.flush()
