@@ -1,7 +1,11 @@
+import os
 from ddsc.ddsapi import KindType
 from ddsc.localstore import ProjectWalker
+from ddsc.util import ProgressPrinter
 
 FETCH_ALL_USERS_PAGE_SIZE = 25
+DOWNLOAD_FILE_CHUNK_SIZE = 1024
+
 
 class RemoteStore(object):
     """
@@ -14,7 +18,7 @@ class RemoteStore(object):
         """
         self.data_service = data_service
 
-    def fetch_remote_project(self, project_name):
+    def fetch_remote_project(self, project_name, must_exist=False):
         """
         Retrieve the project via project_name
         :param project_name: str name of the project to try and download
@@ -23,6 +27,9 @@ class RemoteStore(object):
         project = self._get_my_project(project_name)
         if project:
             self._add_project_children(project)
+        else:
+            if must_exist:
+                raise ValueError(u'There is no project with the name {}'.format(project_name).encode('utf-8'))
         return project
 
     def _get_my_project(self, project_name):
@@ -163,6 +170,26 @@ class RemoteStore(object):
         """
         self.data_service.set_user_project_permission(project.id, user.id, auth_role)
 
+    def download_file(self, remoteFile, path, watcher):
+        """
+        Download a remote file associated with the remote uuid(file_id) into local path.
+        :param file_id: str uuid of the file to retrieve
+        :param path: str file system path to save the contents to.
+        :param watcher: object implementing send_item(item, increment_amt) that updates UI
+        """
+        url_json = self.data_service.get_file_url(remoteFile.id).json()
+        http_verb = url_json['http_verb']
+        host = url_json['host']
+        url = url_json['url']
+        http_headers = url_json['http_headers']
+        response = self.data_service.receive_external(http_verb, host, url, http_headers)
+        with open(path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
+                if chunk: # filter out keep-alive new chunks
+                    f.write(chunk)
+                    watcher.sending_item(remoteFile, increment_amt=len(chunk))
+        #TODO check size
+
 
 class RemoteProject(object):
     """
@@ -235,6 +262,7 @@ class RemoteFile(object):
         self.id = json_data['id']
         self.kind = json_data['kind']
         self.name = json_data['name']
+        self.path = self.name # for compatibilty with ProgressPrinter
         self.is_deleted = json_data['is_deleted']
         self.size = json_data['upload']['size']
         self.file_hash = None
@@ -405,3 +433,112 @@ class RemoteContentSender(object):
             remote_id = file_content_sender.upload(self.project_id, parent.kind, parent.remote_id)
             item.set_remote_id_after_send(remote_id)
 
+class RemoteContentDownloader(object):
+    """
+    Creates local version of remote content.
+    """
+    def __init__(self, remote_store, dest_directory):
+        self.remote_store = remote_store
+        self.dest_directory = dest_directory
+        self.watcher = None
+        self.id_to_path = {}
+
+    def walk_project(self, project):
+        """
+        For each project, folder, and files send to remote store if necessary.
+        :param project: LocalProject project who's contents we want to walk/send.
+        """
+        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
+        counter = RemoteContentCounter()
+        counter.walk_project(project)
+        self.watcher = ProgressPrinter(counter.count, msg_verb='downloading')
+        ProjectWalker.walk_project(project, self)
+        self.watcher.finished()
+
+    def try_create_dir(self, path):
+        """
+        Try to create a directory if it doesn't exist and raise error if there is a non-directory with the same name.
+        :param path: str path to the directory
+        """
+        if not os.path.exists(path):
+            os.mkdir(path)
+        elif not os.path.isdir(path):
+            ValueError("Unable to create directory:" + path + " because a file already exists with the same name.")
+
+    def visit_project(self, item):
+        """
+        Save off the path for the top level project(dest_directory) into id_to_path.
+        Create the directory if necessary.
+        :param item: RemoteProject
+        """
+        self.id_to_path[item.id] = self.dest_directory
+        self.try_create_dir(self.dest_directory)
+
+    def visit_folder(self, item, parent):
+        """
+        Save off the path for item into id_to_path.
+        :param item: RemoteFolder item we want to mkdir/add to id_to_path
+        :param parent: RemoteProject/RemoteFolder parent of item
+        """
+        parent_path = self.id_to_path[parent.id]
+        path = os.path.join(parent_path, item.name)
+        self.id_to_path[item.id] = path
+        self.try_create_dir(path)
+
+    def visit_file(self, item, parent):
+        """
+        Download the file associated with item and make sure we received all of it.
+        :param item: RemoteFile file we will download
+        :param parent: RemoteProject/RemoteFolder parent of item
+        """
+        parent_path = self.id_to_path[parent.id]
+        path = os.path.join(parent_path, item.name)
+        self.remote_store.download_file(item, path, self.watcher)
+        RemoteContentDownloader.check_file_size(item, path)
+
+
+    @staticmethod
+    def check_file_size(item, path):
+        """
+        Raise an error if we didn't get all of the file.
+        :param item: RemoteFile file we tried to download
+        :param path: str path where we downloaded the file to
+        """
+        stat_info = os.stat(path)
+        if stat_info.st_size != item.size:
+            format_str = "Error occurred downloading {}. Got a file size {}. Expected file size:{}"
+            msg = format_str.format(path, stat_info.st_size, item.size)
+            raise ValueError(msg)
+
+
+class RemoteContentCounter(object):
+    """
+    Counts up how many bytes we have to download to download a project.
+    """
+    def __init__(self):
+        self.count = 0
+
+    def walk_project(self, project):
+        """
+        For each file update count based on size.
+        :param project: LocalProject project who's contents we want to walk/count.
+        """
+        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
+        ProjectWalker.walk_project(project, self)
+
+    def visit_project(self, item):
+        """Not making use of this part of ProjectWalker"""
+        pass
+
+    def visit_folder(self, item, parent):
+        """Not making use of this part of ProjectWalker"""
+        pass
+
+    def visit_file(self, item, parent):
+        """
+        Increment count based on file size.
+        :param item: RemoteFile file we want to add size to our total
+        :param parent: RemoteProject/RemoteFolder parent of item
+        :return:
+        """
+        self.count += item.size
