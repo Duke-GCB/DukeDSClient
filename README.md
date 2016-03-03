@@ -60,8 +60,8 @@ ddsclient upload -p 'Analyzed Mouse RNA' results
 ddsclient download -p <ProjectName> <Folder>
 ```
 This will download the contents of ProjectName into the specified folder.
-Currently it replaces pre-existing files and creates missing directories.
-It will create Folder if it doesn't already exist.
+Currently it requires the directory be empty or not exist.
+It will create Folder if it doesn't exist.
 
 Example: Download the contents of project named 'Mouse RNA' into '/tmp/mouserna' :
 ```
