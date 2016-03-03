@@ -6,6 +6,19 @@ import sys
 import argparse
 
 
+INVALID_PATH_CHARS = (':', '/', '\\')
+
+
+def replace_invalid_path_chars(path):
+    """
+    Converts bad path characters to '_'.
+    :param path: str path to fix
+    :return: str fixed path
+    """
+    for bad_char in INVALID_PATH_CHARS:
+        path = path.replace(bad_char, '_')
+    return path
+
 def to_unicode(s):
     """
     Convert a command line string to utf8 unicode.
@@ -50,6 +63,12 @@ def path_does_not_exist_or_is_empty(path):
     if os.path.exists(path):
         if os.listdir(path):
             raise argparse.ArgumentTypeError("{} already exists and is not an empty directory.".format(path))
+    return _path_has_ok_chars(path)
+
+def _path_has_ok_chars(path):
+    basename = os.path.basename(path)
+    if any([bad_char in basename for bad_char in INVALID_PATH_CHARS]):
+            raise argparse.ArgumentTypeError("{} contains invalid characters for a directory.".format(path))
     return path
 
 def _add_folders_positional_arg(arg_parser):

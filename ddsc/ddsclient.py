@@ -9,7 +9,7 @@ except ImportError:
 from ddsc.localstore import LocalProject, LocalOnlyCounter, UploadReport
 from ddsc.remotestore import RemoteStore, RemoteContentDownloader
 from ddsc.ddsapi import DataServiceApi, KindType, SWIFT_BYTES_PER_CHUNK
-from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty
+from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.util import ProgressPrinter
 
 
@@ -214,8 +214,9 @@ class DownloadCommand(object):
         folder = args.folder                # path to a folder to download data into
         # Default to project name with spaces replaced with '_' if not specified
         if not folder:
-            folder = path_does_not_exist_or_is_empty(project_name.replace(' ', '_'))
-        remote_project = self.remote_store.fetch_remote_project(project_name)
+            fixed_path = replace_invalid_path_chars(project_name.replace(' ', '_'))
+            folder = path_does_not_exist_or_is_empty(fixed_path)
+        remote_project = self.remote_store.fetch_remote_project(project_name, must_exist=True)
         downloader = RemoteContentDownloader(self.remote_store, folder)
         downloader.walk_project(remote_project)
 
@@ -240,7 +241,7 @@ class AddUserCommand(object):
         username = args.username            # username of person to give permissions, will be None if email is specified
         email = args.email                  # email of person to give permissions, will be None if username is specified
         auth_role = args.auth_role          # type of permission(project_admin)
-        project = self._fetch_project(project_name)
+        project = self.remote_store.fetch_remote_project(project_name, must_exist=True)
         user = None
         if username:
             user = self.remote_store.lookup_user_by_username(username)
@@ -248,11 +249,5 @@ class AddUserCommand(object):
             user = self.remote_store.lookup_user_by_email(email)
         self.remote_store.set_user_project_permission(project, user, auth_role)
         print(u'Gave user {} {} permissions for {}.'.format(user.full_name, auth_role, project_name))
-
-    def _fetch_project(self, project_name):
-        remote_project = self.remote_store.fetch_remote_project(project_name)
-        if not remote_project:
-            raise ValueError(u'There is no project with the name {}'.format(project_name).encode('utf-8'))
-        return remote_project
 
 

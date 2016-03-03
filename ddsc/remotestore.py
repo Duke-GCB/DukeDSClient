@@ -18,7 +18,7 @@ class RemoteStore(object):
         """
         self.data_service = data_service
 
-    def fetch_remote_project(self, project_name):
+    def fetch_remote_project(self, project_name, must_exist=False):
         """
         Retrieve the project via project_name
         :param project_name: str name of the project to try and download
@@ -27,6 +27,9 @@ class RemoteStore(object):
         project = self._get_my_project(project_name)
         if project:
             self._add_project_children(project)
+        else:
+            if must_exist:
+                raise ValueError(u'There is no project with the name {}'.format(project_name).encode('utf-8'))
         return project
 
     def _get_my_project(self, project_name):
