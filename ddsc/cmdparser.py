@@ -41,10 +41,14 @@ def _paths_must_exists(path):
      raise argparse.ArgumentTypeError("{} is not a valid file/folder.".format(path))
     return path
 
-def _paths_does_not_exist_or_is_empty(path):
-    path = to_unicode(path)
+def path_does_not_exist_or_is_empty(path):
+    """
+    Raises error if the directory the path exists and contains any files.
+    :param path: str path to check
+    :return: str path
+    """
     if os.path.exists(path):
-        if os.listdir(path) != []:
+        if os.listdir(path):
             raise argparse.ArgumentTypeError("{} already exists and is not an empty directory.".format(path))
     return path
 
@@ -67,9 +71,11 @@ def _add_folder_positional_arg(arg_parser):
     """
     arg_parser.add_argument("folder",
                            metavar='Folder',
-                           help="Names of the folder to download the project contents into. "
+                           help="Name of the folder to download the project contents into. "
+                                "If not specified it will use the name of the project with spaces translated to '_'. "
                                 "This folder must be empty or not exist(will be created).",
-                           type=_paths_does_not_exist_or_is_empty)
+                           type=path_does_not_exist_or_is_empty,
+                           nargs='?')
 
 
 def _add_follow_symlinks_arg(arg_parser):

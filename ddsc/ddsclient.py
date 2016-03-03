@@ -9,7 +9,7 @@ except ImportError:
 from ddsc.localstore import LocalProject, LocalOnlyCounter, UploadReport
 from ddsc.remotestore import RemoteStore, RemoteContentDownloader
 from ddsc.ddsapi import DataServiceApi, KindType, SWIFT_BYTES_PER_CHUNK
-from ddsc.cmdparser import CommandParser
+from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty
 from ddsc.util import ProgressPrinter
 
 
@@ -212,6 +212,9 @@ class DownloadCommand(object):
         """
         project_name = args.project_name    # name of the pre-existing project to set permissions on
         folder = args.folder                # path to a folder to download data into
+        # Default to project name with spaces replaced with '_' if not specified
+        if not folder:
+            folder = path_does_not_exist_or_is_empty(project_name.replace(' ', '_'))
         remote_project = self.remote_store.fetch_remote_project(project_name)
         downloader = RemoteContentDownloader(self.remote_store, folder)
         downloader.walk_project(remote_project)
