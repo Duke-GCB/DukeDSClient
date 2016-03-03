@@ -108,28 +108,27 @@ class DDSClient(object):
 
 
 class UploadCommand(object):
+    """
+    Uploads a folder to a remote project.
+    """
     def __init__(self, ddsclient):
         """
-        Pass in the remote_store so we can access the remote data.
-        :param remote_store: RemoteStore data store we will be sending and receiving data from.
-        :param base_url: str base url for creating a portal access url
+        Pass in the parent who can create a remote_store/url so we can access the remote data.
+        :param ddsclient: DDSClient parent who can create objects based on config for us.
         """
         self.remote_store = ddsclient.create_remote_store()
         self.base_url = ddsclient.config.get_url_base()
 
     def run(self, args):
-        #project_name, folders, follow_symlinks):
         """
         Upload contents of folders to a project with project_name on remote store.
         If follow_symlinks we will traverse symlinked directories.
         If content is already on remote site it will not be sent.
-        :param args:
-        :param folders:
-        :param follow_symlinks:
+        :param args: Namespace arguments parsed from the command line.
         """
-        project_name = args.project_name
-        folders = args.folders
-        follow_symlinks = args.follow_symlinks
+        project_name = args.project_name        # name of the remote project to create/upload to
+        folders = args.folders                  # list of local files/folders to upload into the project
+        follow_symlinks = args.follow_symlinks  # should we follow symlinks when traversing folders
 
         remote_project = self.remote_store.fetch_remote_project(project_name)
         local_project = self._load_local_project(folders, follow_symlinks)
@@ -196,39 +195,48 @@ class UploadCommand(object):
 
 
 class DownloadCommand(object):
+    """
+    Downloads the content from a remote project into a folder.
+    """
     def __init__(self, ddsclient):
         """
-        Pass in the remote_store so we can access the remote data.
-        :param remote_store: RemoteStore data store we will be sending and receiving data from.
+        Pass in the parent who can create a remote_store so we can access the remote data.
+        :param ddsclient: DDSClient parent who can create objects based on config for us.
         """
         self.remote_store = ddsclient.create_remote_store()
 
     def run(self, args):
-        remote_project = self.remote_store.fetch_remote_project(args.project_name)
-        downloader = RemoteContentDownloader(self.remote_store, args.folder)
+        """
+        Download a project based on passed in args.
+        :param args: Namespace arguments parsed from the command line.
+        """
+        project_name = args.project_name    # name of the pre-existing project to set permissions on
+        folder = args.folder                # path to a folder to download data into
+        remote_project = self.remote_store.fetch_remote_project(project_name)
+        downloader = RemoteContentDownloader(self.remote_store, folder)
         downloader.walk_project(remote_project)
 
 
 class AddUserCommand(object):
+    """
+    Adds a user to a pre-existing remote project.
+    """
     def __init__(self, ddsclient):
         """
-        Pass in the remote_store so we can access the remote data.
-        :param remote_store: RemoteStore data store we will be sending and receiving data from.
+        Pass in the parent who can create a remote_store so we can access the remote data.
+        :param ddsclient: DDSClient parent who can create objects based on config for us.
         """
         self.remote_store = ddsclient.create_remote_store()
 
     def run(self, args):
         """
         Give the user with user_full_name the auth_role permissions on the remote project with project_name.
-        :param project_name: str name of the pre-existing project to set permissions on
-        :param username: str username of person to give permissions, will be None if email is specified
-        :param email: str email of person to give permissions, will be None if username is specified
-        :param auth_role: str type of permission(project_admin)
+        :param args Namespace arguments parsed from the command line
         """
-        project_name = args.project_name
-        username = args.username
-        email = args.email
-        auth_role = args.auth_role
+        project_name = args.project_name    # name of the pre-existing project to set permissions on
+        username = args.username            # username of person to give permissions, will be None if email is specified
+        email = args.email                  # email of person to give permissions, will be None if username is specified
+        auth_role = args.auth_role          # type of permission(project_admin)
         project = self._fetch_project(project_name)
         user = None
         if username:
