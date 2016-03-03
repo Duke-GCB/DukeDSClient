@@ -63,6 +63,7 @@ def path_does_not_exist_or_is_empty(path):
     if os.path.exists(path):
         if os.listdir(path):
             raise argparse.ArgumentTypeError("{} already exists and is not an empty directory.".format(path))
+    path = to_unicode(path)
     return _path_has_ok_chars(path)
 
 def _path_has_ok_chars(path):
