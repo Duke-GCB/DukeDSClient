@@ -1,8 +1,13 @@
 from setuptools import setup
 
 
-setup(name='ddsclient',
-        version='0.1.0',
+setup(name='DukeDSClient',
+        version='0.2.0',
+        description='Command line tool to upload/manage projects on the duke-data-service.',
+        url='https://github.com/Duke-GCB/DukeDSClient',
+        keywords='duke dds dukedataservice',
+        author='John Bradley',
+        license='MIT',
         packages=['ddsc'],
         install_requires=[
           'requests',
@@ -14,5 +19,13 @@ setup(name='ddsclient',
                 'ddsclient = ddsc.__main__:main'
             ]
         },
+        classifiers=[
+            'Development Status :: 3 - Alpha',
+            'Intended Audience :: Developers',
+            'Topic :: Utilities',
+            'License :: OSI Approved :: MIT License',
+            'Programming Language :: Python :: 2.7',
+            'Programming Language :: Python :: 3.5',
+        ],
     )
 

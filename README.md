@@ -6,9 +6,7 @@ Runs on Python 2.7 or 3.5.
 
 ###Install:
 ```
-git clone https://github.com/Duke-GCB/DukeDSClient.git
-cd DukeDSClient
-python setup.py install
+pip install DukeDSClient
 ```
 
 ### Additional Setup:
