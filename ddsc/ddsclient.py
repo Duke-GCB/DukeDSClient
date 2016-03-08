@@ -13,7 +13,7 @@ from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, repla
 from ddsc.util import ProgressPrinter
 
 
-DDS_DEFAULT_URL = 'https://uatest.dataservice.duke.edu/api/v1'
+DDS_DEFAULT_URL = 'https://dataservice.duke.edu/api/v1'
 
 
 class Config(object):
@@ -43,7 +43,7 @@ class Config(object):
     def get_url_base(self):
         """
         Determine root url of the data service from the url specified.
-        :return: str root url of the data service (eg: https://uatest.dataservice.duke.edu)
+        :return: str root url of the data service (eg: https://dataservice.duke.edu)
         """
         url = self.get_data_service_url()
         return urlparse(url).hostname
