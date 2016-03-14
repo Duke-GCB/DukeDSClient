@@ -29,9 +29,10 @@ python -m ddsc add_user -p $PROJ --email $USER_EMAIL
 
 echo "test download $PROJ"
 rm -rf /tmp/$PROJ
-python -m ddsc download -p $PROJ /tmp/$PROJ
+# test filename conversion
+python -m ddsc download -p $PROJ
 echo "differences:"
-diff --brief -r ddsc/tests /tmp/$PROJ/tests
+diff --brief -r ddsc/tests $PROJ/tests
 
 export PROJ2="python3$PROJECT_PREFIX"
 echo "test upload $PROJ2"

@@ -28,7 +28,10 @@ def to_unicode(s):
     if sys.version_info >= (3,0,0):
         return str(s)
     else:
-        return unicode(s, 'utf8')
+        if type(s) != unicode:
+            return unicode(s, 'utf8')
+        return s
+
 
 def _add_project_name_arg(arg_parser):
     """
@@ -204,3 +207,4 @@ class CommandParser(object):
             parsed_args.func(parsed_args)
         else:
             self.parser.print_help()
+
