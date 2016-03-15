@@ -11,6 +11,7 @@ setup(name='DukeDSClient',
         packages=['ddsc'],
         install_requires=[
           'requests',
+          'PyYAML',
         ],
         test_suite='nose.collector',
         tests_require=['nose'],
