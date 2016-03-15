@@ -3,7 +3,7 @@ import math
 import datetime
 import hashlib
 import mimetypes
-from ddsc.ddsapi import KindType, SWIFT_BYTES_PER_CHUNK
+from ddsc.ddsapi import KindType
 
 
 class LocalProject(object):

@@ -1,7 +1,9 @@
 import os
-from ddsc.ddsapi import KindType
+from ddsc.ddsapi import KindType, DataServiceApi, DataServiceError, DataServiceAuth
 from ddsc.localstore import ProjectWalker
 from ddsc.util import ProgressPrinter
+from ddsc.config import LOCAL_CONFIG_FILENAME
+
 
 FETCH_ALL_USERS_PAGE_SIZE = 25
 DOWNLOAD_FILE_CHUNK_SIZE = 1024
@@ -11,12 +13,14 @@ class RemoteStore(object):
     """
     Fetches project tree data from remote store.
     """
-    def __init__(self, data_service):
+    def __init__(self, config):
         """
         Setup to allow fetching project tree.
-        :param data_service: DataServiceApi we will use for querying project content.
+        :param config: ddsc.config.Config settings to use for connecting to the dataservice.
         """
-        self.data_service = data_service
+        self.config = config
+        auth = DataServiceAuth(self.config)
+        self.data_service = DataServiceApi(auth, self.config.url)
 
     def fetch_remote_project(self, project_name, must_exist=False):
         """
@@ -93,7 +97,8 @@ class RemoteStore(object):
         return remote_file
 
     def upload_differences(self, local_project, project_name, progress_printer):
-        sender = RemoteContentSender(self.data_service, local_project.remote_id, project_name, progress_printer)
+        sender = RemoteContentSender(self.config, self.data_service, local_project.remote_id,
+                                     project_name, progress_printer)
         sender.walk_project(local_project)
 
     def lookup_user_by_name(self, full_name):
@@ -188,7 +193,6 @@ class RemoteStore(object):
                 if chunk: # filter out keep-alive new chunks
                     f.write(chunk)
                     watcher.sending_item(remoteFile, increment_amt=len(chunk))
-        #TODO check size
 
 
 class RemoteProject(object):
@@ -303,12 +307,14 @@ class FileContentSender(object):
     """
     Sends the data that local_file makes up to the remote store in chunks.
     """
-    def __init__(self, data_service, local_file, watcher):
+    def __init__(self, config, data_service, local_file, watcher):
         """
         Setup for sending to remote store.
+        :param config: ddsc.config.Config user configuration settings from YAML file/environment
         :param data_service: DataServiceApi data service we are sending the content to.
         :param local_file: LocalFile file we are sending to remote store
         """
+        self.config = config
         self.data_service = data_service
         self.local_file = local_file
         self.filename = local_file.path
@@ -339,7 +345,7 @@ class FileContentSender(object):
         """
         Have the file feed us chunks we can upload.
         """
-        self.local_file.process_chunks(self.data_service.bytes_per_chunk, self.process_chunk)
+        self.local_file.process_chunks(self.config.upload_bytes_per_chunk, self.process_chunk)
 
     def process_chunk(self, chunk, chunk_hash_alg, chunk_hash_value):
         """
@@ -378,14 +384,16 @@ class RemoteContentSender(object):
     """
     Sends project, folder, and files to remote store.
     """
-    def __init__(self, data_service, project_id, project_name, watcher):
+    def __init__(self, config, data_service, project_id, project_name, watcher):
         """
         Setup to allow remote sending.
+        :param config: ddsc.config.Config user configuration settings from YAML file/environment
         :param data_service: DataServiceApi used to query/send data
         :param project_id: str UUID of the project we want to add items too(can be '' for a new project)
         :param project_name: str Name of the project to create if necessary
         :param watcher: ProgressPrinter object we notify of items we are about to send
         """
+        self.config = config
         self.data_service = data_service
         self.project_id = project_id
         self.project_name = project_name
@@ -429,9 +437,10 @@ class RemoteContentSender(object):
         :param parent: LocalContent/LocalFolder that contains this file
         """
         if item.need_to_send:
-            file_content_sender = FileContentSender(self.data_service, item, self.watcher)
+            file_content_sender = FileContentSender(self.config, self.data_service, item, self.watcher)
             remote_id = file_content_sender.upload(self.project_id, parent.kind, parent.remote_id)
             item.set_remote_id_after_send(remote_id)
+
 
 class RemoteContentDownloader(object):
     """

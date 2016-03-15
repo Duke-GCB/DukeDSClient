@@ -1,10 +1,10 @@
 """DataServiceApi - communicates with to Duke Data Service REST API."""
 import json
 import requests
+import time
+from ddsc.config import LOCAL_CONFIG_FILENAME
 
-# Swift is currently configured for 5MB file upload chunk size.
-SWIFT_BYTES_PER_CHUNK = 5242880
-
+AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 
 class ContentType(object):
     """
@@ -35,6 +35,69 @@ class KindType(object):
         return item.kind == KindType.project_str
 
 
+class DataServiceAuth(object):
+    """
+    Handles authorization refreshing for DataServiceApi.
+    """
+    def __init__(self, config):
+        """
+        Setup with initial authorization settings from config.
+        :param config: ddsc.config.Config settings such as auth, user_key, agent_key
+        """
+        self.config = config
+        self._auth = self.config.auth
+        self._expires = None
+        self.no_auth_data_service = DataServiceApi(None, self.config.url)
+
+    def get_auth(self):
+        """
+        Gets an active token refreshing it if necessary.
+        :return: str valid active authentication token.
+        """
+        if self.hard_coded_auth():
+            return self._auth
+        if not self.auth_expired():
+            return self._auth
+        self.claim_new_token()
+        return self._auth
+
+    def claim_new_token(self):
+        """
+        Update internal state to have a new token using a no authorization data service.
+        """
+        try:
+            data_service = self.no_auth_data_service
+            resp = data_service.get_api_token(self.config.agent_key, self.config.user_key)
+            resp_json = resp.json()
+            self._auth = resp_json['api_token']
+            self._expires = resp_json['expires_on']
+        except DataServiceError as err:
+            if err.status_code == 404:  # server doesn't support user_agent yet
+                msg = "Please add a valid auth token to " + LOCAL_CONFIG_FILENAME + ". Example:\n"
+                msg += "auth: 'eyJ0eXAiOi...YT4Q' "
+                raise ValueError(msg)
+            else:
+                raise
+
+    def hard_coded_auth(self):
+        """
+        Has user specified a single auth token to use with an unknown expiration.
+        This is the old method. User should update their config file.
+        :return: boolean true if we should never try to fetch a token
+        """
+        return self._auth and not self._expires
+
+    def auth_expired(self):
+        """
+        Compare the expiration value of our current token including a CLOCK_SKEW.
+        :return: true if the token has expired
+        """
+        if self._auth and self._expires:
+            now_with_skew = time.time() + AUTH_TOKEN_CLOCK_SKEW_MAX
+            return now_with_skew > self._expires
+        return True
+
+
 class DataServiceApi(object):
     """
     Sends json messages and receives responses back from Duke Data Service api.
@@ -50,7 +113,6 @@ class DataServiceApi(object):
         """
         self.auth = auth
         self.base_url = url
-        self.bytes_per_chunk = SWIFT_BYTES_PER_CHUNK
         self.http = http
 
     def _url_parts(self, url_suffix, url_data, content_type):
@@ -67,8 +129,9 @@ class DataServiceApi(object):
             send_data = json.dumps(url_data)
         headers = {
             'Content-Type': content_type,
-            'Authorization': self.auth
         }
+        if self.auth:
+            headers['Authorization'] = self.auth.get_auth()
         return url, send_data, headers
 
     def _post(self, url_suffix, post_data, content_type=ContentType.json):
@@ -338,6 +401,20 @@ class DataServiceApi(object):
         """
         return self._get('/files/' + file_id, {})
 
+    def get_api_token(self, agent_key, user_key):
+        """
+        Send POST request to get an auth token.
+        This method doesn't require auth obviously.
+        :param agent_key: str agent key (who is acting on behalf of the user)
+        :param user_key: str secret user key
+        :return: requests.Response containing the successful result
+        """
+        data = {
+            "agent_key": agent_key,
+            "user_key": user_key,
+        }
+        return self._post("/software_agents/api_token", data)
+
 
 class DataServiceError(Exception):
     """
@@ -350,9 +427,13 @@ class DataServiceError(Exception):
         :param url_suffix: str url we were trying to connect to
         :param request_data: object data we were sending to url
         """
-        resp_json = response.json()
+        resp_json = None
+        try:
+            resp_json = response.json()
+        except:
+            resp_json = {}
         if response.status_code == 500:
-            if not resp_json.get('reason'):
+            if resp_json and not resp_json.get('reason'):
                 resp_json = {'reason':'Internal Server Error', 'suggestion':'Contact DDS support.'}
         Exception.__init__(self,'Error {} on {} Reason:{} Suggestion:{}'.format(
             response.status_code, url_suffix, resp_json.get('reason',resp_json.get('error','')), resp_json.get('suggestion','')
@@ -360,3 +441,4 @@ class DataServiceError(Exception):
         self.response = resp_json
         self.url_suffix = url_suffix
         self.request_data = request_data
+        self.status_code = response.status_code

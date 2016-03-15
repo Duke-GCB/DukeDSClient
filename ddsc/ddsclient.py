@@ -8,45 +8,8 @@ except ImportError:
 
 from ddsc.localstore import LocalProject, LocalOnlyCounter, UploadReport
 from ddsc.remotestore import RemoteStore, RemoteContentDownloader
-from ddsc.ddsapi import DataServiceApi, KindType, SWIFT_BYTES_PER_CHUNK
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.util import ProgressPrinter
-
-
-DDS_DEFAULT_URL = 'https://dataservice.duke.edu/api/v1'
-
-
-class Config(object):
-    """
-    Global configuration for data service api.
-    """
-    def get_auth(self):
-        """
-        Return an authorization token
-        :return: str auth token to be used with DataServiceApi
-        """
-        auth = os.environ.get('DUKE_DATA_SERVICE_AUTH', None)
-        if not auth:
-            raise ValueError('Set DUKE_DATA_SERVICE_AUTH environment variable to valid key.')
-        return auth
-
-    def get_data_service_url(self):
-        """
-        Return base url to data service.
-        :return: str url for use with DataServiceApi
-        """
-        url = os.environ.get('DUKE_DATA_SERVICE_URL', None)
-        if not url:
-            url = DDS_DEFAULT_URL
-        return url
-
-    def get_url_base(self):
-        """
-        Determine root url of the data service from the url specified.
-        :return: str root url of the data service (eg: https://dataservice.duke.edu)
-        """
-        url = self.get_data_service_url()
-        return urlparse(url).hostname
 
 
 class DDSClient(object):
@@ -56,7 +19,7 @@ class DDSClient(object):
     def __init__(self, config):
         """
         Pass in the configuration for the data service.
-        :param config: Config configuration object to be used with the DataServiceApi.
+        :param config: ddsc.config.Config configuration object to be used with the DataServiceApi.
         """
         self.config = config
 
@@ -103,21 +66,21 @@ class DDSClient(object):
         Create a remote store based on config.
         :return: RemoteStore remote store based on config settings.
         """
-        data_service = DataServiceApi(self.config.get_auth(), self.config.get_data_service_url())
-        return RemoteStore(data_service)
+        return RemoteStore(self.config)
 
 
 class UploadCommand(object):
     """
     Uploads a folder to a remote project.
     """
-    def __init__(self, ddsclient):
+    def __init__(self, parent):
         """
         Pass in the parent who can create a remote_store/url so we can access the remote data.
-        :param ddsclient: DDSClient parent who can create objects based on config for us.
+        :param parent: DDSClient parent who can create objects based on config for us.
         """
-        self.remote_store = ddsclient.create_remote_store()
-        self.base_url = ddsclient.config.get_url_base()
+        self.remote_store = parent.create_remote_store()
+        self.base_url = parent.config.get_url_base()
+        self.config = parent.config
 
     def run(self, args):
         """
@@ -151,7 +114,7 @@ class UploadCommand(object):
         :param local_project: LocalProject project we will send data from
         :return: LocalOnlyCounter contains counts for various items
         """
-        different_items = LocalOnlyCounter(SWIFT_BYTES_PER_CHUNK)
+        different_items = LocalOnlyCounter(self.config.upload_bytes_per_chunk)
         different_items.walk_project(local_project)
         return different_items
 
@@ -198,12 +161,12 @@ class DownloadCommand(object):
     """
     Downloads the content from a remote project into a folder.
     """
-    def __init__(self, ddsclient):
+    def __init__(self, parent):
         """
         Pass in the parent who can create a remote_store so we can access the remote data.
-        :param ddsclient: DDSClient parent who can create objects based on config for us.
+        :param parent: DDSClient parent who can create objects based on config for us.
         """
-        self.remote_store = ddsclient.create_remote_store()
+        self.remote_store = parent.create_remote_store()
 
     def run(self, args):
         """
@@ -225,12 +188,12 @@ class AddUserCommand(object):
     """
     Adds a user to a pre-existing remote project.
     """
-    def __init__(self, ddsclient):
+    def __init__(self, parent):
         """
         Pass in the parent who can create a remote_store so we can access the remote data.
-        :param ddsclient: DDSClient parent who can create objects based on config for us.
+        :param parent: DDSClient parent who can create objects based on config for us.
         """
-        self.remote_store = ddsclient.create_remote_store()
+        self.remote_store = parent.create_remote_store()
 
     def run(self, args):
         """

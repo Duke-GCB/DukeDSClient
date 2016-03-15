@@ -1,18 +1,16 @@
 set -e
 
-export DUKE_DATA_SERVICE_AUTH=$1
-USERNAME=$2
-USER_EMAIL=$3
+USERNAME=$1
+USER_EMAIL=$2
 
-if [ "$DUKE_DATA_SERVICE_AUTH" == "" -o "$USERNAME" == "" -o "$USER_EMAIL" == "" ]
+if [ "$USERNAME" == "" -o "$USER_EMAIL" == "" ]
 then
-   echo "Usage: $0 <AUTH> <USERNAME> <USER_EMAIL>"
+   echo "Usage: $0 <USERNAME> <USER_EMAIL>"
    exit 1
 fi
 
-export DUKE_DATA_SERVICE_AUTH=$1
-USERNAME=$2
-USER_EMAIL=$3
+USERNAME=$1
+USER_EMAIL=$2
 
 PROJECT_PREFIX="int_test"
 
