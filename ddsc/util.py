@@ -1,5 +1,26 @@
 import sys
-from ddsc.ddsapi import KindType
+
+
+class KindType(object):
+    """
+    The types of items that are part of a project. Strings are from the duke-data-service.
+    """
+    file_str = 'dds-file'
+    folder_str = 'dds-folder'
+    project_str = 'dds-project'
+
+    @staticmethod
+    def is_file(item):
+        return item.kind == KindType.file_str
+
+    @staticmethod
+    def is_folder(item):
+        return item.kind == KindType.folder_str
+
+    @staticmethod
+    def is_project(item):
+        return item.kind == KindType.project_str
+
 
 class ProgressPrinter(object):
     """
@@ -41,3 +62,37 @@ class ProgressPrinter(object):
         """
         sys.stdout.write('\rDone: 100%'.ljust(self.max_width) + '\n')
         sys.stdout.flush()
+
+
+class ProjectWalker(object):
+    """
+    Generic tool for visiting all the nodes in a project.
+    For use with RemoteProject and LocalProject
+    """
+    @staticmethod
+    def walk_project(project, visitor):
+        """
+
+        :param project: LocalProject project we want to visit all children of.
+        :param visitor: object must implement visit_project, visit_folder, visit_file
+        :return:
+        """
+        ProjectWalker._visit_content(project, None, visitor)
+
+    @staticmethod
+    def _visit_content(item, parent, visitor):
+        """
+        Recursively visit nodes in the project tree.
+        :param item: LocalContent/LocalFolder/LocalFile we are traversing down from
+        :param parent: LocalContent/LocalFolder parent or None
+        :param visitor: object visiting the tree
+        """
+        if KindType.is_project(item):
+            visitor.visit_project(item)
+        elif KindType.is_folder(item):
+            visitor.visit_folder(item, parent)
+        else:
+            visitor.visit_file(item, parent)
+        if not KindType.is_file(item):
+            for child in item.children:
+                ProjectWalker._visit_content(child, item, visitor)

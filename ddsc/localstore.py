@@ -3,7 +3,7 @@ import math
 import datetime
 import hashlib
 import mimetypes
-from ddsc.ddsapi import KindType
+from ddsc.util import KindType
 
 
 class LocalProject(object):
@@ -586,3 +586,54 @@ class LocalOnlyCounter(object):
             return '{} {}'.format(cnt, name)
         else:
             return '{} {}s'.format(cnt, name)
+
+
+class FileChunkReader(object):
+    """
+    Reads chunks of data from a file based on a index and a size and passes them to a processor.
+    So we seek to index*chunk_size, then read one chunk at a time and give it to processor
+    until we have done num_chunks_to_process.
+    """
+    def __init__(self, filename, chunk_size, index, num_chunks_to_process):
+        """
+        Setup to read chunks from a file
+        :param filename: str path to file we will be reading binary data from
+        :param chunk_size: int size of blocks to read out from the file and upload
+        :param index: int offset of chunk_size to seek into the file before starting
+        :param num_chunks_to_process: number of chunk_size blocks to process
+        """
+        self.filename = filename
+        self.chunk_size = chunk_size
+        self.index = index
+        self.num_chunks_to_send = num_chunks_to_process
+
+    def run(self, processor):
+        """
+        For each chunk specified in init send it to a processor.
+        processor should have a consume(chunk, chunk_index, chunk_hash_alg, chunk_hash_value) method that returns
+        false if an error has occurred (and we will stop processing chunks)
+        :param processor: object should have a
+        :return:
+        """
+        chunk_index = self.index
+        with open(self.filename, 'rb') as infile:
+            infile.seek(self.index * self.chunk_size)
+            while self.num_chunks_to_send:
+                chunk = infile.read(self.chunk_size)
+                if not self._consume_chunk(chunk, chunk_index):
+                    return False
+                chunk_index += 1
+                self.num_chunks_to_send -= 1
+        return True
+
+    def _consume_chunk(self, processor, chunk, chunk_index):
+        if not chunk:
+            msg = "Missing some data from file: {} index:{} chunk_size:{})"
+            raise ValueError(msg.format(self.filename, self.index, self.chunk_size))
+        chunk_hash_alg, chunk_hash_value = self._get_hash(chunk)
+        return processor.consume(chunk, chunk_index, chunk_hash_alg, chunk_hash_value)
+
+    def _get_hash(self, chunk):
+        hash = HashUtil()
+        hash.add_chunk(chunk)
+        return hash.hexdigest()

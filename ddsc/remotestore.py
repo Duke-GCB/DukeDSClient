@@ -1,9 +1,7 @@
 import os
-from ddsc.ddsapi import KindType, DataServiceApi, DataServiceError, DataServiceAuth
-from ddsc.localstore import ProjectWalker
-from ddsc.util import ProgressPrinter
-from ddsc.config import LOCAL_CONFIG_FILENAME
-
+from ddsc.ddsapi import DataServiceApi, DataServiceError, DataServiceAuth
+from ddsc.util import ProgressPrinter, KindType, ProjectWalker
+from multiprocessing import Pool
 
 FETCH_ALL_USERS_PAGE_SIZE = 25
 DOWNLOAD_FILE_CHUNK_SIZE = 1024
@@ -101,6 +99,12 @@ class RemoteStore(object):
                                      project_name, progress_printer)
         sender.walk_project(local_project)
 
+    def lookup_user_by_email_or_username(self, email, username):
+        if username:
+            return self.lookup_user_by_username(username)
+        else:
+            return self.lookup_user_by_email(email)
+
     def lookup_user_by_name(self, full_name):
         """
         Query remote store for a single user with the name full_name or raise error.
@@ -146,6 +150,14 @@ class RemoteStore(object):
             raise ValueError('Multiple users with same email found: {}.'.format(email))
         return matches[0]
 
+    def get_current_user(self):
+        """
+        Fetch info about the current user
+        :return: RemoteUser user who we are logged in as(auth determines this).
+        """
+        response = self.data_service.get_current_user().json()
+        return RemoteUser(response)
+
     def fetch_all_users(self):
         """
         Retrieves all users from data service.
@@ -174,6 +186,20 @@ class RemoteStore(object):
         :param auth_role: str type of authorization to give user(project_admin)
         """
         self.data_service.set_user_project_permission(project.id, user.id, auth_role)
+
+    def revoke_user_project_permission(self, project, user):
+        """
+        Update remote store for user removing auth_role permissions on project.
+        :param project: RemoteProject project to remove permissions from
+        :param user: RemoteUser user who we are removing permissions from
+        """
+        # Server errors out with 500 if a user isn't found.
+        try:
+            resp = self.data_service.get_user_project_permission(project.id, user.id)
+            self.data_service.revoke_user_project_permission(project.id, user.id)
+        except DataServiceError as e:
+            if e.status_code != 404:
+                raise
 
     def download_file(self, remoteFile, path, watcher):
         """
@@ -302,7 +328,6 @@ class RemoteUser(object):
     def __str__(self):
         return 'id:{} username:{} full_name:{}'.format(self.id, self.username, self.full_name)
 
-
 class FileContentSender(object):
     """
     Sends the data that local_file makes up to the remote store in chunks.
@@ -322,6 +347,7 @@ class FileContentSender(object):
         self.chunk_num = 0
         self.upload_id = None
         self.watcher = watcher
+        self.pool = Pool()
 
     def upload(self, project_id, parent_kind, parent_id):
         """
@@ -345,6 +371,10 @@ class FileContentSender(object):
         """
         Have the file feed us chunks we can upload.
         """
+        #file_chink_info = FileChunkInfo(self.filename, 0, 512, self.data_service)
+        #pending_resp = self.pool.apply_async(FileContentSender.forkme, [file_chink_info])
+        #print(pending_resp.get())
+
         self.local_file.process_chunks(self.config.upload_bytes_per_chunk, self.process_chunk)
 
     def process_chunk(self, chunk, chunk_hash_alg, chunk_hash_value):
@@ -378,6 +408,21 @@ class FileContentSender(object):
         resp = self.data_service.send_external(http_verb, host, url, http_headers, chunk)
         if resp.status_code != 200 and resp.status_code != 201:
             raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code))
+
+    @staticmethod
+    def forkme(file_chunk_info):
+        return "In fork" + file_chunk_info.some_str()
+
+
+class FileChunkInfo(object):
+    def __init__(self, filename, index, chunk_size, data_service):
+        self.filename = filename
+        self.index = index
+        self.chunk_size = chunk_size
+        self.data_service = data_service
+
+    def some_str(self):
+        return "{}-{}-{}".format(self.filename, self.index, self.chunk_size)
 
 
 class RemoteContentSender(object):
@@ -551,3 +596,90 @@ class RemoteContentCounter(object):
         :return:
         """
         self.count += item.size
+
+
+        """
+def _send_chunk_external(data_service_auth, data_service_url, data_service_profile_http,
+                         data_service_bytes_per_chunk, upload_id, chunk_num, chunk, chunk_hash_value, chunk_hash_alg):
+    data_service = DataServiceApi(data_service_auth, data_service_url, data_service_profile_http,
+            data_service_bytes_per_chunk)
+    return _send_chunk_external_direct(data_service, upload_id, chunk_num, chunk, chunk_hash_value, chunk_hash_alg)
+
+def _send_chunk_external_direct(data_service, upload_id, chunk_num, chunk, chunk_hash_value, chunk_hash_alg):
+    resp = data_service.create_upload_url(upload_id, chunk_num, len(chunk), chunk_hash_value, chunk_hash_alg)
+    if resp.status_code == 200:
+        result = _send_file_external(data_service, resp.json(), chunk)
+        return result
+    else:
+        return "Failed to retrieve upload url status:" + str(resp.status_code)
+
+
+def _send_file_external(data_service, url_json, chunk):
+
+    http_verb = url_json['http_verb']
+    host = url_json['host']
+    url = url_json['url']
+    http_headers = url_json['http_headers']
+    resp = data_service.send_external(http_verb, host, url, http_headers, chunk)
+    if resp.status_code != 200 and resp.status_code != 201:
+        return "Failed to send file to external store. Error:" + str(resp.status_code)
+    else:
+        return None
+
+
+def send_chunk_process(data_service_auth, data_service_url, data_service_profile_http,
+                       data_service_bytes_per_chunk, upload_id,
+                       filename, chunk_size, index, num_chunks_to_send):
+    data_service = DataServiceApi(data_service_auth, data_service_url, data_service_profile_http,
+            data_service_bytes_per_chunk)
+    sender = ChunkSender(data_service, upload_id, filename, chunk_size, index, num_chunks_to_send)
+    return sender.send()
+
+class ChunkSender(object):
+    def __init__(self, data_service, upload_id, filename, chunk_size, index, num_chunks_to_send):
+        self.data_service = data_service
+        self.upload_id = upload_id
+        self.filename = filename
+        self.chunk_size = chunk_size
+        self.index = index
+        self.num_chunks_to_send = num_chunks_to_send
+
+    def send(self):
+        sent_chunks = 0
+        chunk_num = self.index
+        with open(self.filename, 'rb') as infile:
+            infile.seek(self.index * self.chunk_size)
+            while sent_chunks != self.num_chunks_to_send:
+                chunk = infile.read(self.chunk_size)
+                error_msg = self._send_chunk(chunk, chunk_num)
+                if error_msg:
+                    return error_msg
+                chunk_num += 1
+                sent_chunks += 1
+        print(self.data_service.get_profile_report())
+        return None
+
+    def _send_chunk(self, chunk, chunk_num):
+        chunk_hash_alg, chunk_hash_value = self._get_hash(chunk)
+        resp = self.data_service.create_upload_url(self.upload_id, chunk_num, len(chunk),
+                                                   chunk_hash_value, chunk_hash_alg)
+        if resp.status_code == 200:
+            url_json = resp.json()
+            http_verb = url_json['http_verb']
+            host = url_json['host']
+            url = url_json['url']
+            http_headers = url_json['http_headers']
+            resp = self.data_service.send_external(http_verb, host, url, http_headers, chunk)
+            if resp.status_code != 200 and resp.status_code != 201:
+                return "Failed to send file to external store. Error:" + str(resp.status_code)
+            else:
+                return None
+        else:
+            return "Failed to retrieve upload url status:" + str(resp.status_code)
+
+    def _get_hash(self, chunk):
+        hash = HashUtil()
+        hash.add_chunk(chunk)
+        return hash.hexdigest()
+
+    """

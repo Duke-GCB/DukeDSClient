@@ -12,6 +12,7 @@ setup(name='DukeDSClient',
         install_requires=[
           'requests',
           'PyYAML',
+          'passlib',
         ],
         test_suite='nose.collector',
         tests_require=['nose'],

@@ -1,15 +1,12 @@
 from __future__ import print_function
-import os
-import sys
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
+import datetime
 
 from ddsc.localstore import LocalProject, LocalOnlyCounter, UploadReport
 from ddsc.remotestore import RemoteStore, RemoteContentDownloader
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.util import ProgressPrinter
+from ddsc.handover import Handover
+
 
 
 class DDSClient(object):
@@ -40,6 +37,9 @@ class DDSClient(object):
         parser.register_upload_command(self._setup_run_command(UploadCommand))
         parser.register_add_user_command(self._setup_run_command(AddUserCommand))
         parser.register_download_command(self._setup_run_command(DownloadCommand))
+        parser.register_mail_draft_command(self._setup_run_command(MailDraftCommand))
+        parser.register_handover_command(self._setup_run_command(HandoverCommand))
+
         return parser
 
     def _setup_run_command(self, command_constructor):
@@ -201,16 +201,74 @@ class AddUserCommand(object):
         :param args Namespace arguments parsed from the command line
         """
         project_name = args.project_name    # name of the pre-existing project to set permissions on
-        username = args.username            # username of person to give permissions, will be None if email is specified
         email = args.email                  # email of person to give permissions, will be None if username is specified
+        username = args.username            # username of person to give permissions, will be None if email is specified
         auth_role = args.auth_role          # type of permission(project_admin)
         project = self.remote_store.fetch_remote_project(project_name, must_exist=True)
-        user = None
-        if username:
-            user = self.remote_store.lookup_user_by_username(username)
-        else :
-            user = self.remote_store.lookup_user_by_email(email)
+        user = self.remote_store.lookup_user_by_email_or_username(email, username)
         self.remote_store.set_user_project_permission(project, user, auth_role)
         print(u'Gave user {} {} permissions for {}.'.format(user.full_name, auth_role, project_name))
 
+
+class MailDraftCommand(object):
+    """
+    Send email that draft project is ready for a user.
+    """
+    def __init__(self, parent):
+        """
+        Pass in the parent who can create a remote_store so we can access the remote data.
+        :param parent: DDSClient parent who can create objects based on config for us.
+        """
+        self.remote_store = parent.create_remote_store()
+        self.handover = Handover(parent.config, self.remote_store)
+
+    def run(self, args):
+        """
+        Send email that draft project is ready for the user.
+        :param args Namespace arguments parsed from the command line
+        """
+        project_name = args.project_name    # name of the pre-existing project to set permissions on
+        email = args.email                  # email of person to send email to
+        username = args.username            # username of person to send email to, will be None if email is specified
+        to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
+        dest_email = self.handover.mail_draft(project_name, to_user)
+        print("Email draft sent to " + dest_email)
+
+
+class HandoverCommand(object):
+    """
+    Send handover email that project is ready for a user to receive.
+    """
+    def __init__(self, parent):
+        """
+        Pass in the parent who can create a remote_store so we can access the remote data.
+        :param parent: DDSClient parent who can create objects based on config for us.
+        """
+        self.remote_store = parent.create_remote_store()
+        self.handover = Handover(parent.config, self.remote_store)
+
+    def run(self, args):
+        """
+        Send handover email that project is ready for a user to receive.
+        :param args Namespace arguments parsed from the command line
+        """
+        project_name = args.project_name    # name of the pre-existing project to set permissions on
+        email = args.email                  # email of person to handover to, will be None if username is specified
+        username = args.username            # username of person to handover to, will be None if email is specified
+        skip_copy_project = args.skip_copy_project  # should we skip the copy step
+        new_project_name = None
+        if not skip_copy_project:
+            new_project_name = self.get_new_project_name(project_name)
+        to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
+        dest_email = self.handover.handover(project_name, new_project_name, to_user)
+        print("Handover message sent to " + dest_email)
+
+    def get_new_project_name(self, project_name):
+        """
+        Return a unique project name for the copy.
+        :param project_name:
+        :return:
+        """
+        timestamp_str = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+        return "{} {}".format(project_name, timestamp_str)
 

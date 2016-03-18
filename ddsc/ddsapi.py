@@ -6,33 +6,13 @@ from ddsc.config import LOCAL_CONFIG_FILENAME
 
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 
+
 class ContentType(object):
     """
     Contains the types of content for use with http headers.
     """
     json = 'application/json'
     form = 'application/x-www-form-urlencoded'
-
-
-class KindType(object):
-    """
-    Holds the types of files supported by DDS.
-    """
-    file_str = 'dds-file'
-    folder_str = 'dds-folder'
-    project_str = 'dds-project'
-
-    @staticmethod
-    def is_file(item):
-        return item.kind == KindType.file_str
-
-    @staticmethod
-    def is_folder(item):
-        return item.kind == KindType.folder_str
-
-    @staticmethod
-    def is_project(item):
-        return item.kind == KindType.project_str
 
 
 class DataServiceAuth(object):
@@ -47,7 +27,6 @@ class DataServiceAuth(object):
         self.config = config
         self._auth = self.config.auth
         self._expires = None
-        self.no_auth_data_service = DataServiceApi(None, self.config.url)
 
     def get_auth(self):
         """
@@ -65,19 +44,23 @@ class DataServiceAuth(object):
         """
         Update internal state to have a new token using a no authorization data service.
         """
-        try:
-            data_service = self.no_auth_data_service
-            resp = data_service.get_api_token(self.config.agent_key, self.config.user_key)
-            resp_json = resp.json()
-            self._auth = resp_json['api_token']
-            self._expires = resp_json['expires_on']
-        except DataServiceError as err:
-            if err.status_code == 404:  # server doesn't support user_agent yet
-                msg = "Please add a valid auth token to " + LOCAL_CONFIG_FILENAME + ". Example:\n"
-                msg += "auth: 'eyJ0eXAiOi...YT4Q' "
-                raise ValueError(msg)
-            else:
-                raise
+        # Intentionally doing this manually so we don't have a chicken and egg problem with DataServiceApi.
+        headers = {
+            'Content-Type': ContentType.json,
+        }
+        data = {
+            "agent_key": self.config.agent_key,
+            "user_key": self.config.user_key,
+        }
+        url = self.config.url + "/software_agents/api_token"
+        response = requests.post(url, headers=headers, data=json.dumps(data))
+        if response.status_code == 404:  # server doesn't support user_agent yet
+            msg = "Please add a valid auth token to " + LOCAL_CONFIG_FILENAME + ". Example:\n"
+            msg += "auth: 'eyJ0eXAiOi...YT4Q' "
+            raise ValueError(msg)
+        resp_json = response.json()
+        self._auth = resp_json['api_token']
+        self._expires = resp_json['expires_on']
 
     def hard_coded_auth(self):
         """
@@ -170,6 +153,18 @@ class DataServiceApi(object):
         resp = self.http.get(url, headers=headers, params=data_str)
         return self._check_err(resp, url_suffix, get_data)
 
+    def _delete(self, url_suffix, get_data, content_type=ContentType.json):
+        """
+        Send DELETE request to API at url_suffix with post_data.
+        :param url_suffix: str URL path we are sending a DELETE to
+        :param url_data: object data we are sending
+        :param content_type: str from ContentType that determines how we format the data
+        :return: requests.Response containing the result
+        """
+        (url, data_str, headers) = self._url_parts(url_suffix, get_data, content_type=content_type)
+        resp = self.http.delete(url, headers=headers, params=data_str)
+        return self._check_err(resp, url_suffix, get_data)
+
     def _check_err(self, resp, url_suffix, data):
         """
         Raise DataServiceError if the response wasn't successful.
@@ -178,7 +173,7 @@ class DataServiceApi(object):
         :param data: data payload we sent
         :return: requests.Response containing the successful result
         """
-        if resp.status_code != 200 and resp.status_code != 201:
+        if resp.status_code != 200 and resp.status_code != 201 and resp.status_code != 204:
             raise DataServiceError(resp, url_suffix, data)
         return resp
 
@@ -393,6 +388,26 @@ class DataServiceApi(object):
         return self._put("/projects/" + project_id + "/permissions/" + user_id, put_data,
                          content_type=ContentType.form)
 
+    def get_user_project_permission(self, project_id, user_id):
+        """
+        Send GET request to /projects/{project_id}/permissions/{user_id/.
+        :param project_id: str uuid of the project
+        :param user_id: str uuid of the user
+        :param auth_role: str project role eg 'project_admin'
+        :return: requests.Response containing the successful result
+        """
+        return self._get("/projects/" + project_id + "/permissions/" + user_id, {})
+
+    def revoke_user_project_permission(self, project_id, user_id):
+        """
+        Send DELETE request to /projects/{project_id}/permissions/{user_id so they will no longer have permissions.
+        :param project_id: str uuid of the project
+        :param user_id: str uuid of the user
+        :param auth_role: str project role eg 'project_admin'
+        :return: requests.Response containing the successful result
+        """
+        return self._delete("/projects/" + project_id + "/permissions/" + user_id, {})
+
     def get_file(self, file_id):
         """
         Send GET request to /files/{file_id} to retrieve file info.
@@ -414,6 +429,13 @@ class DataServiceApi(object):
             "user_key": user_key,
         }
         return self._post("/software_agents/api_token", data)
+
+    def get_current_user(self):
+        """
+        Send GET request to get info about current user.
+        :return: requests.Response containing the successful result
+        """
+        return self._get("/current_user", {})
 
 
 class DataServiceError(Exception):

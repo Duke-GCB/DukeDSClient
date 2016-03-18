@@ -33,7 +33,7 @@ def to_unicode(s):
         return s
 
 
-def _add_project_name_arg(arg_parser):
+def add_project_name_arg(arg_parser):
     """
     Adds project_name parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
@@ -112,7 +112,7 @@ def _add_follow_symlinks_arg(arg_parser):
                             dest='follow_symlinks')
 
 
-def _add_user_arg(arg_parser):
+def add_user_arg(arg_parser):
     """
     Adds username parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
@@ -125,7 +125,7 @@ def _add_user_arg(arg_parser):
                                  "You must specify either --email or this flag.")
 
 
-def _add_email_arg(arg_parser):
+def add_email_arg(arg_parser):
     """
     Adds user_email parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
@@ -149,6 +149,16 @@ def _add_auth_role_arg(arg_parser):
                             help="Specifies authorization role for the user ('project_admin').",
                             default='project_admin')
 
+def _add_copy_project_arg(arg_parser):
+    """
+    Adds optional copy_project parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    """
+    arg_parser.add_argument("--skip_copy_project",
+                            help="Should we just send the handover email and skip copying the project.",
+                            action='store_true',
+                            default=False,
+                            dest='skip_copy_project')
 
 class CommandParser(object):
     """
@@ -170,7 +180,7 @@ class CommandParser(object):
         """
         description = "Uploads local files and folders to a remote host."
         upload_parser = self.subparsers.add_parser('upload', description=description)
-        _add_project_name_arg(upload_parser)
+        add_project_name_arg(upload_parser)
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
         upload_parser.set_defaults(func=upload_func)
@@ -183,19 +193,40 @@ class CommandParser(object):
         """
         description = "Gives user permission to access a remote project."
         add_user_parser = self.subparsers.add_parser('add_user', description=description)
-        _add_project_name_arg(add_user_parser)
+        add_project_name_arg(add_user_parser)
         user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
-        _add_user_arg(user_or_email)
-        _add_email_arg(user_or_email)
+        add_user_arg(user_or_email)
+        add_email_arg(user_or_email)
         _add_auth_role_arg(add_user_parser)
         add_user_parser.set_defaults(func=add_user_func)
 
     def register_download_command(self, download_func):
         description = "Download the contents of a remote remote project to a local folder."
         download_parser = self.subparsers.add_parser('download', description=description)
-        _add_project_name_arg(download_parser)
+        add_project_name_arg(download_parser)
         _add_folder_positional_arg(download_parser)
         download_parser.set_defaults(func=download_func)
+
+    def register_mail_draft_command(self, mail_draft_func):
+        description = "Send email about draft project being ready and give user view only permissions."
+        mail_draft_parser = self.subparsers.add_parser('mail_draft', description=description)
+        add_project_name_arg(mail_draft_parser)
+        user_or_email = mail_draft_parser.add_mutually_exclusive_group(required=True)
+        add_user_arg(user_or_email)
+        add_email_arg(user_or_email)
+        mail_draft_parser.set_defaults(func=mail_draft_func)
+
+    def register_handover_command(self, handover_func):
+        description = "Initiate handover of a project to another user. Removes other user's current permissions. " \
+                      "Makes a copy of the project. Send message to handover server to send email and allow " \
+                      "access to the copy of the project once user acknowledges receiving the data."
+        handover_parser = self.subparsers.add_parser('handover', description=description)
+        add_project_name_arg(handover_parser)
+        user_or_email = handover_parser.add_mutually_exclusive_group(required=True)
+        add_user_arg(user_or_email)
+        add_email_arg(user_or_email)
+        _add_copy_project_arg(handover_parser)
+        handover_parser.set_defaults(func=handover_func)
 
     def run_command(self, args):
         """

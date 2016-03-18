@@ -35,6 +35,7 @@ class Config(object):
     UPLOAD_BYTES_PER_CHUNK = 'upload_bytes_per_chunk'  # bytes per chunk we will upload
     UPLOAD_WORKERS = 'upload_workers'                  # how many worker processes used for uploading
     DEBUG_MODE = 'debug'                               # show stack traces
+    HANDOVER_URL = 'handover_url'                      # list of plugins to install
 
     def __init__(self):
         self.values = {}
@@ -122,3 +123,6 @@ class Config(object):
         """
         return self.values.get(Config.DEBUG_MODE, False)
 
+    @property
+    def handover_url(self):
+        return self.values.get(Config.HANDOVER_URL, '')
