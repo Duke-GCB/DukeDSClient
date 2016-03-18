@@ -1,3 +1,4 @@
+""" Global configuration for the utility based on config files and environment variables."""
 import os
 import yaml
 try:
@@ -125,4 +126,8 @@ class Config(object):
 
     @property
     def handover_url(self):
+        """
+        Returns url for handover service or '' if not setup.
+        :return: str url
+        """
         return self.values.get(Config.HANDOVER_URL, '')

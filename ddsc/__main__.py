@@ -1,6 +1,7 @@
-"""Duke data service folder upload project."""
+"""Duke data service command line project management utility."""
 
 import sys
+
 from ddsc.config import create_config
 from ddsc.ddsclient import DDSClient
 

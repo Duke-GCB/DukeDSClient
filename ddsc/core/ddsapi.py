@@ -81,11 +81,38 @@ class DataServiceAuth(object):
         return True
 
 
+class DataServiceError(Exception):
+    """
+    Error that wraps up info about it and creates an informative string.
+    """
+    def __init__(self, response, url_suffix, request_data):
+        """
+        Create exception for failed response.
+        :param response: requests.Response response that was in error
+        :param url_suffix: str url we were trying to connect to
+        :param request_data: object data we were sending to url
+        """
+        resp_json = None
+        try:
+            resp_json = response.json()
+        except:
+            resp_json = {}
+        if response.status_code == 500:
+            if resp_json and not resp_json.get('reason'):
+                resp_json = {'reason':'Internal Server Error', 'suggestion':'Contact DDS support.'}
+        Exception.__init__(self,'Error {} on {} Reason:{} Suggestion:{}'.format(
+            response.status_code, url_suffix, resp_json.get('reason',resp_json.get('error','')), resp_json.get('suggestion','')
+        ))
+        self.response = resp_json
+        self.url_suffix = url_suffix
+        self.request_data = request_data
+        self.status_code = response.status_code
+
+
 class DataServiceApi(object):
     """
     Sends json messages and receives responses back from Duke Data Service api.
     See https://github.com/Duke-Translational-Bioinformatics/duke-data-service.
-    Should be eventually replaced by https://github.com/Duke-Translational-Bioinformatics/duke-data-service-pythonClient.
     """
     def __init__(self, auth, url, http=requests):
         """
@@ -244,6 +271,13 @@ class DataServiceApi(object):
         return self._get_children('folders', folder_id, name_contains)
 
     def _get_children(self, parent_name, parent_id, name_contains):
+        """
+        Send GET message to /<parent_name>/<parent_id>/children to fetch info about children(files and folders)
+        :param parent_name: str 'projects' or 'folders'
+        :param parent_id: str uuid of project or folder
+        :param name_contains: name filtering
+        :return: requests.Response containing the successful result
+        """
         data = {
             'name_contains': name_contains
         }
@@ -438,29 +472,4 @@ class DataServiceApi(object):
         return self._get("/current_user", {})
 
 
-class DataServiceError(Exception):
-    """
-    Error that wraps up info about it and creates an informative string.
-    """
-    def __init__(self, response, url_suffix, request_data):
-        """
-        Create exception for failed response.
-        :param response: requests.Response response that was in error
-        :param url_suffix: str url we were trying to connect to
-        :param request_data: object data we were sending to url
-        """
-        resp_json = None
-        try:
-            resp_json = response.json()
-        except:
-            resp_json = {}
-        if response.status_code == 500:
-            if resp_json and not resp_json.get('reason'):
-                resp_json = {'reason':'Internal Server Error', 'suggestion':'Contact DDS support.'}
-        Exception.__init__(self,'Error {} on {} Reason:{} Suggestion:{}'.format(
-            response.status_code, url_suffix, resp_json.get('reason',resp_json.get('error','')), resp_json.get('suggestion','')
-        ))
-        self.response = resp_json
-        self.url_suffix = url_suffix
-        self.request_data = request_data
-        self.status_code = response.status_code
+

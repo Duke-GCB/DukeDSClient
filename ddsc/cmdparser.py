@@ -19,6 +19,7 @@ def replace_invalid_path_chars(path):
         path = path.replace(bad_char, '_')
     return path
 
+
 def to_unicode(s):
     """
     Convert a command line string to utf8 unicode.
@@ -57,6 +58,7 @@ def _paths_must_exists(path):
      raise argparse.ArgumentTypeError("{} is not a valid file/folder.".format(path))
     return path
 
+
 def path_does_not_exist_or_is_empty(path):
     """
     Raises error if the directory the path exists and contains any files.
@@ -69,11 +71,18 @@ def path_does_not_exist_or_is_empty(path):
     path = to_unicode(path)
     return _path_has_ok_chars(path)
 
+
 def _path_has_ok_chars(path):
+    """
+    Validate path for invalid characters.
+    :param path: str possible filesystem path
+    :return: path if it was ok otherwise raises error
+    """
     basename = os.path.basename(path)
     if any([bad_char in basename for bad_char in INVALID_PATH_CHARS]):
             raise argparse.ArgumentTypeError("{} contains invalid characters for a directory.".format(path))
     return path
+
 
 def _add_folders_positional_arg(arg_parser):
     """
@@ -160,6 +169,7 @@ def _add_copy_project_arg(arg_parser):
                             default=False,
                             dest='skip_copy_project')
 
+
 class CommandParser(object):
     """
     Root command line parser. Supports the following commands: upload and add_user.
@@ -201,6 +211,10 @@ class CommandParser(object):
         add_user_parser.set_defaults(func=add_user_func)
 
     def register_download_command(self, download_func):
+        """
+        Add 'download' command for downloading a project to a non-existing or empty directory.
+        :param download_func: function to run when user choses this option
+        """
         description = "Download the contents of a remote remote project to a local folder."
         download_parser = self.subparsers.add_parser('download', description=description)
         add_project_name_arg(download_parser)
@@ -208,6 +222,10 @@ class CommandParser(object):
         download_parser.set_defaults(func=download_func)
 
     def register_mail_draft_command(self, mail_draft_func):
+        """
+        Add 'mail_draft' command for adding view only project permissions and sending email via another service.
+        :param mail_draft_func: function to run when user choses this option
+        """
         description = "Send email about draft project being ready and give user view only permissions."
         mail_draft_parser = self.subparsers.add_parser('mail_draft', description=description)
         add_project_name_arg(mail_draft_parser)
@@ -217,6 +235,11 @@ class CommandParser(object):
         mail_draft_parser.set_defaults(func=mail_draft_func)
 
     def register_handover_command(self, handover_func):
+        """
+        Add 'handover' command for removing project permissions, possibly copying the project,
+        and sending email via another service that will give the user access once they agree.
+        :param handover_func: function to run when user choses this option
+        """
         description = "Initiate handover of a project to another user. Removes other user's current permissions. " \
                       "Makes a copy of the project. Send message to handover server to send email and allow " \
                       "access to the copy of the project once user acknowledges receiving the data."

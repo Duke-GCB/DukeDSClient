@@ -1,6 +1,7 @@
-from ddsc.remotestore import RemoteStore
-from ddsc.localstore import LocalProject
-from ddsc.util import ProgressPrinter, ProjectWalker
+import datetime
+from ddsc.core.localstore import LocalProject
+from ddsc.core.remotestore import RemoteStore
+from ddsc.core.util import ProgressPrinter, ProjectWalker
 
 
 class ProjectUpload(object):
@@ -24,7 +25,7 @@ class ProjectUpload(object):
         self.different_items = self._count_differences()
 
     @staticmethod
-    def _load_local_project(self, folders, follow_symlinks):
+    def _load_local_project(folders, follow_symlinks):
         local_project = LocalProject(followsymlinks=follow_symlinks)
         local_project.add_paths(folders)
         return local_project
@@ -46,16 +47,15 @@ class ProjectUpload(object):
         """
         return self.different_items.total_items() != 0
 
-    def upload(self):
+    def run(self):
         """
         Upload different items within local_project to remote store showing a progress bar.
         """
         progress_printer = ProgressPrinter(self.different_items.total_items(), msg_verb='sending')
-        self.remote_store.upload_differences(self.local_project,
-                                             self.project_name,
-                                             progress_printer)
+        sender = RemoteContentSender(self.config, self.remote_store.data_service, self.local_project.remote_id,
+                                     self.project_name, progress_printer)
+        sender.walk_project(self.local_project)
         progress_printer.finished()
-        self._upload_differences(self.local_project, self.project_name, self.different_items.total_items())
 
     def get_differences_summary(self):
         """
@@ -256,3 +256,162 @@ class ReportItem(object):
         remote_id_str = self.remote_id.ljust(max_remote_id)
         size_str = self.size.ljust(max_size)
         return u'{}    {}    {}    {}'.format(name_str, remote_id_str, size_str, self.file_hash)
+
+
+class FileContentSender(object):
+    """
+    Sends the data that local_file makes up to the remote store in chunks.
+    """
+    def __init__(self, config, data_service, local_file, watcher):
+        """
+        Setup for sending to remote store.
+        :param config: ddsc.config.Config user configuration settings from YAML file/environment
+        :param data_service: DataServiceApi data service we are sending the content to.
+        :param local_file: LocalFile file we are sending to remote store
+        """
+        self.config = config
+        self.data_service = data_service
+        self.local_file = local_file
+        self.filename = local_file.path
+        self.content_type = local_file.mimetype
+        self.chunk_num = 0
+        self.upload_id = None
+        self.watcher = watcher
+        #self.pool = Pool()
+
+    def upload(self, project_id, parent_kind, parent_id):
+        """
+        Upload file contents to project within specified parent.
+        :param project_id: str project uuid
+        :param parent_kind: str type of parent ('dds-project' or 'dds-folder')
+        :param parent_id: str uuid of parent
+        :return: str uuid of the newly uploaded file
+        """
+        size = self.local_file.size
+        (hash_alg, hash_value) = self.local_file.get_hashpair()
+        name = self.local_file.name
+        resp = self.data_service.create_upload(project_id, name, self.content_type, size, hash_value, hash_alg)
+        self.upload_id = resp.json()['id']
+        self._send_file_chunks()
+        self.data_service.complete_upload(self.upload_id)
+        result = self.data_service.create_file(parent_kind, parent_id, self.upload_id)
+        return result.json()['id']
+
+    def _send_file_chunks(self):
+        """
+        Have the file feed us chunks we can upload.
+        """
+        #file_chink_info = FileChunkInfo(self.filename, 0, 512, self.data_service)
+        #pending_resp = self.pool.apply_async(FileContentSender.forkme, [file_chink_info])
+        #print(pending_resp.get())
+
+        self.local_file.process_chunks(self.config.upload_bytes_per_chunk, self.process_chunk)
+
+    def process_chunk(self, chunk, chunk_hash_alg, chunk_hash_value):
+        """
+        Method to consume chunks sent by local_file.process_chunks.
+        Raises ValueError on upload failure.
+        :param chunk: bytes part of the file to send
+        :param chunk_hash_alg: str the algorithm used to hash chunk
+        :param chunk_hash_value: str the hash value of chunk
+        """
+        self.watcher.sending_item(self.local_file)
+        resp = self.data_service.create_upload_url(self.upload_id, self.chunk_num, len(chunk),
+                                                   chunk_hash_value, chunk_hash_alg)
+        if resp.status_code == 200:
+            self._send_file_external(resp.json(), chunk)
+            self.chunk_num += 1
+        else:
+            raise ValueError("Failed to retrieve upload url status:" + str(resp.status_code))
+
+    def _send_file_external(self, url_json, chunk):
+        """
+        Send chunk to external store specified in url_json.
+        Raises ValueError on upload failure.
+        :param url_json: dict contains where/how to upload chunk
+        :param chunk: data to be uploaded
+        """
+        http_verb = url_json['http_verb']
+        host = url_json['host']
+        url = url_json['url']
+        http_headers = url_json['http_headers']
+        resp = self.data_service.send_external(http_verb, host, url, http_headers, chunk)
+        if resp.status_code != 200 and resp.status_code != 201:
+            raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code))
+
+    @staticmethod
+    def forkme(file_chunk_info):
+        return "In fork" + file_chunk_info.some_str()
+
+
+class FileChunkInfo(object):
+    def __init__(self, filename, index, chunk_size, data_service):
+        self.filename = filename
+        self.index = index
+        self.chunk_size = chunk_size
+        self.data_service = data_service
+
+    def some_str(self):
+        return "{}-{}-{}".format(self.filename, self.index, self.chunk_size)
+
+
+class RemoteContentSender(object):
+    """
+    Sends project, folder, and files to remote store.
+    """
+    def __init__(self, config, data_service, project_id, project_name, watcher):
+        """
+        Setup to allow remote sending.
+        :param config: ddsc.config.Config user configuration settings from YAML file/environment
+        :param data_service: DataServiceApi used to query/send data
+        :param project_id: str UUID of the project we want to add items too(can be '' for a new project)
+        :param project_name: str Name of the project to create if necessary
+        :param watcher: ProgressPrinter object we notify of items we are about to send
+        """
+        self.config = config
+        self.data_service = data_service
+        self.project_id = project_id
+        self.project_name = project_name
+        self.watcher = watcher
+
+    def walk_project(self, project):
+        """
+        For each project, folder, and files send to remote store if necessary.
+        :param project: LocalProject project who's contents we want to walk/send.
+        """
+        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
+        ProjectWalker.walk_project(project, self)
+
+    def visit_project(self, item):
+        """
+        Send a project to remote store if necessary.
+        :param item: LocalProject we should send
+        :param parent: object always None since a project doesn't have a parent
+        """
+        if not item.remote_id:
+            self.watcher.sending_item(item)
+            result = self.data_service.create_project(self.project_name, self.project_name)
+            item.set_remote_id_after_send(result.json()['id'])
+            self.project_id = item.remote_id
+
+    def visit_folder(self, item, parent):
+        """
+        Send a folder to remote store if necessary.
+        :param item: LocalFolder we should send
+        :param parent: LocalContent/LocalFolder that contains this folder
+        """
+        if not item.remote_id:
+            self.watcher.sending_item(item)
+            result = self.data_service.create_folder(item.name, parent.kind, parent.remote_id)
+            item.set_remote_id_after_send(result.json()['id'])
+
+    def visit_file(self, item, parent):
+        """
+        Send file to remote store if necessary.
+        :param item: LocalFile we should send
+        :param parent: LocalContent/LocalFolder that contains this file
+        """
+        if item.need_to_send:
+            file_content_sender = FileContentSender(self.config, self.data_service, item, self.watcher)
+            remote_id = file_content_sender.upload(self.project_id, parent.kind, parent.remote_id)
+            item.set_remote_id_after_send(remote_id)
