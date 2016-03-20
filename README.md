@@ -97,3 +97,12 @@ python setup.py test
 ### Data Service Web Portal:
 [Duke Data Service Portal](https://dataservice.duke.edu).
 This also requires a [Duke NetID](https://oit.duke.edu/email-accounts/netid/).
+
+### Advanced:
+You can specify an alternate url for use with ddsclient via the `DUKE_DATA_SERVICE_URL` environment variable.
+Here is how you can set the environment variable so ddsclient will connect to the 'dev' url:
+```
+export DUKE_DATA_SERVICE_URL='https://dev.dataservice.duke.edu/api/v1'
+```
+This will require using the associated apiexplorer to get a valid token.
+
