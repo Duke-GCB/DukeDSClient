@@ -13,7 +13,7 @@ from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, repla
 from ddsc.util import ProgressPrinter
 
 
-DDS_DEFAULT_URL = 'https://dataservice.duke.edu/api/v1'
+DUKE_DATA_SERVICE_URL = 'https://dataservice.duke.edu/api/v1'
 
 
 class Config(object):
@@ -37,7 +37,7 @@ class Config(object):
         """
         url = os.environ.get('DUKE_DATA_SERVICE_URL', None)
         if not url:
-            url = DDS_DEFAULT_URL
+            url = DUKE_DATA_SERVICE_URL
         return url
 
     def get_url_base(self):
