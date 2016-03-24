@@ -37,9 +37,9 @@ class ProgressPrinter(object):
         self.max_width = 0
         self.msg_verb = msg_verb
 
-    def sending_item(self, item, increment_amt=1):
+    def transferring_item(self, item, increment_amt=1):
         """
-        Update progress that item is about to be sent.
+        Update progress that item is about to be transferred.
         :param item: LocalFile, LocalFolder, or LocalContent(project) that is about to be sent.
         :param increment_amt: int amount to increase our count(how much progress have we made)
         """

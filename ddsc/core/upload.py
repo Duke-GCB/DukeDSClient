@@ -315,7 +315,7 @@ class FileContentSender(object):
         :param chunk_hash_alg: str the algorithm used to hash chunk
         :param chunk_hash_value: str the hash value of chunk
         """
-        self.watcher.sending_item(self.local_file)
+        self.watcher.transferring_item(self.local_file)
         resp = self.data_service.create_upload_url(self.upload_id, self.chunk_num, len(chunk),
                                                    chunk_hash_value, chunk_hash_alg)
         if resp.status_code == 200:
@@ -389,7 +389,7 @@ class RemoteContentSender(object):
         :param parent: object always None since a project doesn't have a parent
         """
         if not item.remote_id:
-            self.watcher.sending_item(item)
+            self.watcher.transferring_item(item)
             result = self.data_service.create_project(self.project_name, self.project_name)
             item.set_remote_id_after_send(result.json()['id'])
             self.project_id = item.remote_id
@@ -401,7 +401,7 @@ class RemoteContentSender(object):
         :param parent: LocalContent/LocalFolder that contains this folder
         """
         if not item.remote_id:
-            self.watcher.sending_item(item)
+            self.watcher.transferring_item(item)
             result = self.data_service.create_folder(item.name, parent.kind, parent.remote_id)
             item.set_remote_id_after_send(result.json()['id'])
 

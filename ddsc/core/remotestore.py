@@ -124,7 +124,7 @@ class RemoteStore(object):
         :param username: str username we are looking for
         :return: RemoteUser user we found
         """
-        matches = [user for user in self.fetch_all_users() if user.username == username]
+        matches = filter(lambda user: user.username == username, self.fetch_all_users())
         if not matches:
             raise ValueError('Username not found: {}.'.format(username))
         if len(matches) > 1:
@@ -137,7 +137,7 @@ class RemoteStore(object):
         :param email: str email we are looking for
         :return: RemoteUser user we found
         """
-        matches = [user for user in self.fetch_all_users() if user.email == email]
+        matches = filter(lambda user: user.email == email, self.fetch_all_users())
         if not matches:
             raise ValueError('Email not found: {}.'.format(email))
         if len(matches) > 1:
@@ -212,7 +212,7 @@ class RemoteStore(object):
             for chunk in response.iter_content(chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
                 if chunk:  # filter out keep-alive new chunks
                     f.write(chunk)
-                    watcher.sending_item(remote_file, increment_amt=len(chunk))
+                    watcher.transferring_item(remote_file, increment_amt=len(chunk))
 
 
 class RemoteProject(object):

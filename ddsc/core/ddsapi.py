@@ -33,7 +33,7 @@ class DataServiceAuth(object):
         Gets an active token refreshing it if necessary.
         :return: str valid active authentication token.
         """
-        if self.hard_coded_auth():
+        if self.legacy_auth():
             return self._auth
         if not self.auth_expired():
             return self._auth
@@ -62,7 +62,7 @@ class DataServiceAuth(object):
         self._auth = resp_json['api_token']
         self._expires = resp_json['expires_on']
 
-    def hard_coded_auth(self):
+    def legacy_auth(self):
         """
         Has user specified a single auth token to use with an unknown expiration.
         This is the old method. User should update their config file.
@@ -200,9 +200,9 @@ class DataServiceApi(object):
         :param data: data payload we sent
         :return: requests.Response containing the successful result
         """
-        if resp.status_code != 200 and resp.status_code != 201 and resp.status_code != 204:
-            raise DataServiceError(resp, url_suffix, data)
-        return resp
+        if 200 <= resp.status_code < 300:
+           return resp
+        raise DataServiceError(resp, url_suffix, data)
 
     def create_project(self, project_name, desc):
         """
