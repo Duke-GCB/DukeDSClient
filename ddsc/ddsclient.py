@@ -1,12 +1,9 @@
 """ Runs the appropriate command for a user based on arguments. """
 from __future__ import print_function
-
 import datetime
-
 from ddsc.core.handover import ProjectHandover
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.upload import ProjectUpload
-
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
 

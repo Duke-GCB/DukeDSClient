@@ -5,7 +5,7 @@ import ddsc.config
 class TestConfig(TestCase):
     def test_empty_config(self):
         config = ddsc.config.Config()
-        self.assertEqual(config.url, ddsc.config.DDS_DEFAULT_URL)
+        self.assertEqual(config.url, ddsc.config.DUKE_DATA_SERVICE_URL)
         self.assertEqual(config.user_key, None)
         self.assertEqual(config.agent_key, None)
         self.assertEqual(config.auth, None)
