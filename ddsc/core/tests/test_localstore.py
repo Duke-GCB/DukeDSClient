@@ -1,8 +1,8 @@
-from unittest import TestCase
-import os
 import shutil
 import tarfile
-from ddsc.localstore import LocalFile, LocalFolder, LocalProject
+from unittest import TestCase
+
+from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject
 
 
 class TestProjectFolderFile(TestCase):
@@ -41,11 +41,11 @@ class TestProjectFolderFile(TestCase):
 class TestProjectContent(TestCase):
     """
     These tests exercise code that interacts with the file system.
-    We extract ddsc/tests/testfolder.tar to temp and tests are specific to that tar file.
+    We extract ddsc/core/tests/testfolder.tar to temp and tests are specific to that tar file.
     """
     @classmethod
     def setUpClass(cls):
-        test_folder = tarfile.TarFile('ddsc/tests/testfolder.tar')
+        test_folder = tarfile.TarFile('ddsc/core/tests/testfolder.tar')
         test_folder.extractall('/tmp')
         test_folder.close()
 

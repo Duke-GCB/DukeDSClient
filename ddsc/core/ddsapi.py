@@ -1,9 +1,10 @@
 """DataServiceApi - communicates with to Duke Data Service REST API."""
 import json
 import requests
+import time
+from ddsc.config import LOCAL_CONFIG_FILENAME
 
-# Swift is currently configured for 5MB file upload chunk size.
-SWIFT_BYTES_PER_CHUNK = 5242880
+AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 
 
 class ContentType(object):
@@ -14,32 +15,104 @@ class ContentType(object):
     form = 'application/x-www-form-urlencoded'
 
 
-class KindType(object):
+class DataServiceAuth(object):
     """
-    Holds the types of files supported by DDS.
+    Handles authorization refreshing for DataServiceApi.
     """
-    file_str = 'dds-file'
-    folder_str = 'dds-folder'
-    project_str = 'dds-project'
+    def __init__(self, config):
+        """
+        Setup with initial authorization settings from config.
+        :param config: ddsc.config.Config settings such as auth, user_key, agent_key
+        """
+        self.config = config
+        self._auth = self.config.auth
+        self._expires = None
 
-    @staticmethod
-    def is_file(item):
-        return item.kind == KindType.file_str
+    def get_auth(self):
+        """
+        Gets an active token refreshing it if necessary.
+        :return: str valid active authentication token.
+        """
+        if self.legacy_auth():
+            return self._auth
+        if not self.auth_expired():
+            return self._auth
+        self.claim_new_token()
+        return self._auth
 
-    @staticmethod
-    def is_folder(item):
-        return item.kind == KindType.folder_str
+    def claim_new_token(self):
+        """
+        Update internal state to have a new token using a no authorization data service.
+        """
+        # Intentionally doing this manually so we don't have a chicken and egg problem with DataServiceApi.
+        headers = {
+            'Content-Type': ContentType.json,
+        }
+        data = {
+            "agent_key": self.config.agent_key,
+            "user_key": self.config.user_key,
+        }
+        url = self.config.url + "/software_agents/api_token"
+        response = requests.post(url, headers=headers, data=json.dumps(data))
+        if response.status_code == 404:  # server doesn't support user_agent yet
+            msg = "Please add a valid auth token to " + LOCAL_CONFIG_FILENAME + ". Example:\n"
+            msg += "auth: 'eyJ0eXAiOi...YT4Q' "
+            raise ValueError(msg)
+        resp_json = response.json()
+        self._auth = resp_json['api_token']
+        self._expires = resp_json['expires_on']
 
-    @staticmethod
-    def is_project(item):
-        return item.kind == KindType.project_str
+    def legacy_auth(self):
+        """
+        Has user specified a single auth token to use with an unknown expiration.
+        This is the old method. User should update their config file.
+        :return: boolean true if we should never try to fetch a token
+        """
+        return self._auth and not self._expires
+
+    def auth_expired(self):
+        """
+        Compare the expiration value of our current token including a CLOCK_SKEW.
+        :return: true if the token has expired
+        """
+        if self._auth and self._expires:
+            now_with_skew = time.time() + AUTH_TOKEN_CLOCK_SKEW_MAX
+            return now_with_skew > self._expires
+        return True
+
+
+class DataServiceError(Exception):
+    """
+    Error that wraps up info about it and creates an informative string.
+    """
+    def __init__(self, response, url_suffix, request_data):
+        """
+        Create exception for failed response.
+        :param response: requests.Response response that was in error
+        :param url_suffix: str url we were trying to connect to
+        :param request_data: object data we were sending to url
+        """
+        resp_json = None
+        try:
+            resp_json = response.json()
+        except:
+            resp_json = {}
+        if response.status_code == 500:
+            if resp_json and not resp_json.get('reason'):
+                resp_json = {'reason':'Internal Server Error', 'suggestion':'Contact DDS support.'}
+        Exception.__init__(self,'Error {} on {} Reason:{} Suggestion:{}'.format(
+            response.status_code, url_suffix, resp_json.get('reason',resp_json.get('error','')), resp_json.get('suggestion','')
+        ))
+        self.response = resp_json
+        self.url_suffix = url_suffix
+        self.request_data = request_data
+        self.status_code = response.status_code
 
 
 class DataServiceApi(object):
     """
     Sends json messages and receives responses back from Duke Data Service api.
     See https://github.com/Duke-Translational-Bioinformatics/duke-data-service.
-    Should be eventually replaced by https://github.com/Duke-Translational-Bioinformatics/duke-data-service-pythonClient.
     """
     def __init__(self, auth, url, http=requests):
         """
@@ -50,7 +123,6 @@ class DataServiceApi(object):
         """
         self.auth = auth
         self.base_url = url
-        self.bytes_per_chunk = SWIFT_BYTES_PER_CHUNK
         self.http = http
 
     def _url_parts(self, url_suffix, url_data, content_type):
@@ -67,8 +139,9 @@ class DataServiceApi(object):
             send_data = json.dumps(url_data)
         headers = {
             'Content-Type': content_type,
-            'Authorization': self.auth
         }
+        if self.auth:
+            headers['Authorization'] = self.auth.get_auth()
         return url, send_data, headers
 
     def _post(self, url_suffix, post_data, content_type=ContentType.json):
@@ -107,6 +180,18 @@ class DataServiceApi(object):
         resp = self.http.get(url, headers=headers, params=data_str)
         return self._check_err(resp, url_suffix, get_data)
 
+    def _delete(self, url_suffix, get_data, content_type=ContentType.json):
+        """
+        Send DELETE request to API at url_suffix with post_data.
+        :param url_suffix: str URL path we are sending a DELETE to
+        :param url_data: object data we are sending
+        :param content_type: str from ContentType that determines how we format the data
+        :return: requests.Response containing the result
+        """
+        (url, data_str, headers) = self._url_parts(url_suffix, get_data, content_type=content_type)
+        resp = self.http.delete(url, headers=headers, params=data_str)
+        return self._check_err(resp, url_suffix, get_data)
+
     def _check_err(self, resp, url_suffix, data):
         """
         Raise DataServiceError if the response wasn't successful.
@@ -115,9 +200,9 @@ class DataServiceApi(object):
         :param data: data payload we sent
         :return: requests.Response containing the successful result
         """
-        if resp.status_code != 200 and resp.status_code != 201:
-            raise DataServiceError(resp, url_suffix, data)
-        return resp
+        if 200 <= resp.status_code < 300:
+           return resp
+        raise DataServiceError(resp, url_suffix, data)
 
     def create_project(self, project_name, desc):
         """
@@ -186,6 +271,13 @@ class DataServiceApi(object):
         return self._get_children('folders', folder_id, name_contains)
 
     def _get_children(self, parent_name, parent_id, name_contains):
+        """
+        Send GET message to /<parent_name>/<parent_id>/children to fetch info about children(files and folders)
+        :param parent_name: str 'projects' or 'folders'
+        :param parent_id: str uuid of project or folder
+        :param name_contains: name filtering
+        :return: requests.Response containing the successful result
+        """
         data = {
             'name_contains': name_contains
         }
@@ -330,6 +422,26 @@ class DataServiceApi(object):
         return self._put("/projects/" + project_id + "/permissions/" + user_id, put_data,
                          content_type=ContentType.form)
 
+    def get_user_project_permission(self, project_id, user_id):
+        """
+        Send GET request to /projects/{project_id}/permissions/{user_id/.
+        :param project_id: str uuid of the project
+        :param user_id: str uuid of the user
+        :param auth_role: str project role eg 'project_admin'
+        :return: requests.Response containing the successful result
+        """
+        return self._get("/projects/" + project_id + "/permissions/" + user_id, {})
+
+    def revoke_user_project_permission(self, project_id, user_id):
+        """
+        Send DELETE request to /projects/{project_id}/permissions/{user_id so they will no longer have permissions.
+        :param project_id: str uuid of the project
+        :param user_id: str uuid of the user
+        :param auth_role: str project role eg 'project_admin'
+        :return: requests.Response containing the successful result
+        """
+        return self._delete("/projects/" + project_id + "/permissions/" + user_id, {})
+
     def get_file(self, file_id):
         """
         Send GET request to /files/{file_id} to retrieve file info.
@@ -338,25 +450,26 @@ class DataServiceApi(object):
         """
         return self._get('/files/' + file_id, {})
 
+    def get_api_token(self, agent_key, user_key):
+        """
+        Send POST request to get an auth token.
+        This method doesn't require auth obviously.
+        :param agent_key: str agent key (who is acting on behalf of the user)
+        :param user_key: str secret user key
+        :return: requests.Response containing the successful result
+        """
+        data = {
+            "agent_key": agent_key,
+            "user_key": user_key,
+        }
+        return self._post("/software_agents/api_token", data)
 
-class DataServiceError(Exception):
-    """
-    Error that wraps up info about it and creates an informative string.
-    """
-    def __init__(self, response, url_suffix, request_data):
+    def get_current_user(self):
         """
-        Create exception for failed response.
-        :param response: requests.Response response that was in error
-        :param url_suffix: str url we were trying to connect to
-        :param request_data: object data we were sending to url
+        Send GET request to get info about current user.
+        :return: requests.Response containing the successful result
         """
-        resp_json = response.json()
-        if response.status_code == 500:
-            if not resp_json.get('reason'):
-                resp_json = {'reason':'Internal Server Error', 'suggestion':'Contact DDS support.'}
-        Exception.__init__(self,'Error {} on {} Reason:{} Suggestion:{}'.format(
-            response.status_code, url_suffix, resp_json.get('reason',resp_json.get('error','')), resp_json.get('suggestion','')
-        ))
-        self.response = resp_json
-        self.url_suffix = url_suffix
-        self.request_data = request_data
+        return self._get("/current_user", {})
+
+
+
