@@ -124,7 +124,7 @@ class RemoteStore(object):
         :param username: str username we are looking for
         :return: RemoteUser user we found
         """
-        matches = filter(lambda user: user.username == username, self.fetch_all_users())
+        matches = [user for user in self.fetch_all_users() if user.username == username]
         if not matches:
             raise ValueError('Username not found: {}.'.format(username))
         if len(matches) > 1:
@@ -137,7 +137,7 @@ class RemoteStore(object):
         :param email: str email we are looking for
         :return: RemoteUser user we found
         """
-        matches = filter(lambda user: user.email == email, self.fetch_all_users())
+        matches = [user for user in self.fetch_all_users() if user.email == email]
         if not matches:
             raise ValueError('Email not found: {}.'.format(email))
         if len(matches) > 1:
