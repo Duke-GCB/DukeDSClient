@@ -8,7 +8,7 @@ setup(name='DukeDSClient',
         keywords='duke dds dukedataservice',
         author='John Bradley',
         license='MIT',
-        packages=['ddsc'],
+        packages=['ddsc','ddsc.core'],
         install_requires=[
           'requests',
           'PyYAML',
