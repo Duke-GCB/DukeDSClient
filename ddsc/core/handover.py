@@ -19,8 +19,8 @@ class HandoverApi(object):
     API for sending messages to a service that will email the user we are sharing with.
     Service also gives user permission to access the project for handover mode.
     """
-    MAIL_DRAFT_DESTINATION = '/drafts'
-    HANDOVER_DESTINATION = '/handovers'
+    MAIL_DRAFT_DESTINATION = '/drafts/'
+    HANDOVER_DESTINATION = '/handovers/'
 
     def __init__(self, url):
         """
@@ -45,11 +45,11 @@ class HandoverApi(object):
             'Content-Type': 'application/json',
         }
         data = {
-            from_user_id: from_user_id,
-            to_user_id: to_user_id,
-            project_id: project_id,
-            project_name: project_name,
-            user_key_signature: user_key_signature
+            'from_user_id': from_user_id,
+            'to_user_id': to_user_id,
+            'project_id': project_id,
+            'project_name': project_name,
+            'user_key_signature': user_key_signature
         }
 
         return requests.post(destination, headers=headers, data=json.dumps(data))
@@ -80,7 +80,7 @@ class ProjectHandover(object):
         :return: str email we sent the draft to
         """
         project = self.fetch_remote_project(project_name, must_exist=True)
-        self.give_user_read_only_access(project_name, to_user)
+        self.give_user_read_only_access(project, to_user)
         return self._share_project(HandoverApi.MAIL_DRAFT_DESTINATION, project, to_user)
 
     def fetch_remote_project(self, project_name, must_exist=False):
@@ -140,10 +140,11 @@ class ProjectHandover(object):
                                           project_id=project.id,
                                           project_name=project.name,
                                           user_key_signature=user_key_signature)
-        if response.status_code == 200:
+        if 200 <= response.status_code < 300:
             return to_user.email
         else:
-            raise ValueError("Failed to send email status" + response.status_code)
+            msg = response.json().get('message','')
+            raise ValueError("Failed to send email. Status {} : {}".format(response.status_code, msg))
 
     def _copy_project(self, project_name, new_project_name):
         """
