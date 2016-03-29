@@ -408,6 +408,14 @@ class DataServiceApi(object):
         }
         return self._get('/users', data, content_type=ContentType.form)
 
+    def get_user_by_id(self, id):
+        """
+        Send GET request to /users/{id} to get user details
+        :param id: str uuid of the user
+        :return: requests.Response containing the successful result
+        """
+        return self._get('/users/{}'.format(id), {})
+
     def set_user_project_permission(self, project_id, user_id, auth_role):
         """
         Send PUT request to /projects/{project_id}/permissions/{user_id/ with auth_role value.
