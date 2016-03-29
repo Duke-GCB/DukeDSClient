@@ -172,6 +172,15 @@ class RemoteStore(object):
             page += 1
         return users
 
+    def fetch_user(self, id):
+        """
+        Retrieves user from data service having a specific id
+        :param id: str id of user from data service
+        :return: RemoteUser user we downloaded
+        """
+        response = self.data_service.get_user_by_id(id).json()
+        return RemoteUser(response)
+
     def set_user_project_permission(self, project, user, auth_role):
         """
         Update remote store for user giving auth_role permissions on project.
