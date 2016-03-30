@@ -226,6 +226,14 @@ class DataServiceApi(object):
         """
         return self._get("/projects", {})
 
+    def get_project_by_id(self, id):
+        """
+        Send GET request to /projects/{id} to get project details
+        :param id: str uuid of the project
+        :return: requests.Response containing the successful result
+        """
+        return self._get('/projects/{}'.format(id), {})
+
     def get_file_url(self, file_id):
         """
         Send GET to /files/{}/url returning a url to download the file.
