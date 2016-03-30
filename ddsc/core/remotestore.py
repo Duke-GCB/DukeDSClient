@@ -39,7 +39,7 @@ class RemoteStore(object):
         :param id: str id of project from data service
         :return: RemoteProject we downloaded
         """
-        response = self.data_service.get_project_by_id(id)
+        response = self.data_service.get_project_by_id(id).json()
         return RemoteProject(response)
 
     def _get_my_project(self, project_name):
