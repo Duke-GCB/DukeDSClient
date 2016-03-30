@@ -33,6 +33,15 @@ class RemoteStore(object):
                 raise ValueError(u'There is no project with the name {}'.format(project_name).encode('utf-8'))
         return project
 
+    def fetch_remote_project_by_id(self, id):
+        """
+        Retrieves project from via id
+        :param id: str id of project from data service
+        :return: RemoteProject we downloaded
+        """
+        response = self.data_service.get_project_by_id(id).json()
+        return RemoteProject(response)
+
     def _get_my_project(self, project_name):
         """
         Return project tree root for project_name.
