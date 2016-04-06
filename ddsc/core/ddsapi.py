@@ -58,6 +58,9 @@ class DataServiceAuth(object):
             msg = "Please add a valid auth token to " + LOCAL_CONFIG_FILENAME + ". Example:\n"
             msg += "auth: 'eyJ0eXAiOi...YT4Q' "
             raise ValueError(msg)
+        if response.status_code != 201:
+            msg_format = 'Failed to create auth token status:{}\n{}'
+            raise ValueError(msg_format.format(response.status_code, response.text))
         resp_json = response.json()
         self._auth = resp_json['api_token']
         self._expires = resp_json['expires_on']
