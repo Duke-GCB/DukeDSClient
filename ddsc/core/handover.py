@@ -16,6 +16,11 @@ DRAFT_USER_ACCESS_ROLE = 'project_viewer'
 
 class HandoverError(Exception):
     def __init__(self, message, warning=False):
+        """
+        Setup error.
+        :param message: str reason for the error
+        :param warning: boolean is this just a warning
+        """
         Exception.__init__(self, message)
         self.message = message
         self.warning = warning

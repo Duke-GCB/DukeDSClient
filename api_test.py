@@ -1,8 +1,22 @@
+#!/usr/bin/env python
+"""
+Allows for generic command line testing of the ddsapi.
+
+For example to get a list of project names:
+
+python api_test.py get_projects | grep description
+
+Run without any arguments to get a list of what arguments are possible:
+
+python api_test.py
+
+"""
 import sys
 import yaml
 import inspect
 from ddsc.config import create_config
 from ddsc.core.remotestore import RemoteStore
+
 
 
 def main(args=None):
