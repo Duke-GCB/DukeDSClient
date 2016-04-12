@@ -4,11 +4,8 @@ import json
 import os
 import shutil
 import tempfile
-
 import requests
 from ddsc.core.upload import ProjectUpload
-from passlib.hash import sha256_crypt
-
 from ddsc.core.download import ProjectDownload
 
 DRAFT_USER_ACCESS_ROLE = 'project_viewer'
@@ -117,7 +114,7 @@ class HandoverItem(object):
     """
     Contains data for processing either a mail draft or handover.
     """
-    def __init__(self, destination, from_user_id, to_user_id, project_id, project_name, user_key_signature):
+    def __init__(self, destination, from_user_id, to_user_id, project_id, project_name):
         """
         Save data for use with send method.
         :param destination: str type of message we are sending(MAIL_DRAFT_DESTINATION or HANDOVER_DESTINATION)
@@ -125,14 +122,12 @@ class HandoverItem(object):
         :param to_user_id: str uuid(duke-data-service) of the user is receiving the email/handover
         :param project_id: str uuid(duke-data-service) of project we are sharing
         :param project_name: str name of the project (sent for debugging purposes)
-        :param user_key_signature: str encrypted key to verify we actually are from_user_id
         """
         self.destination = destination
         self.from_user_id = from_user_id
         self.to_user_id = to_user_id
         self.project_id = project_id
         self.project_name = project_name
-        self.user_key_signature = user_key_signature
 
     def send(self, handover_api, force_send):
         """
@@ -254,14 +249,11 @@ class ProjectHandover(object):
         :return: the email the user should receive a message on soon
         """
         from_user = self.remote_store.get_current_user()
-        user_api_key = self.config.user_key
-        user_key_signature = sha256_crypt.encrypt(user_api_key)
         handover_item = HandoverItem(destination=destination,
                                      from_user_id=from_user.id,
                                      to_user_id=to_user.id,
                                      project_id=project.id,
-                                     project_name=project.name,
-                                     user_key_signature=user_key_signature)
+                                     project_name=project.name)
         sent = handover_item.send(self.handover_api, force_send)
         return to_user.email
 
