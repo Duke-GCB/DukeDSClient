@@ -169,6 +169,17 @@ def _add_copy_project_arg(arg_parser):
                             default=False,
                             dest='skip_copy_project')
 
+def _add_resend_arg(arg_parser, type_str):
+    """
+    Adds resend parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    :param type_str
+    """
+    arg_parser.add_argument("--resend",
+                            action='store_true',
+                            default=False,
+                            dest='resend',
+                            help="Resend {}. ".format(type_str))
 
 class CommandParser(object):
     """
@@ -232,6 +243,7 @@ class CommandParser(object):
         user_or_email = mail_draft_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
+        _add_resend_arg(mail_draft_parser, "email draft")
         mail_draft_parser.set_defaults(func=mail_draft_func)
 
     def register_handover_command(self, handover_func):
@@ -249,6 +261,7 @@ class CommandParser(object):
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
         _add_copy_project_arg(handover_parser)
+        _add_resend_arg(handover_parser, "handover")
         handover_parser.set_defaults(func=handover_func)
 
     def run_command(self, args):

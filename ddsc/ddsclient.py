@@ -1,7 +1,7 @@
 """ Runs the appropriate command for a user based on arguments. """
 from __future__ import print_function
 import datetime
-from ddsc.core.handover import ProjectHandover
+from ddsc.core.handover import ProjectHandover, HandoverError
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
@@ -167,9 +167,16 @@ class MailDraftCommand(object):
         project_name = args.project_name    # name of the pre-existing project to set permissions on
         email = args.email                  # email of person to send email to
         username = args.username            # username of person to send email to, will be None if email is specified
+        force_send = args.resend            # is this a resend so we should force sending
         to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
-        dest_email = self.project_handover.mail_draft(project_name, to_user)
-        print("Email draft sent to " + dest_email)
+        try:
+            dest_email = self.project_handover.mail_draft(project_name, to_user, force_send)
+            print("Email draft sent to " + dest_email)
+        except HandoverError as ex:
+            if ex.warning:
+                print(ex.message)
+            else:
+                raise
 
 
 class HandoverCommand(object):
@@ -193,12 +200,19 @@ class HandoverCommand(object):
         email = args.email                  # email of person to handover to, will be None if username is specified
         username = args.username            # username of person to handover to, will be None if email is specified
         skip_copy_project = args.skip_copy_project  # should we skip the copy step
+        force_send = args.resend            # is this a resend so we should force sending
         new_project_name = None
         if not skip_copy_project:
             new_project_name = self.get_new_project_name(project_name)
         to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
-        dest_email = self.project_handover.handover(project_name, new_project_name, to_user)
-        print("Handover message sent to " + dest_email)
+        try:
+            dest_email = self.project_handover.handover(project_name, new_project_name, to_user, force_send)
+            print("Handover message sent to " + dest_email)
+        except HandoverError as ex:
+            if ex.warning:
+                print(ex.message)
+            else:
+                raise
 
     def get_new_project_name(self, project_name):
         """

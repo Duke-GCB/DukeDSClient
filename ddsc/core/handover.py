@@ -4,14 +4,23 @@ import json
 import os
 import shutil
 import tempfile
-
 import requests
 from ddsc.core.upload import ProjectUpload
-from passlib.hash import sha256_crypt
-
 from ddsc.core.download import ProjectDownload
 
 DRAFT_USER_ACCESS_ROLE = 'project_viewer'
+
+
+class HandoverError(Exception):
+    def __init__(self, message, warning=False):
+        """
+        Setup error.
+        :param message: str reason for the error
+        :param warning: boolean is this just a warning
+        """
+        Exception.__init__(self, message)
+        self.message = message
+        self.warning = warning
 
 
 class HandoverApi(object):
@@ -21,38 +30,146 @@ class HandoverApi(object):
     """
     MAIL_DRAFT_DESTINATION = '/drafts/'
     HANDOVER_DESTINATION = '/handovers/'
+    DEST_TO_NAME = {
+        MAIL_DRAFT_DESTINATION: "Mail draft",
+        HANDOVER_DESTINATION: "Handover"
+    }
 
-    def __init__(self, url):
+    def __init__(self, url, user_key):
         """
         Setup url we will be talking to.
         :param url: str url of the service including "/api/v1" portion
         """
         self.url = url
-
-    def send(self, destination, from_user_id, to_user_id, project_id, project_name, user_key_signature):
-        """
-        Sends a message to the service requesting an email for sharing the project.
-        :param destination: str url suffix we want to talk to (MAIL_DRAFT_DESTINATION or HANDOVER_DESTINATION)
-        :param from_user_id: str uuid for the current user
-        :param to_user_id: str uuid for the user we are sharing the project with
-        :param project_id: str uuid of the project we want to share
-        :param project_name: str name of the project(for debugging purposes only)
-        :param user_key_signature: str hash of our private key to make API secure
-        :return: requests.Response this will be returned no matter the result
-        """
-        destination = self.url + destination
-        headers = {
+        self.json_headers = {
             'Content-Type': 'application/json',
-        }
-        data = {
-            'from_user_id': from_user_id,
-            'to_user_id': to_user_id,
-            'project_id': project_id,
-            'project_name': project_name,
-            'user_key_signature': user_key_signature
+            'Authorization': 'Token {}'.format(user_key)
         }
 
-        return requests.post(destination, headers=headers, data=json.dumps(data))
+    def make_url(self, destination, extra=''):
+        """
+        Build url based on destionation with optional suffix(extra).
+        :param destination: str base suffix(with slashes)
+        :param extra: str optional suffix
+        """
+        return '{}{}{}'.format(self.url, destination, extra)
+
+    def get_existing_item(self, handover_item):
+        """
+        Lookup handover_item in remote service based on keys.
+        :param handover_item: HandoverItem data contains keys we will use for lookup.
+        :return: requests.Response containing the successful result
+        """
+        params = {
+            'project_id': handover_item.project_id,
+            'from_user_id': handover_item.from_user_id,
+            'to_user_id': handover_item.to_user_id,
+        }
+        resp = requests.get(self.make_url(handover_item.destination), headers=self.json_headers, params=params)
+        self.check_response(resp)
+        return resp
+
+    def create_item(self, handover_item):
+        """
+        Create a new item in handover service for handover_item at the specified destination.
+        :param handover_item: HandoverItem data to use for creating a handover item
+        :return: requests.Response containing the successful result
+        """
+        data = json.dumps({
+            'project_id': handover_item.project_id,
+            'from_user_id': handover_item.from_user_id,
+            'to_user_id': handover_item.to_user_id,
+
+        })
+        resp = requests.post(self.make_url(handover_item.destination), headers=self.json_headers, data=data)
+        self.check_response(resp)
+        return resp
+
+    def send_item(self, destination, item_id, force_send):
+        """
+        Run send method for item_id at destination.
+        :param destination: str which type of handover are we doing (MAIL_DRAFT_DESTINATION or HANDOVER_DESTINATION)
+        :param item_id: str handover service id representing the item we want to send
+        :param force_send: bool it's ok to email the item again
+        :return: requests.Response containing the successful result
+        """
+        data = json.dumps({
+            'force': force_send,
+        })
+        url_suffix = "{}/send/".format(item_id)
+        resp = requests.post(self.make_url(destination, url_suffix), headers=self.json_headers, data=data)
+        self.check_response(resp)
+        return resp
+
+    def check_response(self, response):
+        """
+        Raises error if the response isn't successful.
+        :param response: requests.Response response to be checked
+        """
+        if not 200 <= response.status_code < 300:
+            raise HandoverError("Request to {} failed with {}.".format(response.url, response.status_code))
+
+
+class HandoverItem(object):
+    """
+    Contains data for processing either a mail draft or handover.
+    """
+    def __init__(self, destination, from_user_id, to_user_id, project_id, project_name):
+        """
+        Save data for use with send method.
+        :param destination: str type of message we are sending(MAIL_DRAFT_DESTINATION or HANDOVER_DESTINATION)
+        :param from_user_id: str uuid(duke-data-service) of the user who is sending the handover
+        :param to_user_id: str uuid(duke-data-service) of the user is receiving the email/handover
+        :param project_id: str uuid(duke-data-service) of project we are sharing
+        :param project_name: str name of the project (sent for debugging purposes)
+        """
+        self.destination = destination
+        self.from_user_id = from_user_id
+        self.to_user_id = to_user_id
+        self.project_id = project_id
+        self.project_name = project_name
+
+    def send(self, handover_api, force_send):
+        """
+        Send this item using handover_api.
+        :param handover_api: HandoverApi sends messages to DukeDSHandoverService
+        :param force_send: bool should we send even if the item already exists
+        """
+        item_id = self.get_existing_item_id(handover_api)
+        if not item_id:
+            item_id = self.create_item_returning_id(handover_api)
+            handover_api.send_item(self.destination, item_id, force_send)
+        else:
+            if force_send:
+                handover_api.send_item(self.destination, item_id, force_send)
+            else:
+                item_type = HandoverApi.DEST_TO_NAME.get(self.destination, "Item")
+                msg = "{} already sent. Run with --resend argument to resend."
+                raise HandoverError(msg.format(item_type), warning=True)
+
+    def get_existing_item_id(self, handover_api):
+        """
+        Lookup the id for this item via the handover service.
+        :param handover_api: HandoverApi object who communicates with handover server.
+        :return str id of this item or None if not found
+        """
+        resp = handover_api.get_existing_item(self)
+        items = resp.json()
+        num_items = len(items)
+        if num_items == 0:
+            return None
+        else:
+            return items[0]['id']
+
+    def create_item_returning_id(self, handover_api):
+        """
+        Create this item in the handover service.
+        :param handover_api: HandoverApi object who communicates with handover server.
+        :return str newly created id for this item
+        """
+        resp = handover_api.create_item(self)
+        item = resp.json()
+        return item['id']
 
 
 class ProjectHandover(object):
@@ -68,11 +185,11 @@ class ProjectHandover(object):
         :param print_func: func used to print output somewhere
         """
         self.config = config
-        self.handover_api = HandoverApi(config.handover_url)
+        self.handover_api = HandoverApi(config.handover_url, config.user_key)
         self.remote_store = remote_store
         self.print_func = print_func
 
-    def mail_draft(self, project_name, to_user):
+    def mail_draft(self, project_name, to_user, force_send):
         """
         Send mail draft and give user read only access to the project.
         :param project_name: str name of the project to share
@@ -81,7 +198,7 @@ class ProjectHandover(object):
         """
         project = self.fetch_remote_project(project_name, must_exist=True)
         self.give_user_read_only_access(project, to_user)
-        return self._share_project(HandoverApi.MAIL_DRAFT_DESTINATION, project, to_user)
+        return self._share_project(HandoverApi.MAIL_DRAFT_DESTINATION, project, to_user, force_send)
 
     def fetch_remote_project(self, project_name, must_exist=False):
         """
@@ -100,7 +217,7 @@ class ProjectHandover(object):
         """
         self.remote_store.set_user_project_permission(project, user, DRAFT_USER_ACCESS_ROLE)
 
-    def handover(self, project_name, new_project_name, to_user):
+    def handover(self, project_name, new_project_name, to_user, force_send):
         """
         Remove access to project_name for to_user, copy to new_project_name if not None,
         send message to service to email user so they can have access.
@@ -113,7 +230,7 @@ class ProjectHandover(object):
         self.remove_user_permission(project, to_user)
         if new_project_name:
             project = self._copy_project(project_name, new_project_name)
-        return self._share_project(HandoverApi.HANDOVER_DESTINATION, project, to_user)
+        return self._share_project(HandoverApi.HANDOVER_DESTINATION, project, to_user, force_send)
 
     def remove_user_permission(self, project, user):
         """
@@ -123,7 +240,7 @@ class ProjectHandover(object):
         """
         self.remote_store.revoke_user_project_permission(project, user)
 
-    def _share_project(self, destination, project, to_user):
+    def _share_project(self, destination, project, to_user, force_send):
         """
         Send message to remove service to email/share project with to_user.
         :param destination: str which type of sharing we are doing (MAIL_DRAFT_DESTINATION or HANDOVER_DESTINATION)
@@ -132,19 +249,13 @@ class ProjectHandover(object):
         :return: the email the user should receive a message on soon
         """
         from_user = self.remote_store.get_current_user()
-        user_api_key = self.config.user_key
-        user_key_signature = sha256_crypt.encrypt(user_api_key)
-        response = self.handover_api.send(destination=destination,
-                                          from_user_id=from_user.id,
-                                          to_user_id=to_user.id,
-                                          project_id=project.id,
-                                          project_name=project.name,
-                                          user_key_signature=user_key_signature)
-        if 200 <= response.status_code < 300:
-            return to_user.email
-        else:
-            msg = response.json().get('message','')
-            raise ValueError("Failed to send email. Status {} : {}".format(response.status_code, msg))
+        handover_item = HandoverItem(destination=destination,
+                                     from_user_id=from_user.id,
+                                     to_user_id=to_user.id,
+                                     project_id=project.id,
+                                     project_name=project.name)
+        sent = handover_item.send(self.handover_api, force_send)
+        return to_user.email
 
     def _copy_project(self, project_name, new_project_name):
         """
