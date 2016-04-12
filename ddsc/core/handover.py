@@ -38,13 +38,16 @@ class HandoverApi(object):
         HANDOVER_DESTINATION: "Handover"
     }
 
-    def __init__(self, url):
+    def __init__(self, url, token):
         """
         Setup url we will be talking to.
         :param url: str url of the service including "/api/v1" portion
         """
         self.url = url
-        self.json_headers = {'Content-Type': 'application/json'}
+        self.json_headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Token {}'.format(token)
+        }
 
     def make_url(self, destination, extra=''):
         """
@@ -65,7 +68,7 @@ class HandoverApi(object):
             'from_user_id': handover_item.from_user_id,
             'to_user_id': handover_item.to_user_id,
         }
-        resp = requests.get(self.make_url(handover_item.destination), params=params)
+        resp = requests.get(self.make_url(handover_item.destination), headers=self.json_headers, params=params)
         self.check_response(resp)
         return resp
 
@@ -187,7 +190,7 @@ class ProjectHandover(object):
         :param print_func: func used to print output somewhere
         """
         self.config = config
-        self.handover_api = HandoverApi(config.handover_url)
+        self.handover_api = HandoverApi(config.handover_url, config.handover_token)
         self.remote_store = remote_store
         self.print_func = print_func
 

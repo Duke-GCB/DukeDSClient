@@ -37,6 +37,7 @@ class Config(object):
     UPLOAD_WORKERS = 'upload_workers'                  # how many worker processes used for uploading
     DEBUG_MODE = 'debug'                               # show stack traces
     HANDOVER_URL = 'handover_url'                      # url for use with the handover service
+    HANDOVER_TOKEN = 'handover_token'                  # token so handover knows who we are
 
     def __init__(self):
         self.values = {}
@@ -131,3 +132,11 @@ class Config(object):
         :return: str url
         """
         return self.values.get(Config.HANDOVER_URL, '')
+
+    @property
+    def handover_token(self):
+        """
+        Returns token for handover service auth or '' if not setup.
+        :return: str token
+        """
+        return self.values.get(Config.HANDOVER_TOKEN, '')
