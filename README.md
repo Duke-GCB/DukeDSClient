@@ -31,6 +31,7 @@ This key can be created at the [Duke Data Service Portal](https://dataservice.du
 ![Alt text](/images/AddAgentButton.png?raw=true "Add Agent Button")
 
 ####  5. Fill in data for a new agent and click 'SUBMIT'.
+These values can be anything. We are only creating an Agent so we can get to the 'User Secret Key' button.
 ![Alt text](/images/CreateAgent.png?raw=true "Create Agent")
 
 ####  6. Click Agent you just created.
