@@ -47,7 +47,7 @@ Create a file in the ~/.ddsclient location and add your user key value.
 ```
 user_key: <USER_KEY>
 ```
-If your global configuration isn't already setup you can manually add the software agent key you created above:
+If your global configuration isn't already setup you can manually add the Agent Secret Key you created above:
 ```
 user_key: <USER_KEY>
 agent_key: <AGENT_KEY>
