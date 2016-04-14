@@ -56,3 +56,23 @@ class TestConfig(TestCase):
         }
         config.update_properties(some_config)
         self.assertEqual(config.upload_bytes_per_chunk, 20971520)
+
+    def test_get_portal_url_base(self):
+        config = ddsc.config.Config()
+        config1 = {
+            'url': 'https://api.dataservice1.com/api/v1',
+        }
+        config.update_properties(config1)
+        self.assertEqual(config.get_portal_url_base(), 'dataservice1.com')
+        config2 = {
+            'url': 'https://apiuatest.dataservice1.com/api/v1',
+        }
+        config.update_properties(config2)
+        self.assertEqual(config.get_portal_url_base(), 'uatest.dataservice1.com')
+
+
+        config3 = {
+            'url': 'https://apidev.dataservice1.com/api/v1',
+        }
+        config.update_properties(config3)
+        self.assertEqual(config.get_portal_url_base(), 'dev.dataservice1.com')
