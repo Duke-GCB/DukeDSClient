@@ -40,13 +40,13 @@ This key can be created at the [Duke Data Service Portal](https://dataservice.du
 ![Alt text](/images/KeyMenuButton.png?raw=true "Key Menu Button")
 
 ####  8. Select 'User Secret Key'.
-![Alt text](/images/KeyMenu.png?raw=true "Key Menu Button")
+![Alt text](/images/KeyMenu.png?raw=true "User Secret Key")
 
 ####  9. Click Create New Key.
-![Alt text](/images/CreateNewKey.png?raw=true "Key Menu Button")
+![Alt text](/images/CreateNewKey.png?raw=true "Create New Key")
 
 ####  10. Click 'COPY KEY TO CLIPBOARD'.
-![Alt text](/images/CopyKeyToClipboard.png?raw=true "Key Menu Button")
+![Alt text](/images/CopyKeyToClipboard.png?raw=true "Copy Key to Clipboard")
 
 
 You how have your user key in your clipboard.
