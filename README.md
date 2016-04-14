@@ -20,22 +20,31 @@ If not you can temporarily use the Agent key you create below.
 ## Steps To Create a User Key
 This key can be created at the [Duke Data Service Portal](https://dataservice.duke.edu).
 ####  1. Click login
+
 ####  2. Click top left menu button
 ![Alt text](/images/TopLeftMenuButton.png?raw=true "Top Left Menu Button")
+
 ####  3. Click 'Software Agents'
 ![Alt text](/images/TopLeftMenu.png?raw=true "Top Left Menu")
+
 ####  4. Click 'ADD NEW AGENT' button
 ![Alt text](/images/AddAgentButton.png?raw=true "Add Agent Button")
+
 ####  5. Fill in data for a new agent and click 'SUBMIT'.
 ![Alt text](/images/CreateAgent.png?raw=true "Create Agent")
+
 ####  6. Click Agent you just created.
 ![Alt text](/images/ClickAgent.png?raw=true "Click Agent")
+
 ####  7. Click Key Menu button.
 ![Alt text](/images/KeyMenuButton.png?raw=true "Key Menu Button")
+
 ####  8. Select 'User Secret Key'.
 ![Alt text](/images/KeyMenu.png?raw=true "Key Menu Button")
+
 ####  9. Click Create New Key.
 ![Alt text](/images/CreateNewKey.png?raw=true "Key Menu Button")
+
 ####  10. Click 'COPY KEY TO CLIPBOARD'.
 ![Alt text](/images/CopyKeyToClipboard.png?raw=true "Key Menu Button")
 
