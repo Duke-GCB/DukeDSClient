@@ -1,5 +1,6 @@
 """ Global configuration for the utility based on config files and environment variables."""
 import os
+import re
 import yaml
 try:
     from urllib.parse import urlparse
@@ -9,7 +10,7 @@ except ImportError:
 GLOBAL_CONFIG_FILENAME = '/etc/ddsclient.conf'
 LOCAL_CONFIG_FILENAME = '~/.ddsclient'
 LOCAL_CONFIG_ENV = 'DDSCLIENT_CONF'
-DUKE_DATA_SERVICE_URL = 'https://dataservice.duke.edu/api/v1'
+DUKE_DATA_SERVICE_URL = 'https://api.dataservice.duke.edu/api/v1'
 DDS_DEFAULT_UPLOAD_CHUNKS = 100 * 1024 * 1024
 AUTH_ENV_KEY_NAME = 'DUKE_DATA_SERVICE_AUTH'
 
@@ -66,12 +67,15 @@ class Config(object):
         """
         return self.values.get(Config.URL, DUKE_DATA_SERVICE_URL)
 
-    def get_url_base(self):
+    def get_portal_url_base(self):
         """
         Determine root url of the data service from the url specified.
         :return: str root url of the data service (eg: https://dataservice.duke.edu)
         """
-        return urlparse(self.url).hostname
+        api_url = urlparse(self.url).hostname
+        portal_url = re.sub('^api\.', '', api_url)
+        portal_url = re.sub(r'api', '', portal_url)
+        return portal_url
 
     @property
     def user_key(self):

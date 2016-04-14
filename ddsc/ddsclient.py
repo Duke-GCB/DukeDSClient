@@ -71,7 +71,6 @@ class UploadCommand(object):
         :param config: Config global configuration for use with this command.
         """
         self.remote_store = RemoteStore(config)
-        self.base_url = config.get_url_base()
         self.config = config
 
     def run(self, args):
