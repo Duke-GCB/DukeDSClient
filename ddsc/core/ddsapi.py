@@ -66,9 +66,16 @@ class DataServiceAuth(object):
         self._expires = resp_json['expires_on']
 
     def get_auth_data(self):
+        """
+        Returns a tuple that can be build to recreate this object's state.
+        """
         return self._auth, self._expires
 
     def set_auth_data(self, auth_expires_tuple):
+        """
+        Recreates setup based on tuple returned by get_auth_data.
+        :param auth_expires_tuple (auth,expires) values returned by call to get_auth_data()
+        """
         self._auth = auth_expires_tuple[0]
         self._expires = auth_expires_tuple[1]
 

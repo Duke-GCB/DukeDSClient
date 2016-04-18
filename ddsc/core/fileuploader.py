@@ -13,6 +13,7 @@ class FileUploader(object):
         :param config: ddsc.config.Config user configuration settings from YAML file/environment
         :param data_service: DataServiceApi data service we are sending the content to.
         :param local_file: LocalFile file we are sending to remote store
+        :param watcher: ProgressPrinter we notify of our progress
         """
         self.config = config
         self.data_service = data_service
@@ -193,17 +194,6 @@ def upload_async(data_service_auth_data, config,
     error_msg = sender.send()
     if error_msg:
         progress_queue.put((ChunkSender.ERROR, error_msg))
-
-
-class FileChunkInfo(object):
-    def __init__(self, filename, index, chunk_size, data_service):
-        self.filename = filename
-        self.index = index
-        self.chunk_size = chunk_size
-        self.data_service = data_service
-
-    def some_str(self):
-        return "{}-{}-{}".format(self.filename, self.index, self.chunk_size)
 
 
 class ChunkSender(object):

@@ -53,7 +53,6 @@ class ProjectUpload(object):
         Upload different items within local_project to remote store showing a progress bar.
         """
         progress_printer = ProgressPrinter(self.different_items.total_items(), msg_verb='sending')
-
         sender = RemoteContentSender(self.config, self.remote_store.data_service, self.local_project.remote_id,
                                      self.project_name, progress_printer)
         sender.walk_project(self.local_project)
@@ -258,103 +257,6 @@ class ReportItem(object):
         remote_id_str = self.remote_id.ljust(max_remote_id)
         size_str = self.size.ljust(max_size)
         return u'{}    {}    {}    {}'.format(name_str, remote_id_str, size_str, self.file_hash)
-
-
-class FileContentSender(object):
-    """
-    Sends the data that local_file makes up to the remote store in chunks.
-    """
-    def __init__(self, config, data_service, local_file, watcher):
-        """
-        Setup for sending to remote store.
-        :param config: ddsc.config.Config user configuration settings from YAML file/environment
-        :param data_service: DataServiceApi data service we are sending the content to.
-        :param local_file: LocalFile file we are sending to remote store
-        """
-        self.config = config
-        self.data_service = data_service
-        self.local_file = local_file
-        self.filename = local_file.path
-        self.content_type = local_file.mimetype
-        self.chunk_num = 0
-        self.upload_id = None
-        self.watcher = watcher
-        #self.pool = Pool()
-
-    def upload(self, project_id, parent_kind, parent_id):
-        """
-        Upload file contents to project within specified parent.
-        :param project_id: str project uuid
-        :param parent_kind: str type of parent ('dds-project' or 'dds-folder')
-        :param parent_id: str uuid of parent
-        :return: str uuid of the newly uploaded file
-        """
-        size = self.local_file.size
-        (hash_alg, hash_value) = self.local_file.get_hashpair()
-        name = self.local_file.name
-        resp = self.data_service.create_upload(project_id, name, self.content_type, size, hash_value, hash_alg)
-        self.upload_id = resp.json()['id']
-        self._send_file_chunks()
-        self.data_service.complete_upload(self.upload_id)
-        result = self.data_service.create_file(parent_kind, parent_id, self.upload_id)
-        return result.json()['id']
-
-    def _send_file_chunks(self):
-        """
-        Have the file feed us chunks we can upload.
-        """
-        #file_chink_info = FileChunkInfo(self.filename, 0, 512, self.data_service)
-        #pending_resp = self.pool.apply_async(FileContentSender.forkme, [file_chink_info])
-        #print(pending_resp.get())
-
-        self.local_file.process_chunks(self.config.upload_bytes_per_chunk, self.process_chunk)
-
-    def process_chunk(self, chunk, chunk_hash_alg, chunk_hash_value):
-        """
-        Method to consume chunks sent by local_file.process_chunks.
-        Raises ValueError on upload failure.
-        :param chunk: bytes part of the file to send
-        :param chunk_hash_alg: str the algorithm used to hash chunk
-        :param chunk_hash_value: str the hash value of chunk
-        """
-        self.watcher.transferring_item(self.local_file)
-        resp = self.data_service.create_upload_url(self.upload_id, self.chunk_num, len(chunk),
-                                                   chunk_hash_value, chunk_hash_alg)
-        if resp.status_code == 200:
-            self._send_file_external(resp.json(), chunk)
-            self.chunk_num += 1
-        else:
-            raise ValueError("Failed to retrieve upload url status:" + str(resp.status_code))
-
-    def _send_file_external(self, url_json, chunk):
-        """
-        Send chunk to external store specified in url_json.
-        Raises ValueError on upload failure.
-        :param url_json: dict contains where/how to upload chunk
-        :param chunk: data to be uploaded
-        """
-        http_verb = url_json['http_verb']
-        host = url_json['host']
-        url = url_json['url']
-        http_headers = url_json['http_headers']
-        resp = self.data_service.send_external(http_verb, host, url, http_headers, chunk)
-        if resp.status_code != 200 and resp.status_code != 201:
-            raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code))
-
-    @staticmethod
-    def forkme(file_chunk_info):
-        return "In fork" + file_chunk_info.some_str()
-
-
-class FileChunkInfo(object):
-    def __init__(self, filename, index, chunk_size, data_service):
-        self.filename = filename
-        self.index = index
-        self.chunk_size = chunk_size
-        self.data_service = data_service
-
-    def some_str(self):
-        return "{}-{}-{}".format(self.filename, self.index, self.chunk_size)
 
 
 class RemoteContentSender(object):
