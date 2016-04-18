@@ -171,27 +171,31 @@ class ParallelChunkProcessor(object):
         """
         processes = []
         progress_queue = Queue()
-        num_chunks = self.determine_num_chunks()
-        work_parcels = self.make_work_parcels(num_chunks)
+        num_chunks = ParallelChunkProcessor.determine_num_chunks(self.config.upload_bytes_per_chunk,
+                                                                 self.local_file.size)
+        work_parcels = ParallelChunkProcessor.make_work_parcels(self.config.upload_workers, num_chunks)
         for (index, num_items) in work_parcels:
             processes.append(self.make_and_start_process(index, num_items, progress_queue))
         self.wait_for_processes(num_chunks, progress_queue, processes)
 
-    def determine_num_chunks(self):
+    @staticmethod
+    def determine_num_chunks(chunk_size, file_size):
         """
         Figure out how many pieces we are sending the file in.
         """
-        chunk_size = self.config.upload_bytes_per_chunk
-        file_size = self.local_file.size
         return int(math.ceil(float(file_size) / float(chunk_size)))
 
-    def make_work_parcels(self, num_chunks):
+    @staticmethod
+    def make_work_parcels(upload_workers, num_chunks):
         """
         Make groups so we can split up num_chunks into similar sizes.
+        Rounds up trying to keep work evenly split so sometimes it will not use all workers.
+        For very small numbers it can result in (upload_workers-1) total workers.
+        For example if there are two few items to distribute.
+        :param upload_workers: int target number of workers
         :param num_chunks: int number of total items we need to send
         :return [(index, num_items)] -  an array of tuples where array element will be in a separate process.
         """
-        upload_workers = self.config.upload_workers
         chunks_per_worker = int(math.ceil(float(num_chunks) / float(upload_workers)))
         return ParallelChunkProcessor.divide_work(range(num_chunks), chunks_per_worker)
 
@@ -317,7 +321,7 @@ class ChunkSender(object):
         :param chunk: bytes data we are uploading
         :param chunk_num: int number associated with this chunk
         """
-        chunk_hash_alg, chunk_hash_value = ChunkSender.get_hash(chunk)
+        chunk_hash_alg, chunk_hash_value = FileUploader.get_hash(chunk)
         resp = self.data_service.create_upload_url(self.upload_id, chunk_num, len(chunk),
                                                    chunk_hash_value, chunk_hash_alg)
         if resp.status_code == 200:
@@ -328,14 +332,4 @@ class ChunkSender(object):
                 return str(err)
         else:
             return "Failed to retrieve upload url status:" + str(resp.status_code)
-
-    @staticmethod
-    def get_hash(chunk):
-        """
-        Returns a tuple of (alg, hash) for a chunk.
-        :param chunk: bytes chunk we will return hash info for
-        """
-        hash = HashUtil()
-        hash.add_chunk(chunk)
-        return hash.hexdigest()
 
