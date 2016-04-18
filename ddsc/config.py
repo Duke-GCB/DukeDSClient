@@ -11,6 +11,7 @@ GLOBAL_CONFIG_FILENAME = '/etc/ddsclient.conf'
 LOCAL_CONFIG_FILENAME = '~/.ddsclient'
 LOCAL_CONFIG_ENV = 'DDSCLIENT_CONF'
 DUKE_DATA_SERVICE_URL = 'https://api.dataservice.duke.edu/api/v1'
+HANDOVER_SERVICE_URL = 'https://itlab-1.gcb.duke.edu/api/v1'
 DDS_DEFAULT_UPLOAD_CHUNKS = 100 * 1024 * 1024
 AUTH_ENV_KEY_NAME = 'DUKE_DATA_SERVICE_AUTH'
 
@@ -134,4 +135,4 @@ class Config(object):
         Returns url for handover service or '' if not setup.
         :return: str url
         """
-        return self.values.get(Config.HANDOVER_URL, '')
+        return self.values.get(Config.HANDOVER_URL, HANDOVER_SERVICE_URL)
