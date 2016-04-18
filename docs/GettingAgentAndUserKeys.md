@@ -21,6 +21,8 @@ You can use 'DukeDSClient" followed by your name for the Name and Description fi
 ![Click Agent Secret Key](images/ClickAgentSecretKey.png?raw=true "Click Agent Secret Key")
 ####  8. Record your Agent key. So you can add it to the config file below.
 ![View Agent Secret Key](images/ViewAgentSecretKey.png?raw=true "View Agent Secret Key")
+
+Click the CANCEL button.
 ####  9. Click Key Menu button.
 ![Key Menu Button](images/KeyMenuButton.png?raw=true "Key Menu Button")
 ####  10. Select 'User Secret Key'.
