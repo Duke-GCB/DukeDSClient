@@ -1,4 +1,6 @@
-"""Worker that will upload a number of chunks from a file to a remote store as part of an upload."""
+"""
+Objects to upload a number of chunks from a file to a remote store as part of an upload.
+"""
 
 import math
 from multiprocessing import Process, Queue
@@ -7,6 +9,14 @@ from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 
 
 class FileUploader(object):
+    """
+    Handles sending the contents of a file to a a remote data_service.
+    Process:
+    1) It creates an 'upload' with the remote service
+    2) Uses a chunk_processor to send the parts
+    3) Sends the complete message to finalize the 'upload'
+    4) Sends create_file message to remote store with the 'upload' id
+    """
     def __init__(self, config, data_service, local_file, watcher):
         """
         Setup for sending to remote store.
@@ -24,6 +34,9 @@ class FileUploader(object):
         self.watcher = watcher
 
     def _make_chunk_processor(self):
+        """
+        Based on the passed in config determine if we should use parallel chunk processor or serial one.
+        """
         if self.config.upload_workers:
             if self.config.upload_workers > 1:
                 return ParallelChunkProcessor(self)
@@ -31,7 +44,7 @@ class FileUploader(object):
 
     def upload(self, project_id, parent_kind, parent_id):
         """
-        Upload file contents to project within specified parent.
+        Upload file contents to project within a specified parent.
         :param project_id: str project uuid
         :param parent_kind: str type of parent ('dds-project' or 'dds-folder')
         :param parent_id: str uuid of parent
@@ -74,6 +87,9 @@ class FileUploader(object):
 
 
 class SerialChunkProcessor(object):
+    """
+    Uploads chunks one at a time without any additional processes.
+    """
     def __init__(self, file_uploader):
         self.file_uploader = file_uploader
         self.local_file = file_uploader.local_file
@@ -130,6 +146,9 @@ class SerialChunkProcessor(object):
 
 
 class ParallelChunkProcessor(object):
+    """
+    Uploads grouped chunks in separate processes.
+    """
     def __init__(self, file_uploader):
         self.file_uploader = file_uploader
         self.config = file_uploader.config
@@ -143,12 +162,20 @@ class ParallelChunkProcessor(object):
     def run(self):
         processes = []
         progress_queue = Queue()
-        num_chunks = int(math.ceil(float(self.file_size) / float(self.chunk_size)))
-        chunks_per_worker = int(math.ceil(float(num_chunks) / float(self.num_workers)))
-        work_parcels = self.divide_work(range(num_chunks), chunks_per_worker)
+        num_chunks = self.determine_num_chunks()
+        work_parcels = self.make_work_parcels(num_chunks)
         for (index, num_items) in work_parcels:
             processes.append(self.make_and_start_process(index, num_items, progress_queue))
-        expected_chunks = num_chunks
+        self.wait_for_processes(num_chunks, progress_queue, processes)
+
+    def determine_num_chunks(self):
+        return int(math.ceil(float(self.file_size) / float(self.chunk_size)))
+
+    def make_work_parcels(self, num_chunks):
+        chunks_per_worker = int(math.ceil(float(num_chunks) / float(self.num_workers)))
+        return self.divide_work(range(num_chunks), chunks_per_worker)
+
+    def wait_for_processes(self, expected_chunks, progress_queue, processes):
         while expected_chunks > 0:
             progress_type, value = progress_queue.get()
             if progress_type == ChunkSender.SENT:
@@ -156,15 +183,12 @@ class ParallelChunkProcessor(object):
                 self.file_uploader.watcher.transferring_item(self.file_uploader.local_file, chunks_sent)
                 expected_chunks -= chunks_sent
             else:
-                ParallelChunkProcessor.handle_error_in_fork(processes, value)
+                error_message = value
+                for process in processes:
+                    process.terminate()
+                raise ValueError(error_message)
         for process in processes:
             process.join()
-
-    @staticmethod
-    def handle_error_in_fork(processes, error_message):
-        for process in processes:
-            process.terminate()
-        raise ValueError(error_message)
 
     def divide_work(self, list_of_indexes, batch_size):
         """
@@ -184,9 +208,8 @@ class ParallelChunkProcessor(object):
         return process
 
 
-def upload_async(data_service_auth_data, config,
-                 upload_id,
-                 filename, chunk_size, index, num_chunks_to_send, progress_queue):
+def upload_async(data_service_auth_data, config, upload_id, filename,
+                 chunk_size, index, num_chunks_to_send, progress_queue):
     auth = DataServiceAuth(config)
     auth.set_auth_data(data_service_auth_data)
     data_service = DataServiceApi(auth, config.url)
@@ -197,6 +220,12 @@ def upload_async(data_service_auth_data, config,
 
 
 class ChunkSender(object):
+    """
+    Receives an index and seeks to that part of the file to upload.
+    Creates an upload url with the data_service.
+    Uploads the bytes at that point in the file.
+    Repeats last two steps for each chunk it is supposed to send.
+    """
     SENT = "sent"
     ERROR = "error"
 
@@ -225,26 +254,21 @@ class ChunkSender(object):
         return None
 
     def _send_chunk(self, chunk, chunk_num):
-        chunk_hash_alg, chunk_hash_value = self._get_hash(chunk)
+        chunk_hash_alg, chunk_hash_value = ChunkSender.get_hash(chunk)
         resp = self.data_service.create_upload_url(self.upload_id, chunk_num, len(chunk),
                                                    chunk_hash_value, chunk_hash_alg)
         if resp.status_code == 200:
-            url_json = resp.json()
-            http_verb = url_json['http_verb']
-            host = url_json['host']
-            url = url_json['url']
-            http_headers = url_json['http_headers']
-            resp = self.data_service.send_external(http_verb, host, url, http_headers, chunk)
-            if resp.status_code != 200 and resp.status_code != 201:
-                return "Failed to send file to external store. Error:" + str(resp.status_code)
-            else:
+            try:
+                FileUploader.send_file_external(self.data_service, resp.json(), chunk)
                 return None
+            except ValueError as err:
+                return str(err)
         else:
             return "Failed to retrieve upload url status:" + str(resp.status_code)
 
-    def _get_hash(self, chunk):
+    @staticmethod
+    def get_hash(chunk):
         hash = HashUtil()
         hash.add_chunk(chunk)
         return hash.hexdigest()
-
 
