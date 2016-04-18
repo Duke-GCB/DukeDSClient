@@ -15,7 +15,7 @@ DukeDSClient supports a global configuration file at /etc/ddsclient.conf and a u
 Settings in the user configuration file override those in the global configuration.
 
 #####  Follow these instructions to create a your __user_key__, and an __agent_key__:
-[Instructions for getting agent and user keys.](GettingAgentAndUserKeys.md)
+[Instructions for getting agent and user keys.](docs/GettingAgentAndUserKeys.md)
  
 Create a file at ~/.ddsclient with your keys in the following format:
 ```
