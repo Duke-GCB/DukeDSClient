@@ -33,6 +33,7 @@ Click the CANCEL button.
 ![Key Menu Button](images/CreateNewKey.png?raw=true "Key Menu Button")
 ####  13. Click 'COPY KEY TO CLIPBOARD'.
 ![Key Menu Button](images/CopyKeyToClipboard.png?raw=true "Key Menu Button")
+
 You how have your user key in your clipboard.
 
 Create a file at ~/.ddsclient with your keys in the following format:
