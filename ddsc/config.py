@@ -117,7 +117,7 @@ class Config(object):
     def upload_workers(self):
         """
         Return the number of parallel works to use when uploading a file.
-        :return: int number of workers or None to disable parallel uploading
+        :return: int number of workers. Specify None or 1 to disable parallel uploading
         """
         return self.values.get(Config.UPLOAD_WORKERS, None)
 

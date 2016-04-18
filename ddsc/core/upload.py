@@ -2,6 +2,7 @@ import datetime
 from ddsc.core.localstore import LocalProject
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.util import ProgressPrinter, ProjectWalker
+from ddsc.core.fileuploader import FileUploader
 
 
 class ProjectUpload(object):
@@ -52,6 +53,7 @@ class ProjectUpload(object):
         Upload different items within local_project to remote store showing a progress bar.
         """
         progress_printer = ProgressPrinter(self.different_items.total_items(), msg_verb='sending')
+
         sender = RemoteContentSender(self.config, self.remote_store.data_service, self.local_project.remote_id,
                                      self.project_name, progress_printer)
         sender.walk_project(self.local_project)
@@ -412,6 +414,6 @@ class RemoteContentSender(object):
         :param parent: LocalContent/LocalFolder that contains this file
         """
         if item.need_to_send:
-            file_content_sender = FileContentSender(self.config, self.data_service, item, self.watcher)
+            file_content_sender = FileUploader(self.config, self.data_service, item, self.watcher)
             remote_id = file_content_sender.upload(self.project_id, parent.kind, parent.remote_id)
             item.set_remote_id_after_send(remote_id)

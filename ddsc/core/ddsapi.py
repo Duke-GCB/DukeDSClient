@@ -65,6 +65,13 @@ class DataServiceAuth(object):
         self._auth = resp_json['api_token']
         self._expires = resp_json['expires_on']
 
+    def get_auth_data(self):
+        return self._auth, self._expires
+
+    def set_auth_data(self, auth_expires_tuple):
+        self._auth = auth_expires_tuple[0]
+        self._expires = auth_expires_tuple[1]
+
     def legacy_auth(self):
         """
         Has user specified a single auth token to use with an unknown expiration.
