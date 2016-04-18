@@ -4,7 +4,7 @@ Command line tool to upload/manage project on the [duke-data-service](https://gi
 
 Runs on Python 2.7 or 3.5.
 
-###Install:
+# Install:
 ```
 pip install DukeDSClient
 ```
