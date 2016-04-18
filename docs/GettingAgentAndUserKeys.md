@@ -42,4 +42,4 @@ user_key: <USER_KEY>
 agent_key: <AGENT_KEY>
 ```
 
-You should be able to now user ddsclient: [README.md](../README.md)
+You should be able to now use ddsclient: [README.md](../README.md)
