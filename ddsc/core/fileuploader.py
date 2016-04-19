@@ -28,8 +28,6 @@ class FileUploader(object):
         self.config = config
         self.data_service = data_service
         self.local_file = local_file
-        self.filename = local_file.path
-        self.content_type = local_file.mimetype
         self.upload_id = None
         self.watcher = watcher
 
@@ -53,7 +51,7 @@ class FileUploader(object):
         size = self.local_file.size
         (hash_alg, hash_value) = self.local_file.get_hashpair()
         name = self.local_file.name
-        resp = self.data_service.create_upload(project_id, name, self.content_type, size, hash_value, hash_alg)
+        resp = self.data_service.create_upload(project_id, name, self.local_file.mimetype, size, hash_value, hash_alg)
         self.upload_id = resp.json()['id']
         chunk_processor = self._make_chunk_processor()
         chunk_processor.run()
