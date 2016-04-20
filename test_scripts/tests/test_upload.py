@@ -9,7 +9,7 @@ def ddsclient_cmd(str_args):
 
 
 def diff_items(item1, item2):
-    return str(subprocess.check_output(["bash", "-c", "diff -r {} {}".format(item1, item2)]))
+    return subprocess.check_output(["bash", "-c", "diff -r {} {}".format(item1, item2)])
 
 
 def hash_file(filename):
