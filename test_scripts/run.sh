@@ -60,15 +60,15 @@ run_test()
     TEMPFILE=/tmp/DukeDSClientTest.$$
     echo "Running tests for $TEST_PYTHON uploadSize:$UPLOAD_CHUNK_SIZE uploadWorkers:$UPLOAD_WORKERS" | tee $TEMPFILE
     docker run -it -e UPLOAD_CHUNK_SIZE=$UPLOAD_CHUNK_SIZE -e UPLOAD_WORKERS=$UPLOAD_WORKERS \
+                   -e INTEGRATION_TESTS="Y" \
                    -e TEST_PYTHON=$TEST_PYTHON -e DDS_IP=$DDS_IP \
                    -e DDS_USER_KEY=$DDS_USER_KEY -e DDS_AGENT_KEY=$DDS_AGENT_KEY \
                    -v /tmp/DukeDSClientData/hg38.chromFaMasked.tar.gz \
                    -v /tmp/DukeDSClientData/hg38.fa.gz \
-                   dds_test >> $TEMPFILE
+                   dds_test | tee -a $TEMPFILE
     if [ "$?" -ne "0" ]
     then
       echo "ERROR: $TEST_PYTHON tests failed"
-      tail $TEMP
       echo "see $TEMP for more"
       exit 1
     fi

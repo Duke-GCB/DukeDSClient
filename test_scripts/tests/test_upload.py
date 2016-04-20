@@ -2,6 +2,7 @@ import unittest
 import subprocess
 import shutil
 import hashlib
+import os
 
 
 def ddsclient_cmd(str_args):
@@ -20,6 +21,7 @@ def hash_file(filename):
     return hash.hexdigest()
 
 
+@unittest.skipIf(os.environ.get('INTEGRATION_TESTS') != "Y", "skipping integration tests")
 class TestUploadDownloadSingleFile(unittest.TestCase):
     def assertFilesSame(self, filename1, filename2):
         self.assertEqual(hash_file(filename1), hash_file(filename2))
