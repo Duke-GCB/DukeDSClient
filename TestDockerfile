@@ -1,0 +1,5 @@
+FROM dds_test_base
+VOLUME ["/tmp/DukeDSClientData"]
+ADD . /src/DukeDSClient
+WORKDIR /src/DukeDSClient
+CMD ./test_scripts/inside_docker.sh
