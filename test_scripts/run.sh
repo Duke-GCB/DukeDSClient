@@ -29,7 +29,7 @@ cleanup_dds()
 
 create_user_data()
 {
-  echo "Create user and keys"
+  echo "Create user and keys in duke-data-service"
   # create a user
   docker exec -it dukedataservice_server_1 sh -c 'rake api_test_user:create' >/dev/null
 
@@ -45,6 +45,7 @@ create_user_data()
 
 delete_user_data()
 {
+  echo "Delete user and data in duke-data-service"
   # delete a user
   docker exec -it dukedataservice_server_1 sh -c 'rake api_test_user:destroy' >/dev/null
 }
@@ -55,15 +56,15 @@ run_test()
     UPLOAD_CHUNK_SIZE=$3
     UPLOAD_WORKERS=$4
     create_user_data
-    echo "Running $1 tests"
     #run python2 tests
-    TEMP=/tmp/DukeDSClientTest.$$
+    TEMPFILE=/tmp/DukeDSClientTest.$$
+    echo "Running tests for $TEST_PYTHON uploadSize:$UPLOAD_CHUNK_SIZE uploadWorkers:$UPLOAD_WORKERS" | tee $TEMPFILE
     docker run -it -e UPLOAD_CHUNK_SIZE=$UPLOAD_CHUNK_SIZE -e UPLOAD_WORKERS=$UPLOAD_WORKERS \
                    -e TEST_PYTHON=$TEST_PYTHON -e DDS_IP=$DDS_IP \
                    -e DDS_USER_KEY=$DDS_USER_KEY -e DDS_AGENT_KEY=$DDS_AGENT_KEY \
                    -v /tmp/DukeDSClientData/hg38.chromFaMasked.tar.gz \
                    -v /tmp/DukeDSClientData/hg38.fa.gz \
-                   dds_test > $TEMP
+                   dds_test >> $TEMPFILE
     if [ "$?" -ne "0" ]
     then
       echo "ERROR: $TEST_PYTHON tests failed"
@@ -72,6 +73,7 @@ run_test()
       exit 1
     fi
     delete_user_data
+    rm $TEMPFILE
 }
 
 build_docker_file

@@ -7,18 +7,6 @@ echo "upload_bytes_per_chunk: $UPLOAD_CHUNK_SIZE" >> $CONFIG_FILE
 echo "upload_workers: $UPLOAD_WORKERS" >> $CONFIG_FILE
 
 set -e
-eval $TEST_PYTHON setup.py install
+eval $TEST_PYTHON setup.py install 2>/dev/null >/dev/null
 
-#see if we can upload and download a small file
-PROJECT_NAME="small$TEST_PYTHON"
-DOWNLOAD_DIR=/tmp/small
-
-ddsclient upload -p $PROJECT_NAME setup.py
-ddsclient download -p $PROJECT_NAME $DOWNLOAD_DIR
-ls /tmp/DukeDSClientData/*
-diff setup.py $DOWNLOAD_DIR/setup.py
-
-eval $TEST_PYTHON api_test.py get_projects | grep desc
-
-
-
+$TEST_PYTHON -m unittest discover test_scripts/tests/
