@@ -55,6 +55,7 @@ run_test()
     TEST_PYTHON=$2
     UPLOAD_CHUNK_SIZE=$3
     UPLOAD_WORKERS=$4
+    CUR_DIR=`pwd`
     create_user_data
     #run python2 tests
     TEMPFILE=/tmp/DukeDSClientTest.$$
@@ -63,8 +64,7 @@ run_test()
                    -e INTEGRATION_TESTS="Y" \
                    -e TEST_PYTHON=$TEST_PYTHON -e DDS_IP=$DDS_IP \
                    -e DDS_USER_KEY=$DDS_USER_KEY -e DDS_AGENT_KEY=$DDS_AGENT_KEY \
-                   -v /tmp/DukeDSClientData/hg38.chromFaMasked.tar.gz \
-                   -v /tmp/DukeDSClientData/hg38.fa.gz \
+                   -v $CUR_DIR/../DukeDSClientData:/tmp/DukeDSClientData \
                    dds_test | tee -a $TEMPFILE
     if [ "$?" -ne "0" ]
     then
@@ -80,7 +80,13 @@ build_docker_file
 start_dds
 
 run_test python2 python 100MB 1
+run_test python2 python 50MB 4
 run_test python3 python3 100MB 1
+run_test python3 python3 100MB 4
+
+#delete stopped containers
+docker rm $(docker ps -a -q --filter="name=dukedataservice_") 2>/dev/null
+
 
 echo "SUCCESS"
 exit 0

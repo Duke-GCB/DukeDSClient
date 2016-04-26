@@ -319,7 +319,7 @@ class ChunkSender(object):
         :param chunk: bytes data we are uploading
         :param chunk_num: int number associated with this chunk
         """
-        chunk_hash_alg, chunk_hash_value = FileUploader.get_hash(chunk)
+        chunk_hash_alg, chunk_hash_value = FileUploader.hash_chunk(chunk)
         resp = self.data_service.create_upload_url(self.upload_id, chunk_num, len(chunk),
                                                    chunk_hash_value, chunk_hash_alg)
         if resp.status_code == 200:

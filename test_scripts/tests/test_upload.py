@@ -80,5 +80,10 @@ class TestUploadDownloadSingleFile(unittest.TestCase):
         shutil.rmtree("/tmp/my_docs")
         shutil.rmtree("../my_docs")
 
+    def test_upload_download_bigfile(self):
+        self.assertUploadWorks("upload -p bigfile /tmp/DukeDSClientData/bigfile.tar")
+        self.assertDownloadWorks("download -p bigfile /tmp/bf")
+        self.assertFilesSame('/tmp/DukeDSClientData/bigfile.tar', '/tmp/bf/bigfile.tar')
+
 if __name__ == '__main__':
     unittest.main()
