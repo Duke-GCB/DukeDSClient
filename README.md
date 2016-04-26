@@ -106,14 +106,22 @@ upload_workers: 4
 upload_bytes_per_chunk: 200MB
 ```
 
-### Advanced:
-You can specify an alternate url for use with ddsclient via the `DUKE_DATA_SERVICE_URL` environment variable.
+### Alternate Service:
+The default url is `https://api.dataservice.duke.edu/api/v1`.
+You can customize this via the `url` config file option.
+Example config file setup to use the __uatest__ server:
+```
+url: https://apiuatest.dataservice.duke.edu/api/v1
+```
+
+You also can specify an alternate url for use with ddsclient via the `DUKE_DATA_SERVICE_URL` environment variable.
 Here is how you can set the environment variable so ddsclient will connect to the 'dev' url:
 ```
 export DUKE_DATA_SERVICE_URL='https://apidev.dataservice.duke.edu/api/v1'
 ```
-This will require using the associated apiexplorer to get a valid token.
+This will require using the associated portal to get a valid keys.
 
+You will need to specify an `agent_key` and `user_key` in the config file appropriate for the particular service.
 
 
 
