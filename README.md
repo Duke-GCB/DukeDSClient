@@ -105,7 +105,6 @@ Example config file setup to use 4 workers and 200MB chunks:
 upload_workers: 4
 upload_bytes_per_chunk: 200MB
 ```
-The only reason to modify this would be to speed up how long it takes to upload.
 
 ### Advanced:
 You can specify an alternate url for use with ddsclient via the `DUKE_DATA_SERVICE_URL` environment variable.
