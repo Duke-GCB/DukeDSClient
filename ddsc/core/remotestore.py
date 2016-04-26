@@ -1,6 +1,5 @@
 from ddsc.core.ddsapi import DataServiceApi, DataServiceError, DataServiceAuth
 from ddsc.core.util import KindType
-#from multiprocessing import Pool
 
 FETCH_ALL_USERS_PAGE_SIZE = 25
 DOWNLOAD_FILE_CHUNK_SIZE = 1024

@@ -230,47 +230,8 @@ class LocalFile(object):
         self.sent_to_remote = True
         self.remote_id = remote_id
 
-    def process_chunks(self, bytes_per_chunk, processor):
-        """
-        Lazily processes the contents of the file given a max size per chunk.
-        Zero byte files will process one empty chunk to conform to the remote store.
-        :param bytes_per_chunk: int size of chunks
-        :param processor: function to process the data
-        """
-        if self.size == 0:
-            chunk = ''
-            (chunk_hash_alg, chunk_hash_value) = LocalFile.hash_chunk(chunk)
-            processor(chunk, chunk_hash_alg, chunk_hash_value)
-        else:
-            with open(self.path,'rb') as infile:
-                number = 0
-                for chunk in LocalFile.read_in_chunks(infile, bytes_per_chunk):
-                    (chunk_hash_alg, chunk_hash_value) = LocalFile.hash_chunk(chunk)
-                    processor(chunk, chunk_hash_alg, chunk_hash_value)
-
     def count_chunks(self, bytes_per_chunk):
         return math.ceil(float(self.size) / float(bytes_per_chunk))
-
-    @staticmethod
-    def read_in_chunks(infile, blocksize):
-        """
-        Generator to read chunks lazily.
-        :param infile: filehandle file to read from
-        :param blocksize: int size of blocks to read
-        """
-        """"""
-        while True:
-            data = infile.read(blocksize)
-            if not data:
-                break
-            yield data
-
-    @staticmethod
-    def hash_chunk(chunk):
-        """Creates a hash from the bytes in chunk."""
-        hash = HashUtil()
-        hash.add_chunk(chunk)
-        return hash.hexdigest()
 
     def __str__(self):
         return 'file:{}'.format(self.name)
