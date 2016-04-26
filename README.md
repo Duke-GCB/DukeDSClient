@@ -93,6 +93,20 @@ python setup.py test
 [Duke Data Service Portal](https://dataservice.duke.edu).
 This also requires a [Duke NetID](https://oit.duke.edu/email-accounts/netid/).
 
+### Upload Settings
+The default upload settings is to use a single worker and upload 100MB chunks.
+You can change this via the `upload_bytes_per_chunk` and `upload_workers` config file options.
+These options should be added to your `~/.ddsclient` config file.
+`upload_workers` should be an integer for the number of upload workers you want.
+`upload_bytes_per_chunk` is the size of chunks to upload. Specify this with MB extension.
+
+Example config file setup to use 4 workers and 200MB chunks:
+```
+upload_workers: 4
+upload_bytes_per_chunk: 200MB
+```
+The only reason to modify this would be to speed up how long it takes to upload.
+
 ### Advanced:
 You can specify an alternate url for use with ddsclient via the `DUKE_DATA_SERVICE_URL` environment variable.
 Here is how you can set the environment variable so ddsclient will connect to the 'dev' url:
@@ -100,4 +114,7 @@ Here is how you can set the environment variable so ddsclient will connect to th
 export DUKE_DATA_SERVICE_URL='https://apidev.dataservice.duke.edu/api/v1'
 ```
 This will require using the associated apiexplorer to get a valid token.
+
+
+
 
