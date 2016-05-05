@@ -209,18 +209,10 @@ class LocalFile(object):
         Based on a remote file try to assign a remote_id and compare hash info.
         :param remote_file: RemoteFile remote data pull remote_id from
         """
-        # Since right now the remote server allows duplicates
-        # this could be called multiple times for the same local file
-        # as long as one matches we have the file uploaded.
-
-        # if we don't have a uuid yet any will do
-        if not self.need_to_send:
-            self.remote_id = remote_file.id
-        # but we prefer the one that matches our hash
+        self.remote_id = remote_file.id
         (alg, file_hash) = self.get_hashpair()
         if alg == remote_file.hash_alg and file_hash == remote_file.file_hash:
             self.need_to_send = False
-            self.remote_id = remote_file.id
 
     def set_remote_id_after_send(self, remote_id):
         """

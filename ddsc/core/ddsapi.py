@@ -378,6 +378,19 @@ class DataServiceApi(object):
         }
         return self._post("/files/", data)
 
+    def update_file(self, file_id, upload_id):
+        """
+        Send PUT request to /files/{file_id} to update the file contents to upload_id and sets a label.
+        :param file_id: str uuid of file
+        :param upload_id: str uuid of the upload where all the file chunks where uploaded
+        :param label: str short display label for the file
+        :return: requests.Response containing the successful result
+        """
+        put_data = {
+            "upload[id]": upload_id,
+        }
+        return self._put("/files/" + file_id, put_data, content_type=ContentType.form)
+
     def send_external(self, http_verb, host, url, http_headers, chunk):
         """
         Used with create_upload_url to send a chunk the the possibly external object store.
