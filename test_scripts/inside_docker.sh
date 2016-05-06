@@ -9,9 +9,8 @@ echo "upload_workers: $UPLOAD_WORKERS" >> $CONFIG_FILE
 
 set -e
 echo "Installing ddsclient"
-eval $TEST_PYTHON setup.py install
+$TEST_PYTHON setup.py install 2>/dev/null >/dev/null
 
 echo "Running tests"
 $TEST_PYTHON -m unittest discover test_scripts/tests/
-echo "HERE"
 
