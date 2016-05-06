@@ -81,9 +81,26 @@ class TestUploadDownloadSingleFile(unittest.TestCase):
         shutil.rmtree("../my_docs")
 
     def test_upload_download_bigfile(self):
+        """
+        Uploads a really big file. This takes quite a while to run.
+        """
         self.assertUploadWorks("upload -p bigfile /tmp/DukeDSClientData/bigfile.tar")
         self.assertDownloadWorks("download -p bigfile /tmp/bf")
         self.assertFilesSame('/tmp/DukeDSClientData/bigfile.tar', '/tmp/bf/bigfile.tar')
+
+    def test_update_file(self):
+        """
+        Test that we can update the contents of a file after uploading it.
+        """
+        with open("/tmp/abc.txt", "w") as data_file:
+            data_file.write("one line")
+        self.assertUploadWorks("upload -p change_it /tmp/abc.txt")
+        with open("/tmp/abc.txt", "w") as data_file:
+            data_file.write("one line")
+            data_file.write("two line")
+        self.assertUploadWorks("upload -p change_it /tmp/abc.txt")
+        self.assertDownloadWorks("download -p change_it /tmp/change_it")
+        self.assertFilesSame('/tmp/abc.txt', '/tmp/change_it/abc.txt')
 
 if __name__ == '__main__':
     unittest.main()

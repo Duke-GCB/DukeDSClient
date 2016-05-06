@@ -65,16 +65,21 @@ run_test()
                    -e TEST_PYTHON=$TEST_PYTHON -e DDS_IP=$DDS_IP \
                    -e DDS_USER_KEY=$DDS_USER_KEY -e DDS_AGENT_KEY=$DDS_AGENT_KEY \
                    -v $CUR_DIR/../DukeDSClientData:/tmp/DukeDSClientData \
-                   dds_test | tee -a $TEMPFILE
-    if [ "$?" -ne "0" ]
+                   dds_test > $TEMPFILE
+    RET=$?
+    echo "Test exit status $RET"
+    if [ "$RET" -ne "0" ]
     then
       echo "ERROR: $TEST_PYTHON tests failed"
-      echo "see $TEMP for more"
+      tail -n 10 $TEMPFILE
+      echo "see $TEMPFILE for more"
       exit 1
     fi
     delete_user_data
     rm $TEMPFILE
 }
+
+docker rm $(docker ps -a -q --filter="name=dukedataservice_") 2>/dev/null
 
 build_docker_file
 start_dds

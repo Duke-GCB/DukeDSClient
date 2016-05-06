@@ -56,8 +56,13 @@ class FileUploader(object):
         chunk_processor = self._make_chunk_processor()
         chunk_processor.run()
         self.data_service.complete_upload(self.upload_id)
-        result = self.data_service.create_file(parent_kind, parent_id, self.upload_id)
-        return result.json()['id']
+        if self.local_file.remote_id:
+            file_id = self.local_file.remote_id
+            self.data_service.update_file(file_id, self.upload_id)
+            return file_id
+        else:
+            result = self.data_service.create_file(parent_kind, parent_id, self.upload_id)
+            return result.json()['id']
 
     @staticmethod
     def send_file_external(data_service, url_json, chunk):
