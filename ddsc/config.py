@@ -2,6 +2,7 @@
 import os
 import re
 import yaml
+import multiprocessing
 try:
     from urllib.parse import urlparse
 except ImportError:
@@ -119,7 +120,7 @@ class Config(object):
         Return the number of parallel works to use when uploading a file.
         :return: int number of workers. Specify None or 1 to disable parallel uploading
         """
-        return self.values.get(Config.UPLOAD_WORKERS, None)
+        return self.values.get(Config.UPLOAD_WORKERS, multiprocessing.cpu_count())
 
     @property
     def debug_mode(self):
