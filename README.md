@@ -94,7 +94,7 @@ python setup.py test
 This also requires a [Duke NetID](https://oit.duke.edu/email-accounts/netid/).
 
 ### Upload Settings
-The default upload settings is to use a single worker and upload 100MB chunks.
+The default upload settings is to use a worker per cpu and upload 100MB chunks.
 You can change this via the `upload_bytes_per_chunk` and `upload_workers` config file options.
 These options should be added to your `~/.ddsclient` config file.
 `upload_workers` should be an integer for the number of upload workers you want.

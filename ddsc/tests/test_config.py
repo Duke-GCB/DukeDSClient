@@ -1,5 +1,6 @@
 from unittest import TestCase
 import ddsc.config
+import multiprocessing
 
 
 class TestConfig(TestCase):
@@ -10,7 +11,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.agent_key, None)
         self.assertEqual(config.auth, None)
         self.assertEqual(config.upload_bytes_per_chunk, ddsc.config.DDS_DEFAULT_UPLOAD_CHUNKS)
-        self.assertEqual(config.upload_workers, None)
+        self.assertEqual(config.upload_workers, multiprocessing.cpu_count())
 
     def test_global_then_local(self):
         config = ddsc.config.Config()
@@ -34,7 +35,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.agent_key, '123')
         self.assertEqual(config.auth, 'secret')
         self.assertEqual(config.upload_bytes_per_chunk, 1293892)
-        self.assertEqual(config.upload_workers, None)
+        self.assertEqual(config.upload_workers, multiprocessing.cpu_count())
 
         config.update_properties(local_config)
         self.assertEqual(config.url, 'dataservice2.com')
