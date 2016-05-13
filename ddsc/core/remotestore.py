@@ -96,7 +96,7 @@ class RemoteStore(object):
         """
         remote_file = RemoteFile(file_json)
         response = self.data_service.get_file(remote_file.id)
-        file_hash = response.json()['upload']['hash']
+        file_hash = RemoteFile.get_upload_from_json(response.json())['hash']
         if file_hash:
             remote_file.set_hash(file_hash['value'], file_hash['algorithm'])
         return remote_file
@@ -305,7 +305,7 @@ class RemoteFile(object):
         self.name = json_data['name']
         self.path = self.name # for compatibilty with ProgressPrinter
         self.is_deleted = json_data['is_deleted']
-        self.size = json_data['upload']['size']
+        self.size = RemoteFile.get_upload_from_json(json_data)['size']
         self.file_hash = None
         self.hash_alg = None
 
@@ -317,6 +317,16 @@ class RemoteFile(object):
         """
         self.file_hash = file_hash
         self.hash_alg = hash_alg
+
+    @staticmethod
+    def get_upload_from_json(json_data):
+        if 'current_version' in json_data:
+            return json_data['current_version']['upload']
+        else:
+            if 'upload' in json_data:
+                return json_data['upload']
+            else:
+                raise ValueError("Invalid file json data, unable to find upload.")
 
     def __str__(self):
         return 'file: {} id:{} size:{}'.format(self.name, self.id, self.size)
