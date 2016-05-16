@@ -14,8 +14,8 @@ Go to the [Duke Data Service Portal](https://dataservice.duke.edu).
 ####  5. Fill in data for a new agent and click 'SUBMIT'.
 ![Create Agent](images/NewSoftwareAgent.png?raw=true "Create Agent")
 
-You can use 'DukeDSClient" followed by your name for the Name and Description fields.
-####  6. Click 'CREDENTIALS' you just created.
+Pick a descriptive name for your software agent as it will be associated with the projects you upload.
+####  6. Click 'CREDENTIALS' on the software agent you just created.
 ![Click Agent](images/ClickCredentials.png?raw=true "Click CREDENTIALS")
 ####  7. Click 'COPY CREDENTIALS'.
 ![Key Menu Button](images/CopyCredentials.png?raw=true "Key Menu Button")
@@ -27,7 +27,8 @@ It should look similar to this:
 ```
 {
     "agent_key": "<AGENT_KEY>",
-    "user_key": "<USER_KEY>"
+    "user_key": "<USER_KEY>",
+    "api_token": "<API_TOKEN"
 }
 ```
 
@@ -41,6 +42,7 @@ If you are working with the uatest or dev server you will need to add the approp
 {
     "url": "https://apidev.dataservice.duke.edu/api/v1",
     "agent_key": "<AGENT_KEY>",
-    "user_key": "<USER_KEY>"
+    "user_key": "<USER_KEY>",
+    "api_token": "<API_TOKEN"    
 }
 ```            
