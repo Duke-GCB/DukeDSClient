@@ -17,7 +17,7 @@ Go to the [Duke Data Service Portal](https://dataservice.duke.edu).
 Pick a descriptive name for your software agent as it will be associated with the projects you upload.
 ####  6. Click 'CREDENTIALS' on the software agent you just created.
 ![Click Agent](images/ClickCredentials.png?raw=true "Click CREDENTIALS")
-####  7. Click 'COPY CREDENTIALS'.
+####  7. Click 'COPY CREDENTIALS TO CLIPBOARD'.
 ![Key Menu Button](images/CopyCredentials.png?raw=true "Key Menu Button")
 
 You how have your user and agent key in your clipboard.
