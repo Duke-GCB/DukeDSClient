@@ -5,6 +5,14 @@ import time
 from ddsc.config import LOCAL_CONFIG_FILENAME
 
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
+SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
+
+MISSING_INITIAL_SETUP_MSG = """Missing initial setup.
+You need to add agent_key and user_key to {}.
+Follow this guide: {}""".format(LOCAL_CONFIG_FILENAME, SETUP_GUIDE_URL)
+
+SOFTWARE_AGENT_NOT_FOUND_MSG = """Your software agent was not found on the server.
+Perhaps you have the wrong URL. You can change it via the 'url' setting in {}.""".format(LOCAL_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME)
 
 
 class ContentType(object):
@@ -54,10 +62,11 @@ class DataServiceAuth(object):
         }
         url = self.config.url + "/software_agents/api_token"
         response = requests.post(url, headers=headers, data=json.dumps(data))
-        if response.status_code == 404:  # server doesn't support user_agent yet
-            msg = "Please add a valid auth token to " + LOCAL_CONFIG_FILENAME + ". Example:\n"
-            msg += "auth: 'eyJ0eXAiOi...YT4Q' "
-            raise ValueError(msg)
+        if response.status_code == 404:
+            if not self.config.agent_key:
+                raise ValueError(MISSING_INITIAL_SETUP_MSG)
+            else:
+                raise ValueError(SOFTWARE_AGENT_NOT_FOUND_MSG)
         if response.status_code != 201:
             msg_format = 'Failed to create auth token status:{}\n{}'
             raise ValueError(msg_format.format(response.status_code, response.text))
