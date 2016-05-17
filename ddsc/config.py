@@ -13,7 +13,8 @@ LOCAL_CONFIG_FILENAME = '~/.ddsclient'
 LOCAL_CONFIG_ENV = 'DDSCLIENT_CONF'
 DUKE_DATA_SERVICE_URL = 'https://api.dataservice.duke.edu/api/v1'
 HANDOVER_SERVICE_URL = 'https://itlab-1.gcb.duke.edu/api/v1'
-DDS_DEFAULT_UPLOAD_CHUNKS = 100 * 1024 * 1024
+MB_TO_BYTES = 1024 * 1024
+DDS_DEFAULT_UPLOAD_CHUNKS = 100 * MB_TO_BYTES
 AUTH_ENV_KEY_NAME = 'DUKE_DATA_SERVICE_AUTH'
 
 
@@ -38,8 +39,10 @@ class Config(object):
     AUTH = 'auth'                                      # Holds actual auth token for connecting to the dataservice
     UPLOAD_BYTES_PER_CHUNK = 'upload_bytes_per_chunk'  # bytes per chunk we will upload
     UPLOAD_WORKERS = 'upload_workers'                  # how many worker processes used for uploading
+    DOWNLOAD_WORKERS = 'download_workers'              # how many worker processes used for downloading
     DEBUG_MODE = 'debug'                               # show stack traces
     HANDOVER_URL = 'handover_url'                      # url for use with the handover service
+
 
     def __init__(self):
         self.values = {}
@@ -110,9 +113,7 @@ class Config(object):
         :return: int bytes per upload chunk
         """
         value = self.values.get(Config.UPLOAD_BYTES_PER_CHUNK, DDS_DEFAULT_UPLOAD_CHUNKS)
-        if type(value) == str and "MB" in value:
-            value = int(value.replace("MB","")) * 1024 * 1024
-        return value
+        return Config.parse_bytes_str(value)
 
     @property
     def upload_workers(self):
@@ -121,6 +122,14 @@ class Config(object):
         :return: int number of workers. Specify None or 1 to disable parallel uploading
         """
         return self.values.get(Config.UPLOAD_WORKERS, multiprocessing.cpu_count())
+
+    @property
+    def download_workers(self):
+        """
+        Return the number of parallel works to use when downloading a file.
+        :return: int number of workers. Specify None or 1 to disable parallel downloading
+        """
+        return self.values.get(Config.DOWNLOAD_WORKERS, multiprocessing.cpu_count())
 
     @property
     def debug_mode(self):
@@ -137,3 +146,19 @@ class Config(object):
         :return: str url
         """
         return self.values.get(Config.HANDOVER_URL, HANDOVER_SERVICE_URL)
+
+    @staticmethod
+    def parse_bytes_str(value):
+        """
+        Given a value return the integer number of bytes it represents.
+        Trailing "MB" causes the value multiplied by 1024*1024
+        :param value:
+        :return: int number of bytes represented by value.
+        """
+        if type(value) == str:
+            if "MB" in value:
+                return int(value.replace("MB", "")) * MB_TO_BYTES
+            else:
+                return int(value)
+        else:
+            return value
