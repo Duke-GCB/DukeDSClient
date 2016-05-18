@@ -53,5 +53,5 @@ class TestFileDownloader(TestCase):
 
     def assert_make_ranges(self, workers, file_size, expected):
         config = FakeConfig(workers)
-        downloader = FileDownloader(config, None, None, file_size, None)
+        downloader = FileDownloader(config, None, None, None, file_size, None)
         self.assertEqual(expected, downloader.make_ranges())

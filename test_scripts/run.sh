@@ -55,12 +55,14 @@ run_test()
     TEST_PYTHON=$2
     UPLOAD_CHUNK_SIZE=$3
     UPLOAD_WORKERS=$4
+    DOWNLOAD_WORKERS=$4
     CUR_DIR=`pwd`
     create_user_data
     #run python2 tests
     TEMPFILE=/tmp/DukeDSClientTest.$$
-    echo "Running tests for $TEST_PYTHON uploadSize:$UPLOAD_CHUNK_SIZE uploadWorkers:$UPLOAD_WORKERS" | tee $TEMPFILE
+    echo "Running tests for $TEST_PYTHON uploadSize:$UPLOAD_CHUNK_SIZE workers:$UPLOAD_WORKERS/$DOWNLOAD_WORKERS" | tee $TEMPFILE
     docker run -it -e UPLOAD_CHUNK_SIZE=$UPLOAD_CHUNK_SIZE -e UPLOAD_WORKERS=$UPLOAD_WORKERS \
+                   -e DOWNLOAD_WORKERS=$DOWNLOAD_WORKERS \
                    -e INTEGRATION_TESTS="Y" \
                    -e TEST_PYTHON=$TEST_PYTHON -e DDS_IP=$DDS_IP \
                    -e DDS_USER_KEY=$DDS_USER_KEY -e DDS_AGENT_KEY=$DDS_AGENT_KEY \
@@ -84,10 +86,10 @@ docker rm $(docker ps -a -q --filter="name=dukedataservice_") 2>/dev/null
 build_docker_file
 start_dds
 
-run_test python2 python 100MB 1
-run_test python2 python 50MB 4
-run_test python3 python3 100MB 1
-run_test python3 python3 100MB 4
+run_test python2 python 100MB 1 1
+run_test python2 python 50MB 4 4
+run_test python3 python3 100MB 1 3
+run_test python3 python3 100MB 4 2
 
 #delete stopped containers
 docker rm $(docker ps -a -q --filter="name=dukedataservice_") 2>/dev/null

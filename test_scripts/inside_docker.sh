@@ -5,7 +5,7 @@ echo "user_key: $DDS_USER_KEY" >> $CONFIG_FILE
 echo "agent_key: $DDS_AGENT_KEY" >> $CONFIG_FILE
 echo "upload_bytes_per_chunk: $UPLOAD_CHUNK_SIZE" >> $CONFIG_FILE
 echo "upload_workers: $UPLOAD_WORKERS" >> $CONFIG_FILE
-
+echo "download_workers: $DOWNLOAD_WORKERS" >> $CONFIG_FILE
 
 set -e
 echo "Installing ddsclient"

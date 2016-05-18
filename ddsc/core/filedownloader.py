@@ -11,8 +11,9 @@ MIN_DOWNLOAD_CHUNK_SIZE = 10 * 1024 * 1024
 
 
 class FileDownloader(object):
-    def __init__(self, config, url_parts, path, file_size, watcher):
+    def __init__(self, config, remote_file, url_parts, path, file_size, watcher):
         self.config = config
+        self.remote_file = remote_file
         self.url_parts = url_parts
         self.path = path
         self.file_size = file_size
@@ -67,13 +68,11 @@ class FileDownloader(object):
         ranges = self.make_ranges()
         processes = []
         progress_queue = Queue()
-        index = 0
         for range in ranges:
             (temp_handle, temp_path) = tempfile.mkstemp()
             self.file_parts.append(temp_path)
             processes.append(self.make_and_start_process(temp_path, range, progress_queue))
-            index += 1
-        self.wait_for_processes(len(ranges), progress_queue, processes)
+        self.wait_for_processes(progress_queue, processes)
         self.merge_file_parts()
 
     def make_and_start_process(self, temp_path, range, progress_queue):
@@ -83,13 +82,14 @@ class FileDownloader(object):
         process.start()
         return process
 
-    def wait_for_processes(self, num_expected_files, progress_queue, processes):
-        while num_expected_files > 0:
+    def wait_for_processes(self, progress_queue, processes):
+        file_bytes = int(self.file_size)
+        while file_bytes > 0:
             progress_type, value = progress_queue.get()
             if progress_type == ChunkDownloader.RECEIVED:
-                chunks_sent = value
-                #self.watcher.transferring_item(self.local_file, chunks_sent)
-                num_expected_files -= 1
+                chunk_size = value
+                self.watcher.transferring_item(self.remote_file, increment_amt=chunk_size)
+                file_bytes -= chunk_size
             else:
                 error_message = value
                 for process in processes:
@@ -99,9 +99,9 @@ class FileDownloader(object):
             process.join()
 
     def merge_file_parts(self):
-        with open(self.path, "w") as outfile:
+        with open(self.path, "wb") as outfile:
             for temp_path in self.file_parts:
-                with open(temp_path, "r") as infile:
+                with open(temp_path, "rb") as infile:
                     outfile.write(infile.read())
 
 
@@ -122,8 +122,9 @@ class ChunkDownloader(object):
 
     def run(self):
         response = requests.get(self.url, headers=self.http_headers, stream=True)
-        with open(self.path, 'w') as outfile:
+        with open(self.path, 'wb') as outfile:
             for chunk in response.iter_content(chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
                 if chunk:  # filter out keep-alive chunks
                     outfile.write(chunk)
-        self.progress_queue.put((ChunkDownloader.RECEIVED, 1))
+                    self.progress_queue.put((ChunkDownloader.RECEIVED, len(chunk)))
+
