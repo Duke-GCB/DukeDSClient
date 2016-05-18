@@ -103,7 +103,10 @@ class FileDownloader(object):
         with open(self.path, "wb") as outfile:
             for temp_path in self.file_parts:
                 with open(temp_path, "rb") as infile:
-                    outfile.write(infile.read())
+                    data = infile.readlines(MIN_DOWNLOAD_CHUNK_SIZE)
+                    if not data:
+                        break
+                    outfile.write(data)
         for temp_path in self.file_parts:
             os.remove(temp_path)
 
