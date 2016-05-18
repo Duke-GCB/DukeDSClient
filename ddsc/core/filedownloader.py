@@ -1,13 +1,14 @@
 """
 Downloads a file based on ranges.
 """
+import os
 import math
 import tempfile
 import requests
 from multiprocessing import Process, Queue
 
-DOWNLOAD_FILE_CHUNK_SIZE = 1024
-MIN_DOWNLOAD_CHUNK_SIZE = 10 * 1024 * 1024
+DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
+MIN_DOWNLOAD_CHUNK_SIZE = 20 * 1024 * 1024
 
 
 class FileDownloader(object):
@@ -103,6 +104,8 @@ class FileDownloader(object):
             for temp_path in self.file_parts:
                 with open(temp_path, "rb") as infile:
                     outfile.write(infile.read())
+        for temp_path in self.file_parts:
+            os.remove(temp_path)
 
 
 def download_async(url, headers, path, progress_queue):
