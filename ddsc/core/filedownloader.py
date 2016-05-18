@@ -69,17 +69,24 @@ class FileDownloader(object):
         ranges = self.make_ranges()
         processes = []
         progress_queue = Queue()
+        self.make_big_empty_file()
         for range in ranges:
             (temp_handle, temp_path) = tempfile.mkstemp()
             self.file_parts.append(temp_path)
-            processes.append(self.make_and_start_process(temp_path, range, progress_queue))
+            processes.append(self.make_and_start_process(range, progress_queue))
         self.wait_for_processes(progress_queue, processes)
-        self.merge_file_parts()
+        #self.merge_file_parts()
 
-    def make_and_start_process(self, temp_path, range, progress_queue):
-        http_headers = {'Range': 'bytes=' + range}
+    def make_big_empty_file(self):
+        with open(self.path, "wb") as outfile:
+            outfile.seek(int(self.file_size) - 1)
+            outfile.write("\0")
+
+    def make_and_start_process(self, bytesRange, progress_queue):
+        http_headers = {'Range': 'bytes=' + bytesRange}
+        seek_amt = int(bytesRange.split("-")[0])
         process = Process(target=download_async,
-                          args=(self.host + self.url, http_headers, temp_path, progress_queue))
+                          args=(self.host + self.url, http_headers, self.path, seek_amt, progress_queue))
         process.start()
         return process
 
@@ -108,8 +115,8 @@ class FileDownloader(object):
             os.remove(temp_path)
 
 
-def download_async(url, headers, path, progress_queue):
-    downloader = ChunkDownloader(url, headers, path, progress_queue)
+def download_async(url, headers, path, seek_amt, progress_queue):
+    downloader = ChunkDownloader(url, headers, path, seek_amt, progress_queue)
     downloader.run()
 
 
@@ -117,15 +124,17 @@ class ChunkDownloader(object):
     RECEIVED = 'received'
     ERROR = 'error'
 
-    def __init__(self, url, http_headers, path, progress_queue):
+    def __init__(self, url, http_headers, path, seek_amt, progress_queue):
         self.url = url
         self.http_headers = http_headers
         self.path = path
+        self.seek_amt = seek_amt
         self.progress_queue = progress_queue
 
     def run(self):
         response = requests.get(self.url, headers=self.http_headers, stream=True)
-        with open(self.path, 'wb') as outfile:
+        with open(self.path, 'r+b') as outfile:
+            outfile.seek(self.seek_amt)
             for chunk in response.iter_content(chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
                 if chunk:  # filter out keep-alive chunks
                     outfile.write(chunk)
