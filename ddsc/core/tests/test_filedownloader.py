@@ -1,5 +1,6 @@
 from unittest import TestCase
-from ddsc.core.filedownloader import FileDownloader
+import ddsc.core.filedownloader
+from ddsc.core.filedownloader import FileDownloader, ChunkDownloader
 
 
 class FakeConfig(object):
@@ -10,6 +11,28 @@ class FakeConfig(object):
 class FakeFile(object):
     def __init__(self, size):
         self.size = size
+
+
+class FakeWatcher(object):
+    def __init__(self):
+        self.amt = 0
+
+    def transferring_item(self, remote_file, increment_amt):
+        self.amt += increment_amt
+
+
+class TestDownloader(FileDownloader):
+    def __init__(self, config, remote_file, url_parts, path, watcher):
+        super(TestDownloader, self).__init__(config, remote_file, url_parts, path, watcher)
+
+    def make_big_empty_file(self):
+        pass
+
+sample_url_parts = {
+    'host': 'myhost',
+    'url': 'stuff/',
+    'http_headers': {},
+}
 
 
 class TestFileDownloader(TestCase):
@@ -60,3 +83,47 @@ class TestFileDownloader(TestCase):
         config = FakeConfig(workers)
         downloader = FileDownloader(config, FakeFile(file_size), None, None, None)
         self.assertEqual(expected, downloader.make_ranges())
+
+    def test_chunk_that_fails(self):
+        file_size = 83833112
+        config = FakeConfig(3)
+        ddsc.core.filedownloader.download_async = self.chunk_download_fails
+        downloader = TestDownloader(config, FakeFile(file_size), sample_url_parts, None, None)
+        try:
+            downloader.run()
+        except ValueError as err:
+            self.assertEqual("oops", str(err))
+
+    def chunk_download_fails(self, url, headers, path, seek_amt, progress_queue):
+        progress_queue.put((ChunkDownloader.ERROR, "oops"))
+
+    def test_download_whole_chunk(self):
+        file_size = 83833112
+        config = FakeConfig(3)
+        watcher = FakeWatcher()
+        ddsc.core.filedownloader.download_async = self.chunk_download_one_piece
+        downloader = TestDownloader(config, FakeFile(file_size), sample_url_parts, None, watcher)
+        downloader.run()
+        self.assertEqual(file_size, watcher.amt)
+
+    def chunk_download_one_piece(self, url, headers, path, seek_amt, progress_queue):
+        start, end = headers['Range'].replace("bytes=","").split('-')
+        total = (int(end) - int(start) + 1)
+        progress_queue.put((ChunkDownloader.RECEIVED, total))
+
+    def test_download_chunk_in_two_parts(self):
+        file_size = 83833112
+        config = FakeConfig(3)
+        watcher = FakeWatcher()
+        ddsc.core.filedownloader.download_async = self.chunk_download_two_parts
+        downloader = TestDownloader(config, FakeFile(file_size), sample_url_parts, None, watcher)
+        downloader.run()
+        self.assertEqual(file_size, watcher.amt)
+
+    def chunk_download_two_parts(self, url, headers, path, seek_amt, progress_queue):
+        start, end = headers['Range'].replace("bytes=", "").split('-')
+        total = (int(end) - int(start) + 1)
+        first = int(total/2)
+        rest = total - first
+        progress_queue.put((ChunkDownloader.RECEIVED, first))
+        progress_queue.put((ChunkDownloader.RECEIVED, rest))
