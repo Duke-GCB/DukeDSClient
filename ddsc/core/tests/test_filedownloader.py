@@ -95,7 +95,7 @@ class TestFileDownloader(TestCase):
             self.assertEqual("oops", str(err))
 
     def chunk_download_fails(self, url, headers, path, seek_amt, progress_queue):
-        progress_queue.put((ChunkDownloader.ERROR, "oops"))
+        progress_queue.error("oops")
 
     def test_download_whole_chunk(self):
         file_size = 83833112
@@ -107,9 +107,9 @@ class TestFileDownloader(TestCase):
         self.assertEqual(file_size, watcher.amt)
 
     def chunk_download_one_piece(self, url, headers, path, seek_amt, progress_queue):
-        start, end = headers['Range'].replace("bytes=","").split('-')
+        start, end = headers['Range'].replace("bytes=", "").split('-')
         total = (int(end) - int(start) + 1)
-        progress_queue.put((ChunkDownloader.RECEIVED, total))
+        progress_queue.processed(total)
 
     def test_download_chunk_in_two_parts(self):
         file_size = 83833112
@@ -125,5 +125,5 @@ class TestFileDownloader(TestCase):
         total = (int(end) - int(start) + 1)
         first = int(total/2)
         rest = total - first
-        progress_queue.put((ChunkDownloader.RECEIVED, first))
-        progress_queue.put((ChunkDownloader.RECEIVED, rest))
+        progress_queue.processed(first)
+        progress_queue.processed(rest)

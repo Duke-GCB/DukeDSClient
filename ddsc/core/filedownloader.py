@@ -5,6 +5,7 @@ import math
 import tempfile
 import requests
 from multiprocessing import Process, Queue
+from ddsc.core.util import ProgressQueue, wait_for_processes
 
 DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
 MIN_DOWNLOAD_CHUNK_SIZE = DOWNLOAD_FILE_CHUNK_SIZE
@@ -92,13 +93,13 @@ class FileDownloader(object):
         self.file_parts = []
         ranges = self.make_ranges()
         processes = []
-        progress_queue = Queue()
+        progress_queue = ProgressQueue(Queue())
         self.make_big_empty_file()
         for range_start, range_end in ranges:
             (temp_handle, temp_path) = tempfile.mkstemp()
             self.file_parts.append(temp_path)
             processes.append(self.make_and_start_process(range_start, range_end, progress_queue))
-        self.wait_for_processes(progress_queue, processes)
+        wait_for_processes(processes, int(self.file_size), progress_queue, self.watcher, self.remote_file)
 
     def make_big_empty_file(self):
         """
@@ -113,7 +114,7 @@ class FileDownloader(object):
         Create a process that will download the specified range and notify progress_queue of progress or errors.
         :param range_start: int: file offset to download
         :param range_end: int: file ending offset to download
-        :param progress_queue: Queue: queue to notify as we make progress
+        :param progress_queue: ProgressQueue: queue to notify as we make progress
         :return: Process: the process we created
         """
         http_headers = {'Range': 'bytes={}-{}'.format(range_start, range_end)}
@@ -125,28 +126,6 @@ class FileDownloader(object):
         process.start()
         return process
 
-    def wait_for_processes(self, progress_queue, processes):
-        """
-        Watch progress queue for errors or progress.
-        Cleanup processes on error or success.
-        :param progress_queue: Queue: queue which will receive tuples of progress or error
-        :param processes: [Process]: processes we are waiting to finish downloading a file
-        """
-        file_bytes = int(self.file_size)
-        while file_bytes > 0:
-            progress_type, value = progress_queue.get()
-            if progress_type == ChunkDownloader.RECEIVED:
-                chunk_size = value
-                self.watcher.transferring_item(self.remote_file, increment_amt=chunk_size)
-                file_bytes -= chunk_size
-            else:
-                error_message = value
-                for process in processes:
-                    process.terminate()
-                raise ValueError(error_message)
-        for process in processes:
-            process.join()
-
 
 def download_async(url, headers, path, seek_amt, progress_queue):
     """
@@ -155,7 +134,7 @@ def download_async(url, headers, path, seek_amt, progress_queue):
     :param headers: dict: header to use with url, should contain Range to limit what we download
     :param path: str: path to where we should save our chunk we download
     :param seek_amt: int: offset to seek before writing our chunk out to path
-    :param progress_queue: Queue: queue of tuples we will add progress/errors to
+    :param progress_queue: ProgressQueue: queue of tuples we will add progress/errors to
     :return:
     """
     downloader = ChunkDownloader(url, headers, path, seek_amt, progress_queue)
@@ -167,9 +146,6 @@ class ChunkDownloader(object):
     Downloads part of a file and writes it to a location in a local pre-existing file.
     This runs in a separate process from the main application.
     """
-    RECEIVED = 'received'
-    ERROR = 'error'
-
     def __init__(self, url, http_headers, path, seek_amt, progress_queue):
         """
         Setup for downloading part of a file.
@@ -177,7 +153,7 @@ class ChunkDownloader(object):
         :param http_headers: dict: headers for use with the url should contain byte Range
         :param path: str: path to file to write data to
         :param seek_amt: int: offset amount to seek into the file
-        :param progress_queue: Queue: queue we notify of progress or errors
+        :param progress_queue: ProgressQueue: queue we notify of progress or errors
         """
         self.url = url
         self.http_headers = http_headers
@@ -193,7 +169,7 @@ class ChunkDownloader(object):
                 for chunk in response.iter_content(chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
                     if chunk:  # filter out keep-alive chunks
                         outfile.write(chunk)
-                        self.progress_queue.put((ChunkDownloader.RECEIVED, len(chunk)))
+                        self.progress_queue.procssed(len(chunk))
         except Exception as ex:
-            self.progress_queue.put((ChunkDownloader.ERROR, str(ex)))
+            self.progress_queue.error(str(ex))
 
