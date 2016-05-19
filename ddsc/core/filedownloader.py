@@ -169,7 +169,7 @@ class ChunkDownloader(object):
                 for chunk in response.iter_content(chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
                     if chunk:  # filter out keep-alive chunks
                         outfile.write(chunk)
-                        self.progress_queue.procssed(len(chunk))
+                        self.progress_queue.processed(len(chunk))
         except Exception as ex:
             self.progress_queue.error(str(ex))
 
