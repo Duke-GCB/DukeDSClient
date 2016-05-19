@@ -22,7 +22,7 @@ class FileDownloader(object):
         Setup details on what to download and watcher to notify of progress.
         :param config: Config: configuration settings for download (number workers)
         :param remote_file: RemoteFile: info about the file we are downloading
-        :param url_parts: dictionary of fields related to url ('http_verb','host','http_headers')
+        :param url_parts: dictionary of fields related to url ('http_verb','host','http_headers') received from duke_data_service
         :param path: str: path to where we will save the file
         :param watcher: ProgressPrinter: we notify of our progress
         """
@@ -42,12 +42,12 @@ class FileDownloader(object):
         return verb
 
     @property
-    def host(self):
-        return self.url_parts['host']
-
-    @property
     def url(self):
-        return self.url_parts['url']
+        """
+        Returns the full url based on url_parts.
+        The 'url' part of url_parts is actually the path.
+        """
+        return self.url_parts['host'] + self.url_parts['url']
 
     @property
     def http_headers(self):
@@ -122,7 +122,7 @@ class FileDownloader(object):
             http_headers.update(self.http_headers)
         seek_amt = range_start
         process = Process(target=download_async,
-                          args=(self.host + self.url, http_headers, self.path, seek_amt, progress_queue))
+                          args=(self.url, http_headers, self.path, seek_amt, progress_queue))
         process.start()
         return process
 
@@ -164,6 +164,7 @@ class ChunkDownloader(object):
     def run(self):
         try:
             response = requests.get(self.url, headers=self.http_headers, stream=True)
+            # open file for read/write without truncating
             with open(self.path, 'r+b') as outfile:
                 outfile.seek(self.seek_amt)
                 for chunk in response.iter_content(chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
