@@ -7,6 +7,11 @@ class FakeConfig(object):
         self.download_workers = download_workers
 
 
+class FakeFile(object):
+    def __init__(self, size):
+        self.size = size
+
+
 class TestFileDownloader(TestCase):
     def test_make_chunk_processor_with_none(self):
         # Only one worker because file size is too small
@@ -14,7 +19,7 @@ class TestFileDownloader(TestCase):
             workers=2,
             file_size=100,
             expected=[
-                '0-99',
+                (0, 99),
             ]
         )
 
@@ -23,8 +28,8 @@ class TestFileDownloader(TestCase):
             workers=2,
             file_size=100 * 1000 * 1000,
             expected=[
-                '0-49999999',
-                '50000000-99999999'
+                (0, 49999999),
+                (50000000, 99999999)
             ]
         )
 
@@ -34,9 +39,9 @@ class TestFileDownloader(TestCase):
             workers=3,
             file_size=100 * 1000 * 1000,
             expected=[
-                '0-33333333',
-                '33333334-66666667',
-                '66666668-99999999',
+                (0, 33333333),
+                (33333334, 66666667),
+                (66666668, 99999999),
             ]
         )
 
@@ -45,13 +50,13 @@ class TestFileDownloader(TestCase):
             workers=3,
             file_size=100 * 1000 * 1000 - 1,
             expected=[
-                '0-33333332',
-                '33333333-66666665',
-                '66666666-99999998',
+                (0, 33333332),
+                (33333333, 66666665),
+                (66666666, 99999998),
             ]
         )
 
     def assert_make_ranges(self, workers, file_size, expected):
         config = FakeConfig(workers)
-        downloader = FileDownloader(config, None, None, None, file_size, None)
+        downloader = FileDownloader(config, FakeFile(file_size), None, None, None)
         self.assertEqual(expected, downloader.make_ranges())

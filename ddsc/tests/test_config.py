@@ -1,4 +1,5 @@
 from unittest import TestCase
+import math
 import ddsc.config
 import multiprocessing
 
@@ -37,7 +38,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.auth, 'secret')
         self.assertEqual(config.upload_bytes_per_chunk, 1293892)
         self.assertEqual(config.upload_workers, multiprocessing.cpu_count())
-        self.assertEqual(config.download_workers, multiprocessing.cpu_count())
+        self.assertEqual(config.download_workers, int(math.ceil(multiprocessing.cpu_count()/2)))
 
         config.update_properties(local_config)
         self.assertEqual(config.url, 'dataservice2.com')
@@ -84,6 +85,8 @@ class TestConfig(TestCase):
 
     def test_parse_bytes_str(self):
         value_and_expected = {
+            (1, 1),
+            (2, 2),
             ("1", 1),
             ("2", 2),
             ("1MB", 1024 * 1024),

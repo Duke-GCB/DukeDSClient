@@ -1,6 +1,7 @@
 """ Global configuration for the utility based on config files and environment variables."""
 import os
 import re
+import math
 import yaml
 import multiprocessing
 try:
@@ -129,7 +130,8 @@ class Config(object):
         Return the number of parallel works to use when downloading a file.
         :return: int number of workers. Specify None or 1 to disable parallel downloading
         """
-        return self.values.get(Config.DOWNLOAD_WORKERS, multiprocessing.cpu_count())
+        default_workers = int(math.ceil(multiprocessing.cpu_count()/2))
+        return self.values.get(Config.DOWNLOAD_WORKERS, default_workers)
 
     @property
     def debug_mode(self):
