@@ -1,6 +1,7 @@
 import os
 
 from ddsc.core.util import ProgressPrinter, ProjectWalker
+from ddsc.core.filedownloader import FileDownloader
 
 
 class ProjectDownload(object):
@@ -71,9 +72,10 @@ class ProjectDownload(object):
         """
         parent_path = self.id_to_path[parent.id]
         path = os.path.join(parent_path, item.name)
-        self.remote_store.download_file(item, path, self.watcher)
+        url_json = self.remote_store.data_service.get_file_url(item.id).json()
+        downloader = FileDownloader(self.remote_store.config, item, url_json, path, self.watcher)
+        downloader.run()
         ProjectDownload.check_file_size(item, path)
-
 
     @staticmethod
     def check_file_size(item, path):

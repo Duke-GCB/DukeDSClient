@@ -2,7 +2,7 @@ from ddsc.core.ddsapi import DataServiceApi, DataServiceError, DataServiceAuth
 from ddsc.core.util import KindType
 
 FETCH_ALL_USERS_PAGE_SIZE = 25
-DOWNLOAD_FILE_CHUNK_SIZE = 1024
+DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
 
 
 class RemoteStore(object):

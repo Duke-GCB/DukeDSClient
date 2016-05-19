@@ -6,7 +6,7 @@ import math
 from multiprocessing import Process, Queue
 from ddsc.core.localstore import HashUtil
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
-
+from ddsc.core.util import ProgressQueue, wait_for_processes
 
 class FileUploader(object):
     """
@@ -173,13 +173,14 @@ class ParallelChunkProcessor(object):
         Sends contents of a local file to a remote data service.
         """
         processes = []
-        progress_queue = Queue()
+        progress_queue = ProgressQueue(Queue())
         num_chunks = ParallelChunkProcessor.determine_num_chunks(self.config.upload_bytes_per_chunk,
                                                                  self.local_file.size)
         work_parcels = ParallelChunkProcessor.make_work_parcels(self.config.upload_workers, num_chunks)
         for (index, num_items) in work_parcels:
             processes.append(self.make_and_start_process(index, num_items, progress_queue))
-        self.wait_for_processes(num_chunks, progress_queue, processes)
+        wait_for_processes(processes, num_chunks, progress_queue, self.watcher, self.local_file)
+
 
     @staticmethod
     def determine_num_chunks(chunk_size, file_size):
@@ -213,34 +214,12 @@ class ParallelChunkProcessor(object):
         grouped_indexes = [list_of_indexes[i:i + batch_size] for i in range(0, len(list_of_indexes), batch_size)]
         return [(batch[0], len(batch)) for batch in grouped_indexes]
 
-    def wait_for_processes(self, expected_chunks, progress_queue, processes):
-        """
-        Wait to hear back about expected_chunks from other processes via progress queue.
-        If any return an error we will terminate all processes and raise the error.
-        :param expected_chunks: int number chunks we need to hear back from processes about
-        :param progress_queue: Queue we check this for responses from worker processes
-        :param processes: [Process] array of process workers that we will cleanup
-        """
-        while expected_chunks > 0:
-            progress_type, value = progress_queue.get()
-            if progress_type == ChunkSender.SENT:
-                chunks_sent = value
-                self.watcher.transferring_item(self.local_file, chunks_sent)
-                expected_chunks -= chunks_sent
-            else:
-                error_message = value
-                for process in processes:
-                    process.terminate()
-                raise ValueError(error_message)
-        for process in processes:
-            process.join()
-
     def make_and_start_process(self, index, num_items, progress_queue):
         """
         Create and start a process to upload num_items chunks from our file starting at index.
         :param index: int offset into file(must be multiplied by upload_bytes_per_chunk to get actual location)
         :param num_items: int number chunks to send
-        :param progress_queue: Queue queue to send notifications of progress or errors
+        :param progress_queue: ProgressQueue queue to send notifications of progress or errors
         """
         process = Process(target=upload_async,
                        args=(self.data_service.auth.get_auth_data(), self.config, self.upload_id,
@@ -259,7 +238,7 @@ def upload_async(data_service_auth_data, config, upload_id,
     :param filename: str path to file who's contents we will be uploading
     :param index: int offset into filename where we will start sending bytes from (must multiply by upload_bytes_per_chunk)
     :param num_chunks_to_send: int number of chunks of config.upload_bytes_per_chunk size to send.
-    :param progress_queue: Queue queue to send notifications of progress or errors
+    :param progress_queue: ProgressQueue queue to send notifications of progress or errors
     """
     auth = DataServiceAuth(config)
     auth.set_auth_data(data_service_auth_data)
@@ -267,7 +246,7 @@ def upload_async(data_service_auth_data, config, upload_id,
     sender = ChunkSender(data_service, upload_id, filename, config.upload_bytes_per_chunk, index, num_chunks_to_send, progress_queue)
     error_msg = sender.send()
     if error_msg:
-        progress_queue.put((ChunkSender.ERROR, error_msg))
+        progress_queue.error(error_msg)
 
 
 class ChunkSender(object):
@@ -277,9 +256,6 @@ class ChunkSender(object):
     Uploads the bytes at that point in the file.
     Repeats last two steps for each chunk it is supposed to send.
     """
-    SENT = "sent"
-    ERROR = "error"
-
     def __init__(self, data_service, upload_id, filename, chunk_size, index, num_chunks_to_send, progress_queue):
         """
         Sends num_chunks_to_send from filename at offset index*chunk_size.
@@ -289,7 +265,7 @@ class ChunkSender(object):
         :param chunk_size: int size of block we will upload
         :param index: int index into filename content(must multiply by chunk_size during seek)
         :param num_chunks_to_send: how many chunks of chunk_size should we upload
-        :param progress_queue: Queue queue we will send updates or errors to.
+        :param progress_queue: ProgressQueue queue we will send updates or errors to.
         """
         self.data_service = data_service
         self.upload_id = upload_id
@@ -313,7 +289,7 @@ class ChunkSender(object):
                 error_msg = self._send_chunk(chunk, chunk_num)
                 if error_msg:
                     return error_msg
-                self.progress_queue.put((ChunkSender.SENT, 1))
+                self.progress_queue.processed(1)
                 chunk_num += 1
                 sent_chunks += 1
         return None

@@ -96,3 +96,52 @@ class ProjectWalker(object):
         if not KindType.is_file(item):
             for child in item.children:
                 ProjectWalker._visit_content(child, item, visitor)
+
+
+class ProgressQueue(object):
+    """
+    Sends tuples over queue for amount processed or an error with a message.
+    """
+    ERROR = 'error'
+    PROCESSED = 'processed'
+
+    def __init__(self, queue):
+        self.queue = queue
+
+    def error(self, error_msg):
+        self.queue.put((ProgressQueue.ERROR, error_msg))
+
+    def processed(self, amt):
+        self.queue.put((ProgressQueue.PROCESSED, amt))
+
+    def get(self):
+        """
+        Get the next tuple added to the queue.
+        :return: (str, value): where str is either ERROR or PROCESSED and value is the message or processed int amount.
+        """
+        return self.queue.get()
+
+
+def wait_for_processes(processes, size, progress_queue, watcher, item):
+    """
+    Watch progress queue for errors or progress.
+    Cleanup processes on error or success.
+    :param processes: [Process]: processes we are waiting to finish downloading a file
+    :param size: int: how many values we expect to be processed by processes
+    :param progress_queue: ProgressQueue: queue which will receive tuples of progress or error
+    :param watcher: ProgressPrinter: we notify of our progress:
+    :param item: object: RemoteFile/LocalFile we are transferring.
+    """
+    while size > 0:
+        progress_type, value = progress_queue.get()
+        if progress_type == ProgressQueue.PROCESSED:
+            chunk_size = value
+            watcher.transferring_item(item, increment_amt=chunk_size)
+            size -= chunk_size
+        else:
+            error_message = value
+            for process in processes:
+                process.terminate()
+            raise ValueError(error_message)
+    for process in processes:
+        process.join()

@@ -1,4 +1,5 @@
 from unittest import TestCase
+import math
 import ddsc.config
 import multiprocessing
 
@@ -20,13 +21,14 @@ class TestConfig(TestCase):
             'user_key': 'abc',
             'agent_key': '123',
             'auth': 'secret',
-            'upload_bytes_per_chunk': 1293892
+            'upload_bytes_per_chunk': 1293892,
         }
         local_config = {
             'url':'dataservice2.com',
             'user_key': 'cde',
             'agent_key': '456',
             'upload_workers': 45,
+            'download_workers': 44,
         }
 
         config.update_properties(global_config)
@@ -36,6 +38,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.auth, 'secret')
         self.assertEqual(config.upload_bytes_per_chunk, 1293892)
         self.assertEqual(config.upload_workers, multiprocessing.cpu_count())
+        self.assertEqual(config.download_workers, int(math.ceil(multiprocessing.cpu_count()/2)))
 
         config.update_properties(local_config)
         self.assertEqual(config.url, 'dataservice2.com')
@@ -44,16 +47,18 @@ class TestConfig(TestCase):
         self.assertEqual(config.auth, 'secret')
         self.assertEqual(config.upload_bytes_per_chunk, 1293892)
         self.assertEqual(config.upload_workers, 45)
+        self.assertEqual(config.download_workers, 44)
 
     def test_MB_chunk_convert(self):
         config = ddsc.config.Config()
         some_config = {
-            'upload_bytes_per_chunk': '10MB'
+            'upload_bytes_per_chunk': '10MB',
+            'download_bytes_per_chunk': '20MB',
         }
         config.update_properties(some_config)
         self.assertEqual(config.upload_bytes_per_chunk, 10485760)
         some_config = {
-            'upload_bytes_per_chunk': '20MB'
+            'upload_bytes_per_chunk': '20MB',
         }
         config.update_properties(some_config)
         self.assertEqual(config.upload_bytes_per_chunk, 20971520)
@@ -77,3 +82,17 @@ class TestConfig(TestCase):
         }
         config.update_properties(config3)
         self.assertEqual(config.get_portal_url_base(), 'dev.dataservice1.com')
+
+    def test_parse_bytes_str(self):
+        value_and_expected = {
+            (1, 1),
+            (2, 2),
+            ("1", 1),
+            ("2", 2),
+            ("1MB", 1024 * 1024),
+            ("1 MB", 1024 * 1024),
+            ("3MB", 3 * 1024 * 1024),
+            ("100MB", 100 * 1024 * 1024),
+        }
+        for value, exp in value_and_expected:
+            self.assertEqual(exp, ddsc.config.Config.parse_bytes_str(value))
