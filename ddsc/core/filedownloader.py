@@ -106,8 +106,9 @@ class FileDownloader(object):
         Write out a empty file so the workers can seek to where they should write and write their data.
         """
         with open(self.path, "wb") as outfile:
-            outfile.seek(int(self.file_size) - 1)
-            outfile.write(b'\0')
+            if self.file_size > 0:
+                outfile.seek(int(self.file_size) - 1)
+                outfile.write(b'\0')
 
     def make_and_start_process(self, range_start, range_end, progress_queue):
         """

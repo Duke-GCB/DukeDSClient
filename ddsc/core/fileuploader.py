@@ -181,12 +181,14 @@ class ParallelChunkProcessor(object):
             processes.append(self.make_and_start_process(index, num_items, progress_queue))
         wait_for_processes(processes, num_chunks, progress_queue, self.watcher, self.local_file)
 
-
     @staticmethod
     def determine_num_chunks(chunk_size, file_size):
         """
         Figure out how many pieces we are sending the file in.
+        NOTE: duke-data-service requires an emtpy chunk to be uploaded for empty files.
         """
+        if file_size == 0:
+            return 1
         return int(math.ceil(float(file_size) / float(chunk_size)))
 
     @staticmethod
