@@ -185,7 +185,7 @@ class ParallelChunkProcessor(object):
     def determine_num_chunks(chunk_size, file_size):
         """
         Figure out how many pieces we are sending the file in.
-        NOTE: duke-data-service requires an emtpy chunk to be uploaded for empty files.
+        NOTE: duke-data-service requires an empty chunk to be uploaded for empty files.
         """
         if file_size == 0:
             return 1
