@@ -47,6 +47,7 @@ class TestParallelChunkProcessor(TestCase):
             (100, 900000, 9000),
             (125, 123, 1),
             (122, 123, 2),
+            (100, 0, 1)
         ]
         for chunk_size, file_size, expected in values:
             num_chunks = ParallelChunkProcessor.determine_num_chunks(chunk_size, file_size)
