@@ -264,6 +264,25 @@ class CommandParser(object):
         _add_resend_arg(handover_parser, "handover")
         handover_parser.set_defaults(func=handover_func)
 
+    def register_list_command(self, list_func):
+        """
+        Add 'list' command to get a list of projects.
+        :param list_func: function: run when user choses this option.
+        """
+        description = "Show a list of project names."
+        list_parser = self.subparsers.add_parser('list', description=description)
+        list_parser.set_defaults(func=list_func)
+
+    def register_delete_command(self, delete_func):
+        """
+        Add 'list' command to get a list of projects.
+        :param list_func: function: run when user choses this option.
+        """
+        description = "Permanently delete a project."
+        delete_parser = self.subparsers.add_parser('delete', description=description)
+        add_project_name_arg(delete_parser)
+        delete_parser.set_defaults(func=delete_func)
+
     def run_command(self, args):
         """
         Parse command line arguments and run function registered for the appropriate command.

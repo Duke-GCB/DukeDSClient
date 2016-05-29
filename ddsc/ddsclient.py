@@ -1,11 +1,13 @@
 """ Runs the appropriate command for a user based on arguments. """
 from __future__ import print_function
 import datetime
+import pipes
 from ddsc.core.handover import ProjectHandover, HandoverError
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
+
 
 
 class DDSClient(object):
@@ -33,11 +35,13 @@ class DDSClient(object):
         :return: CommandParser parser with commands attached.
         """
         parser = CommandParser()
+        parser.register_list_command(self._setup_run_command(ListCommand))
         parser.register_upload_command(self._setup_run_command(UploadCommand))
         parser.register_add_user_command(self._setup_run_command(AddUserCommand))
         parser.register_download_command(self._setup_run_command(DownloadCommand))
         parser.register_mail_draft_command(self._setup_run_command(MailDraftCommand))
         parser.register_handover_command(self._setup_run_command(HandoverCommand))
+        parser.register_delete_command(self._setup_run_command(DeleteCommand))
 
         return parser
 
@@ -222,3 +226,47 @@ class HandoverCommand(object):
         timestamp_str = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')
         return "{} {}".format(project_name, timestamp_str)
 
+
+class ListCommand(object):
+    """
+    Print out a list of project names one line at a time.
+    Names are escaped so the output can be used with the delete command.
+    """
+    def __init__(self, config):
+        """
+        Pass in the config for which data service and user to list data for.
+        :param config: Config global configuration for use with this command.
+        """
+        self.remote_store = RemoteStore(config)
+
+    def run(self, args):
+        """
+        Lists project names.
+        :param args Namespace arguments parsed from the command line
+        """
+        names = self.remote_store.get_project_names()
+        if names:
+            for name in names:
+                print(pipes.quote(name))
+        else:
+            print("No projects found.")
+
+
+class DeleteCommand(object):
+    """
+    Delete a single project from the duke-data-service.
+    """
+    def __init__(self, config):
+        """
+        Pass in the config who can create a remote_store so we can access the remote data.
+        :param config: Config global configuration for use with this command.
+        """
+        self.remote_store = RemoteStore(config)
+        self.project_handover = ProjectHandover(config, self.remote_store, print_func=print)
+
+    def run(self, args):
+        """
+        Deletes a single project specified by project_name in args.
+        :param args Namespace arguments parsed from the command line
+        """
+        self.remote_store.delete_project_by_name(args.project_name)
