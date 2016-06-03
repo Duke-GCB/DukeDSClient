@@ -8,6 +8,7 @@ from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
 
+NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 
 
 class DDSClient(object):
@@ -249,7 +250,7 @@ class ListCommand(object):
             for name in names:
                 print(pipes.quote(name))
         else:
-            print("No projects found.")
+            print(NO_PROJECTS_FOUND_MESSAGE)
 
 
 class DeleteCommand(object):

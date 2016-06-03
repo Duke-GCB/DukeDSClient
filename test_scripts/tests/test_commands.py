@@ -3,10 +3,11 @@ import subprocess
 import shutil
 import hashlib
 import os
+from ddsc.ddsclient import NO_PROJECTS_FOUND_MESSAGE
 
 
 def ddsclient_cmd(str_args):
-    return str(subprocess.check_output(["bash", "-c", "ddsclient {}".format(str_args)]))
+    return subprocess.check_output(["bash", "-c", "ddsclient {}".format(str_args)]).decode("utf-8")
 
 
 def diff_items(item1, item2):
@@ -37,6 +38,16 @@ class TestUploadDownloadSingleFile(unittest.TestCase):
     def assertDownloadWorks(self, download_cmd):
         result = ddsclient_cmd(download_cmd)
         self.assertIn("Done: 100%", result)
+
+    def listProjects(self):
+        result = ddsclient_cmd("list")
+        if result.strip() == NO_PROJECTS_FOUND_MESSAGE:
+            return []
+        return [project_name for project_name in result.split("\n") if project_name]
+
+    def deleteProject(self, project_name):
+        result = ddsclient_cmd("delete -p {}".format(project_name))
+        self.assertEqual("", result)
 
     def test_diff_items(self):
         # compare against self shouldn't throw
@@ -101,6 +112,23 @@ class TestUploadDownloadSingleFile(unittest.TestCase):
         self.assertUploadWorks("upload -p change_it /tmp/abc.txt")
         self.assertDownloadWorks("download -p change_it /tmp/change_it")
         self.assertFilesSame('/tmp/abc.txt', '/tmp/change_it/abc.txt')
+
+    def test_list_and_delete(self):
+        """
+        Test multiple rounds of list and delete.
+        """
+        self.assertUploadWorks("upload -p someProj1 requirements.txt")
+        self.assertUploadWorks("upload -p someProj2 requirements.txt")
+        project_names = self.listProjects()
+        self.assertIn("someProj1", project_names)
+        self.assertIn("someProj2", project_names)
+        for project_name in project_names:
+            result = ddsclient_cmd("delete -p {}".format(project_name))
+            self.assertEqual("", result)
+        self.assertEqual([], self.listProjects())
+        self.assertUploadWorks("upload -p someProj1 requirements.txt")
+        self.assertEqual(["someProj1"], self.listProjects())
+
 
 if __name__ == '__main__':
     unittest.main()
