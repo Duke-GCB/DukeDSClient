@@ -45,8 +45,12 @@ class TestUploadDownloadSingleFile(unittest.TestCase):
             return []
         return [project_name for project_name in result.split("\n") if project_name]
 
+    def list_project_details(self, project_name):
+        result = ddsclient_cmd("list -p {}".format(project_name))
+        return result.strip()
+
     def deleteProject(self, project_name):
-        result = ddsclient_cmd("delete -p {}".format(project_name))
+        result = ddsclient_cmd("delete -p {} --force".format(project_name))
         self.assertEqual("", result)
 
     def test_diff_items(self):
@@ -123,12 +127,12 @@ class TestUploadDownloadSingleFile(unittest.TestCase):
         self.assertIn("someProj1", project_names)
         self.assertIn("someProj2", project_names)
         for project_name in project_names:
-            result = ddsclient_cmd("delete -p {}".format(project_name))
+            result = ddsclient_cmd("delete -p {} --force".format(project_name))
             self.assertEqual("", result)
         self.assertEqual([], self.listProjects())
         self.assertUploadWorks("upload -p someProj1 requirements.txt")
         self.assertEqual(["someProj1"], self.listProjects())
-
+        self.assertEqual("Project someProj1 Contents:\nrequirements.txt", self.list_project_details("someProj1"))
 
 if __name__ == '__main__':
     unittest.main()

@@ -88,8 +88,8 @@ build_docker_file
 start_dds
 
 run_test python2 python 100MB 1 1
-run_test python2 python 50MB 4 4
 run_test python3 python3 100MB 1 3
+run_test python2 python 50MB 4 4
 run_test python3 python3 100MB 4 2
 
 #delete stopped containers

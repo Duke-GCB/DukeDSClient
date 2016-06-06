@@ -98,6 +98,42 @@ class ProjectWalker(object):
                 ProjectWalker._visit_content(child, item, visitor)
 
 
+class ProjectFilenameList(object):
+    """
+    Walks a project and saves the project name and filenames to [str] filenames property.
+    """
+    def __init__(self):
+        self.details = []
+        self.id_to_path = {}
+
+    def walk_project(self, project):
+        """
+        Walks a project and saves the project name and filenames to [str] filenames property.
+        :param project: LocalProject project we will read details from.
+        """
+        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
+        ProjectWalker.walk_project(project, self)
+
+    def visit_project(self, item):
+        self.details.append("Project {} Contents:".format(item.name))
+
+    def visit_folder(self, item, parent):
+        name = self.get_name(item, parent)
+        self.id_to_path[item.id] = name
+        self.details.append(name)
+
+    def visit_file(self, item, parent):
+        name = self.get_name(item, parent)
+        self.details.append(name)
+
+    def get_name(self, item, parent):
+        if parent:
+            parent_name = self.id_to_path.get(parent.id)
+            if parent_name:
+                return "{}/{}".format(parent_name, item.name)
+        return item.name
+
+
 class ProgressQueue(object):
     """
     Sends tuples over queue for amount processed or an error with a message.
