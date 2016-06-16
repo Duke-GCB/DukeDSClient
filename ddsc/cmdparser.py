@@ -34,17 +34,18 @@ def to_unicode(s):
         return s
 
 
-def add_project_name_arg(arg_parser):
+def add_project_name_arg(arg_parser, required=True, help_text="Name of the remote project to manage."):
     """
     Adds project_name parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
+    :param help_text: str label displayed in usage
     """
     arg_parser.add_argument("-p",
                            metavar='ProjectName',
                            type=to_unicode,
                            dest='project_name',
-                           help="Name of the remote project to manage.",
-                           required=True)
+                           help=help_text,
+                           required=required)
 
 
 def _paths_must_exists(path):
@@ -181,6 +182,19 @@ def _add_resend_arg(arg_parser, type_str):
                             dest='resend',
                             help="Resend {}. ".format(type_str))
 
+
+def _add_force_arg(arg_parser, help_text):
+    """
+    Adds optional force parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    :param help_text: str label displayed in usage
+    """
+    arg_parser.add_argument("--force",
+                            help=help_text,
+                            action='store_true',
+                            dest='force')
+
+
 class CommandParser(object):
     """
     Root command line parser. Supports the following commands: upload and add_user.
@@ -201,7 +215,7 @@ class CommandParser(object):
         """
         description = "Uploads local files and folders to a remote host."
         upload_parser = self.subparsers.add_parser('upload', description=description)
-        add_project_name_arg(upload_parser)
+        add_project_name_arg(upload_parser, help_text="Name of the project to upload files/folders to.")
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
         upload_parser.set_defaults(func=upload_func)
@@ -214,7 +228,7 @@ class CommandParser(object):
         """
         description = "Gives user permission to access a remote project."
         add_user_parser = self.subparsers.add_parser('add_user', description=description)
-        add_project_name_arg(add_user_parser)
+        add_project_name_arg(add_user_parser, help_text="Name of the project to add a user to.")
         user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
@@ -228,7 +242,7 @@ class CommandParser(object):
         """
         description = "Download the contents of a remote remote project to a local folder."
         download_parser = self.subparsers.add_parser('download', description=description)
-        add_project_name_arg(download_parser)
+        add_project_name_arg(download_parser, help_text="Name of the project to download.")
         _add_folder_positional_arg(download_parser)
         download_parser.set_defaults(func=download_func)
 
@@ -263,6 +277,27 @@ class CommandParser(object):
         _add_copy_project_arg(handover_parser)
         _add_resend_arg(handover_parser, "handover")
         handover_parser.set_defaults(func=handover_func)
+
+    def register_list_command(self, list_func):
+        """
+        Add 'list' command to get a list of projects or details about one project.
+        :param list_func: function: run when user choses this option.
+        """
+        description = "Show a list of project names or folders/files of a single project."
+        list_parser = self.subparsers.add_parser('list', description=description)
+        add_project_name_arg(list_parser, required=False, help_text="Name of the project to show details for.")
+        list_parser.set_defaults(func=list_func)
+
+    def register_delete_command(self, delete_func):
+        """
+        Add 'delete' command delete a project from the remote store.
+        :param list_func: function: run when user choses this option.
+        """
+        description = "Permanently delete a project."
+        delete_parser = self.subparsers.add_parser('delete', description=description)
+        add_project_name_arg(delete_parser, help_text="Name of the project to delete.")
+        _add_force_arg(delete_parser, "Do not prompt before deleting.")
+        delete_parser.set_defaults(func=delete_func)
 
     def run_command(self, args):
         """

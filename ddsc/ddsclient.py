@@ -1,11 +1,16 @@
 """ Runs the appropriate command for a user based on arguments. """
 from __future__ import print_function
+import sys
 import datetime
+import pipes
 from ddsc.core.handover import ProjectHandover, HandoverError
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
+from ddsc.core.util import ProjectFilenameList
+
+NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 
 
 class DDSClient(object):
@@ -33,11 +38,13 @@ class DDSClient(object):
         :return: CommandParser parser with commands attached.
         """
         parser = CommandParser()
+        parser.register_list_command(self._setup_run_command(ListCommand))
         parser.register_upload_command(self._setup_run_command(UploadCommand))
         parser.register_add_user_command(self._setup_run_command(AddUserCommand))
         parser.register_download_command(self._setup_run_command(DownloadCommand))
         parser.register_mail_draft_command(self._setup_run_command(MailDraftCommand))
         parser.register_handover_command(self._setup_run_command(HandoverCommand))
+        parser.register_delete_command(self._setup_run_command(DeleteCommand))
 
         return parser
 
@@ -221,4 +228,81 @@ class HandoverCommand(object):
         """
         timestamp_str = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')
         return "{} {}".format(project_name, timestamp_str)
+
+
+class ListCommand(object):
+    """
+    Print out a list of project names one line at a time or details about a single project.
+    Names are escaped so the output can be used with the delete command.
+    """
+    def __init__(self, config):
+        """
+        Pass in the config for which data service and user to list data for.
+        :param config: Config global configuration for use with this command.
+        """
+        self.remote_store = RemoteStore(config)
+
+    def run(self, args):
+        """
+        Lists project names.
+        :param args Namespace arguments parsed from the command line
+        """
+        if args.project_name:
+            project = self.remote_store.fetch_remote_project(args.project_name, must_exist=True)
+            self.print_project_details(project)
+        else:
+            self.print_project_names()
+
+    def print_project_details(self, project):
+        filename_list = ProjectFilenameList()
+        filename_list.walk_project(project)
+        for info in filename_list.details:
+            print(info)
+
+    def print_project_names(self):
+        names = self.remote_store.get_project_names()
+        if names:
+            for name in names:
+                print(pipes.quote(name))
+        else:
+            print(NO_PROJECTS_FOUND_MESSAGE)
+
+
+class DeleteCommand(object):
+    """
+    Delete a single project from the duke-data-service.
+    """
+    def __init__(self, config):
+        """
+        Pass in the config who can create a remote_store so we can access the remote data.
+        :param config: Config global configuration for use with this command.
+        """
+        self.remote_store = RemoteStore(config)
+
+    def run(self, args):
+        """
+        Deletes a single project specified by project_name in args.
+        :param args Namespace arguments parsed from the command line
+        """
+        project_name = args.project_name
+        project = self.remote_store.fetch_remote_project(project_name, must_exist=False)
+        if not project:
+            raise ValueError("No project named '{}' found.\n".format(project_name))
+        else:
+            if not args.force:
+                delete_prompt = "Are you sure you wish to delete {} (y/n)?".format(project_name)
+                if not boolean_input_prompt(delete_prompt):
+                    return
+            self.remote_store.delete_project_by_name(args.project_name)
+
+
+def boolean_input_prompt(message):
+    if sys.version_info >= (3, 0, 0):
+        result = input(message)
+    else:
+        result = raw_input(message)
+    result = result.upper()
+    return result == "Y" or result == "YES" or result == "T" or result == "TRUE"
+
+
 

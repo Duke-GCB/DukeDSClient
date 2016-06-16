@@ -25,6 +25,7 @@ cleanup_dds()
   echo "Cleanup duke-data-service"
   cd duke-data-service
   docker-compose down 2>/dev/null >/dev/null
+  docker rm $(docker ps -aq)
 }
 
 create_user_data()
@@ -67,7 +68,7 @@ run_test()
                    -e TEST_PYTHON=$TEST_PYTHON -e DDS_IP=$DDS_IP \
                    -e DDS_USER_KEY=$DDS_USER_KEY -e DDS_AGENT_KEY=$DDS_AGENT_KEY \
                    -v $CUR_DIR/../DukeDSClientData:/tmp/DukeDSClientData \
-                   dds_test > $TEMPFILE
+                   dds_test
     RET=$?
     echo "Test exit status $RET"
     if [ "$RET" -ne "0" ]
@@ -87,8 +88,8 @@ build_docker_file
 start_dds
 
 run_test python2 python 100MB 1 1
-run_test python2 python 50MB 4 4
 run_test python3 python3 100MB 1 3
+run_test python2 python 50MB 4 4
 run_test python3 python3 100MB 4 2
 
 #delete stopped containers

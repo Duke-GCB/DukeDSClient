@@ -231,6 +231,28 @@ class RemoteStore(object):
                     f.write(chunk)
                     watcher.transferring_item(remote_file, increment_amt=len(chunk))
 
+    def get_project_names(self):
+        """
+        Return a list of names of the remote projects owned by this user.
+        :return: [str]: the list of project names
+        """
+        names = []
+        response = self.data_service.get_projects().json()
+        for project in response['results']:
+            names.append(project['name'])
+        return names
+
+    def delete_project_by_name(self, project_name):
+        """
+        Find the project named project_name and delete it raise error if not found.
+        :param project_name: str: Name of the project we want to be deleted
+        """
+        project = self._get_my_project(project_name)
+        if project:
+            self.data_service.delete_project(project.id)
+        else:
+            raise ValueError("No project named '{}' found.\n".format(project_name))
+
 
 class RemoteProject(object):
     """

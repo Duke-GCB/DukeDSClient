@@ -517,5 +517,10 @@ class DataServiceApi(object):
         """
         return self._get("/current_user", {})
 
-
-
+    def delete_project(self, project_id):
+        """
+        Send DELETE request to the url for this project.
+        :param project_id: str uuid of the project
+        :return: requests.Response containing the successful result
+        """
+        return self._delete("/projects/" + project_id, {})
