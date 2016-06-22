@@ -8,7 +8,7 @@ import requests
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.download import ProjectDownload
 
-DRAFT_USER_ACCESS_ROLE = 'project_viewer'
+DRAFT_USER_ACCESS_ROLE = 'file_downloader'
 
 
 class HandoverError(Exception):
