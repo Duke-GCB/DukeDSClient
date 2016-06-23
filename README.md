@@ -2,7 +2,7 @@
 Command line tool to upload/manage project on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
 [![Build Status](https://travis-ci.org/Duke-GCB/DukeDSClient.svg?branch=master)](https://travis-ci.org/Duke-GCB/DukeDSClient)
 
-Runs on Python 2.7 or 3.5.
+Runs on Python 2.7.9+ or 3.5+.
 
 # Install or Upgrade:
 ```
