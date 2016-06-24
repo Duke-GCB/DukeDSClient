@@ -1,5 +1,8 @@
 from setuptools import setup
+import sys
 
+if sys.version_info < (2, 7, 9):
+    sys.exit("Python 2.7.9 or greater is required. Yours: {}.{}.{}".format(sys.version_info[0], sys.version_info[1], sys.version_info[2]))
 
 setup(name='DukeDSClient',
         version='0.2.10',
