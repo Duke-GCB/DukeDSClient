@@ -1,5 +1,14 @@
 from setuptools import setup
+import sys
+import time
 
+PYTHON_VERSION_WARNING = """WARNING: It appears your version of Python does not meet the required minimum of 2.7.9. Some Linux distributions, including Red Hat Enterprise Linux, backport fixes to previous versions, and hence for those lower versions, too, may satisfy the requirements.
+
+"""
+
+if sys.version_info < (2, 7, 9):
+    sys.stderr.write(PYTHON_VERSION_WARNING)
+    time.sleep(5)
 
 setup(name='DukeDSClient',
         version='0.2.10',
