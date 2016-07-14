@@ -2,7 +2,10 @@ import shutil
 import tarfile
 from unittest import TestCase
 
-from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject
+from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, FileFilter
+from ddsc.config import FILE_EXCLUDE_REGEX_DEFAULT
+
+INCLUDE_ALL = ''
 
 
 class TestProjectFolderFile(TestCase):
@@ -72,32 +75,32 @@ class TestProjectContent(TestCase):
         self.assertEqual('DukeDSClient', content.name)
 
     def test_empty_str(self):
-        content = LocalProject(False)
+        content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         self.assertEqual('project: []', str(content))
 
     def test_top_level_file_str(self):
-        content = LocalProject(False)
+        content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/note.txt')
         self.assertEqual('project: [file:note.txt]', str(content))
 
     def test_empty_folder_str(self):
-        content = LocalProject(False)
+        content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/emptyfolder')
         self.assertEqual('project: [folder:emptyfolder []]', str(content))
 
     def test_empty_folder_and_file_str(self):
-        content = LocalProject(False)
+        content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/emptyfolder')
         content.add_path('/tmp/DukeDsClientTestFolder/note.txt')
         self.assertEqual('project: [folder:emptyfolder [], file:note.txt]', str(content))
 
     def test_one_folder_str(self):
-        content = LocalProject(False)
+        content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/scripts')
         self.assertEqual('project: [folder:scripts [file:makemoney.sh]]', str(content))
 
     def test_nested_folder_str(self):
-        content = LocalProject(False)
+        content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/results')
         self.assertEqual(('project: [folder:results ['
                            'file:result1929.txt, '
@@ -107,7 +110,7 @@ class TestProjectContent(TestCase):
                            ']]'), str(content))
 
     def test_big_folder_str(self):
-        content = LocalProject(False)
+        content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder')
         self.assertEqual(('project: [folder:DukeDsClientTestFolder ['
                            'file:note.txt, '
@@ -121,3 +124,38 @@ class TestProjectContent(TestCase):
                            'file:makemoney.sh'
                            ']'
                            ']]'), str(content))
+
+    def test_include_dot_files(self):
+        content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
+        content.add_path('test_scripts')
+        self.assertIn('.hidden_file', str(content))
+
+    def test_exclude_dot_files(self):
+        content = LocalProject(False, file_exclude_regex='^\.')
+        content.add_path('test_scripts')
+        self.assertNotIn('.hidden_file', str(content))
+
+
+class TestFileFilter(TestCase):
+    def test_default_file_exclude_regex(self):
+        include_file = FileFilter(FILE_EXCLUDE_REGEX_DEFAULT).include
+        good_files = [
+            'data.txt',
+            'long file with many words and stuff 2000.csv',
+            '.gitignore',
+            '.ddsclient_other',
+            '.DS_Storeage',
+            'DS_Store'
+        ]
+        bad_files = [
+            '.ddsclient',
+            '.DS_Store',
+            '._anything',
+            '._abc'
+        ]
+        # include good filenames
+        for good_filename in good_files:
+            self.assertEqual(include_file(good_filename), True)
+        # exclude bad filenames
+        for bad_filename in bad_files:
+            self.assertEqual(include_file(bad_filename), False)

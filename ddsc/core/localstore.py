@@ -2,6 +2,7 @@ import hashlib
 import math
 import mimetypes
 import os
+import re
 
 from ddsc.core.util import KindType
 
@@ -11,16 +12,18 @@ class LocalProject(object):
     Represents a list of folder/file trees on the filesystem.
     Has kind property to allow project tree traversal with ProjectWalker.
     """
-    def __init__(self, followsymlinks):
+    def __init__(self, followsymlinks, file_exclude_regex):
         """
         Creates a list of local file system content that can be sent to a remote project.
         :param followsymlinks: bool follow symbolic links when looking for content
+        :param file_exclude_regex: str: regex that should be used to filter out files we do not want to upload
         """
         self.remote_id = ''
         self.kind = KindType.project_str
         self.children = []
         self.sent_to_remote = False
         self.followsymlinks = followsymlinks
+        self.file_include = FileFilter(file_exclude_regex).include
 
     def add_path(self, path):
         """
@@ -28,7 +31,7 @@ class LocalProject(object):
         :param path: str path to add
         """
         abspath = os.path.abspath(path)
-        self.children.append(_build_project_tree(abspath, self.followsymlinks))
+        self.children.append(_build_project_tree(abspath, self.followsymlinks, self.file_include))
 
     def add_paths(self, path_list):
         """
@@ -85,26 +88,28 @@ def _update_remote_children(remote_parent, children):
             local_child.update_remote_ids(remote_child)
 
 
-def _build_project_tree(path, followsymlinks):
+def _build_project_tree(path, followsymlinks, file_include):
     """
     Build a tree of LocalFolder with children or just a LocalFile based on a path.
     :param path: str path to a directory to walk
     :param followsymlinks: bool should we follow symlinks when walking
+    :param file_include: func returns True if we should include a file
     :return: the top node of the tree LocalFile or LocalFolder
     """
     result = None
     if os.path.isfile(path):
         result = LocalFile(path)
     else:
-        result = _build_folder_tree(os.path.abspath(path), followsymlinks)
+        result = _build_folder_tree(os.path.abspath(path), followsymlinks, file_include)
     return result
 
 
-def _build_folder_tree(top_abspath, followsymlinks):
+def _build_folder_tree(top_abspath, followsymlinks, file_include):
     """
     Build a tree of LocalFolder with children based on a path.
     :param top_abspath: str path to a directory to walk
     :param followsymlinks: bool should we follow symlinks when walking
+    :param file_include: func returns True if we should include a file
     :return: the top node of the tree LocalFolder
     """
     path_to_content = {}
@@ -122,7 +127,8 @@ def _build_folder_tree(top_abspath, followsymlinks):
             abs_child_path = os.path.abspath(os.path.join(dir_name, child_dir))
             child_to_parent[abs_child_path] = abspath
         for child_filename in child_files:
-            folder.add_child(LocalFile(os.path.join(dir_name, child_filename)))
+            if file_include(child_filename):
+                folder.add_child(LocalFile(os.path.join(dir_name, child_filename)))
     return path_to_content.get(top_abspath)
 
 
@@ -260,3 +266,33 @@ class HashUtil(object):
         :return: (str,str) -> (algorithm,value)
         """
         return "md5", self.hash.hexdigest()
+
+
+class FileFilter(object):
+    """
+    Provides a function for filtering files based on a regex.
+    """
+    def __init__(self, file_exclude_regex):
+        """
+        Set exclusion regex to be used when filtering.
+        Pass empty string to include everything.
+        :param file_exclude_regex: str: regex that matches files we want to exclude
+        """
+        if file_exclude_regex:
+            self.exclude_regex = re.compile(file_exclude_regex)
+        else:
+            self.exclude_regex = None
+
+    def include(self, filename):
+        """
+        Determines if a file should be included in a project for uploading.
+        If file_exclude_regex is empty it will include everything.
+        :param filename: str: filename to match it should not include directory
+        :return: boolean: True if we should include the file.
+        """
+        if self.exclude_regex:
+            if self.exclude_regex.match(filename):
+                return False
+            return True
+        else:
+            return True

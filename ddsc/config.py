@@ -17,6 +17,8 @@ HANDOVER_SERVICE_URL = 'https://itlab-1.gcb.duke.edu/api/v1'
 MB_TO_BYTES = 1024 * 1024
 DDS_DEFAULT_UPLOAD_CHUNKS = 100 * MB_TO_BYTES
 AUTH_ENV_KEY_NAME = 'DUKE_DATA_SERVICE_AUTH'
+# when uploading skip .DS_Store, our key file, and ._ (resource fork metadata)
+FILE_EXCLUDE_REGEX_DEFAULT = '^\.DS_Store$|^\.ddsclient$|^\.\_'
 
 
 def create_config():
@@ -43,7 +45,7 @@ class Config(object):
     DOWNLOAD_WORKERS = 'download_workers'              # how many worker processes used for downloading
     DEBUG_MODE = 'debug'                               # show stack traces
     HANDOVER_URL = 'handover_url'                      # url for use with the handover service
-
+    FILE_EXCLUDE_REGEX = 'file_exclude_regex'          # allows customization of which filenames will be uploaded
 
     def __init__(self):
         self.values = {}
@@ -165,3 +167,11 @@ class Config(object):
                 return int(value)
         else:
             return value
+
+    @property
+    def file_exclude_regex(self):
+        """
+        Returns regex that should be used to filter out filenames.
+        :return: str: regex that when matches we should exclude a file from uploading.
+        """
+        return self.values.get(Config.FILE_EXCLUDE_REGEX, FILE_EXCLUDE_REGEX_DEFAULT)

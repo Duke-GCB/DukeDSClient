@@ -3,6 +3,7 @@ from ddsc.core.localstore import LocalProject
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.util import ProgressPrinter, ProjectWalker
 from ddsc.core.fileuploader import FileUploader
+import re
 
 
 class ProjectUpload(object):
@@ -21,13 +22,13 @@ class ProjectUpload(object):
         self.remote_store = RemoteStore(config)
         self.project_name = project_name
         self.remote_project = self.remote_store.fetch_remote_project(project_name)
-        self.local_project = ProjectUpload._load_local_project(folders, follow_symlinks)
+        self.local_project = ProjectUpload._load_local_project(folders, follow_symlinks, config.file_exclude_regex)
         self.local_project.update_remote_ids(self.remote_project)
         self.different_items = self._count_differences()
 
     @staticmethod
-    def _load_local_project(folders, follow_symlinks):
-        local_project = LocalProject(followsymlinks=follow_symlinks)
+    def _load_local_project(folders, follow_symlinks, file_exclude_regex):
+        local_project = LocalProject(followsymlinks=follow_symlinks, file_exclude_regex=file_exclude_regex)
         local_project.add_paths(folders)
         return local_project
 
