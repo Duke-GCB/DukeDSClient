@@ -12,8 +12,7 @@ Open the Terminal application and chose Preferences menu item.
 Make sure your Text encoding is Unicode.
 ![OSX Terminal Setting](images/OSXTerminalSetting.png?raw=true "OSX Terminal Setting")
 
-This screen appears to save whenever the value is changed.
-However you may need to start a new terminal for the new settings to take effect.
+This screen saves whenever the value is changed, however you will need to start a new terminal for the new settings to take effect.
 
 ### Command Line Envionment Variables
 _This is only necessary if you are unable to adjust your terminal settings at the operation system level._
