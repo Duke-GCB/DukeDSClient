@@ -181,3 +181,17 @@ def wait_for_processes(processes, size, progress_queue, watcher, item):
             raise ValueError(error_message)
     for process in processes:
         process.join()
+
+
+def verify_terminal_encoding():
+    """
+    Raises ValueError with error message when terminal encoding is ASCII.
+    """
+    if sys.stdout.encoding.endswith("-ASCII")():
+        raise ValueError("""
+ERROR: DukeDSClient does not support ASCII terminal encoding.
+
+Follow this guide for adjusting your terminal encoding:
+  https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/UnicodeTerminalSetup.md
+
+""")
