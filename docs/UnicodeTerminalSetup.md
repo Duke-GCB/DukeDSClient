@@ -2,7 +2,7 @@
 
 DukeDSClient does not support ASCII terminal encoding. 
 UTF-8 is our preferred encoding.
-Adjust your terminal settings so you will be able to see unicode characters.
+This allows you to see unicode characters in project names, folders and filenames.
 
 ### OSX Terminal Settings
 Open the Terminal application and chose Preferences menu item.
