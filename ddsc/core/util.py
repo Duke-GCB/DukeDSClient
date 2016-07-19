@@ -187,7 +187,7 @@ def verify_terminal_encoding():
     """
     Raises ValueError with error message when terminal encoding is ASCII.
     """
-    if sys.stdout.encoding.endswith("-ASCII")():
+    if sys.stdout.encoding.endswith("-ASCII"):
         raise ValueError("""
 ERROR: DukeDSClient does not support ASCII terminal encoding.
 
