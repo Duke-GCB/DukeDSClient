@@ -64,7 +64,7 @@ class DDSClient(object):
         :param command_constructor: class of an object that implements run(args)
         :param args: object arguments for specific command created by CommandParser
         """
-        verify_terminal_encoding()
+        verify_terminal_encoding(sys.stdout.encoding)
         command = command_constructor(self.config)
         command.run(args)
 
