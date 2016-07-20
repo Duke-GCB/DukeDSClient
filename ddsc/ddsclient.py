@@ -8,7 +8,7 @@ from ddsc.core.remotestore import RemoteStore
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
-from ddsc.core.util import ProjectFilenameList
+from ddsc.core.util import ProjectFilenameList, verify_terminal_encoding
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 
@@ -64,6 +64,7 @@ class DDSClient(object):
         :param command_constructor: class of an object that implements run(args)
         :param args: object arguments for specific command created by CommandParser
         """
+        verify_terminal_encoding(sys.stdout.encoding)
         command = command_constructor(self.config)
         command.run(args)
 

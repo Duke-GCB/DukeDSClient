@@ -1,5 +1,13 @@
 import sys
 
+TERMINAL_ENCODING_NOT_UTF_ERROR="""
+ERROR: DukeDSClient requires UTF terminal encoding.
+
+Follow this guide for adjusting your terminal encoding:
+  https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/UnicodeTerminalSetup.md
+
+"""
+
 
 class KindType(object):
     """
@@ -181,3 +189,13 @@ def wait_for_processes(processes, size, progress_queue, watcher, item):
             raise ValueError(error_message)
     for process in processes:
         process.join()
+
+
+def verify_terminal_encoding(encoding):
+    """
+    Raises ValueError with error message when terminal encoding is not Unicode(contains UTF).
+    :param encoding: str: encoding we want to check
+    """
+    encoding = encoding or ''
+    if not ("UTF" in encoding):
+        raise ValueError(TERMINAL_ENCODING_NOT_UTF_ERROR)
