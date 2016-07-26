@@ -104,7 +104,7 @@ class ProjectDownload(object):
     def check_warnings(self):
         unused_paths = self.path_filter.get_unused_paths()
         if unused_paths:
-            return 'WARNING: Path(s) not found {}.'.format(','.join(unused_paths))
+            return 'WARNING: Path(s) not found: {}.'.format(','.join(unused_paths))
         return None
 
 

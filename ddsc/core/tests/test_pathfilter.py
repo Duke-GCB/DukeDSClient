@@ -106,6 +106,7 @@ class TestPathFilteredProject(TestCase):
             '',
         ]
         self.assertEqual(set(expected), set(collector.visited_paths))
+        self.assertEqual(["stuff"], path_filter.get_unused_paths())
 
     def test_nested_dir_include_filter(self):
         path_filter = PathFilter.create(include_paths=['data/results'], exclude_paths=[])

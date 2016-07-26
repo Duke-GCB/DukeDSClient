@@ -4,7 +4,6 @@ from ddsc.core.util import FilteredProject
 
 class PathFilter(object):
     def __init__(self):
-        self.paths = []
         self.filter = IncludeAll()
         self.seen_paths = set()
 
@@ -37,7 +36,7 @@ class PathFilter(object):
         self.seen_paths = set()
 
     def get_unused_paths(self):
-        return [path for path in self.paths if path not in self.seen_paths]
+        return [path for path in self.filter.paths if path not in self.seen_paths]
 
 
 class PathFilterUtil(object):
@@ -68,6 +67,8 @@ class PathFilterUtil(object):
 
 
 class IncludeAll(object):
+    def __init__(self):
+        self.paths = []
     """
     Path filter that will include all paths.
     """
@@ -79,13 +80,13 @@ class IncludeFilter(object):
     """
     Path filter that will include paths that are parent/children/equal to include_paths.
     """
-    def __init__(self, include_paths):
-        self.include_paths = include_paths
+    def __init__(self, paths):
+        self.paths = paths
 
     def include(self, some_path):
-        if some_path in self.include_paths:
+        if some_path in self.paths:
             return True
-        for path in self.include_paths:
+        for path in self.paths:
             if PathFilterUtil.parent_child_paths(path, some_path):
                 return True
         return False
@@ -95,13 +96,13 @@ class ExcludeFilter(object):
     """
     Path filter that will exclude paths that are children/equal to include_paths.
     """
-    def __init__(self, exclude_paths):
-        self.exclude_paths = exclude_paths
+    def __init__(self, paths):
+        self.paths = paths
 
     def include(self, some_path):
-        if some_path in self.exclude_paths:
+        if some_path in self.paths:
             return False
-        for path in self.exclude_paths:
+        for path in self.paths:
             if PathFilterUtil.is_child(some_path, path):
                 return False
         return True
