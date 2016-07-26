@@ -1,3 +1,4 @@
+import os
 from ddsc.core.ddsapi import DataServiceApi, DataServiceError, DataServiceAuth
 from ddsc.core.util import KindType
 
@@ -60,9 +61,9 @@ class RemoteStore(object):
         """
         response = self.data_service.get_project_children(project.id, '').json()
         for child in response['results']:
-            self._add_child(project, child)
+            self._add_child(project, '', child)
 
-    def _add_child(self, parent, child):
+    def _add_child(self, parent, parent_remote_path, child):
         """
         Add file or folder(child) to parent.
         :param parent: RemoteProject/RemoteFolder to add child to
@@ -70,31 +71,31 @@ class RemoteStore(object):
         """
         kind = child['kind']
         if kind == KindType.folder_str:
-            parent.add_child(self._read_folder(child))
+            parent.add_child(self._read_folder(parent_remote_path, child))
         elif kind == KindType.file_str:
-            parent.add_child(self._read_file_metadata(child))
+            parent.add_child(self._read_file_metadata(parent_remote_path, child))
         else:
             raise ValueError("Unknown child type {}".format(kind))
 
-    def _read_folder(self, folder_json):
+    def _read_folder(self, parent_remote_path, folder_json):
         """
         Create RemoteFolder and query it's children.
         :param folder_json: dict JSON data back from remote store
         :return: RemoteFolder folder we filled in
         """
-        folder = RemoteFolder(folder_json)
+        folder = RemoteFolder(folder_json, parent_remote_path)
         response = self.data_service.get_folder_children(folder.id, '').json()
         for child in response['results']:
-            self._add_child(folder, child)
+            self._add_child(folder, folder.remote_path, child)
         return folder
 
-    def _read_file_metadata(self, file_json):
+    def _read_file_metadata(self, parent_remote_path, file_json):
         """
         Create RemoteFile based on file_json and fetching it's hash.
         :param file_json: dict JSON data back from remote store
         :return: RemoteFile file we created from file_json
         """
-        remote_file = RemoteFile(file_json)
+        remote_file = RemoteFile(file_json, parent_remote_path)
         response = self.data_service.get_file(remote_file.id)
         file_hash = RemoteFile.get_upload_from_json(response.json())['hash']
         if file_hash:
@@ -271,6 +272,7 @@ class RemoteProject(object):
         self.description = json_data['description']
         self.is_deleted = json_data['is_deleted']
         self.children = []
+        self.remote_path = ''
 
     def add_child(self, child):
         """
@@ -289,16 +291,18 @@ class RemoteFolder(object):
     Represents a leaf or branch in a project tree.
     Has kind property to allow project tree traversal with ProjectWalker.
     """
-    def __init__(self, json_data):
+    def __init__(self, json_data, parent_remote_path):
         """
         Set properties based on json_data.
         :param json_data: dict JSON data containing folder info
+        :param parent_remote_path: remote_path path to this folder's parent
         """
         self.id = json_data['id']
         self.kind = json_data['kind']
         self.name = json_data['name']
         self.is_deleted = json_data['is_deleted']
         self.children = []
+        self.remote_path = os.path.join(parent_remote_path, self.name)
 
     def add_child(self, child):
         """
@@ -317,10 +321,11 @@ class RemoteFile(object):
     Represents a leaf in a project tree.
     Has kind property to allow project tree traversal with ProjectWalker.
     """
-    def __init__(self, json_data):
+    def __init__(self, json_data, parent_remote_path):
         """
         Set properties based on json_data.
         :param json_data: dict JSON data containing file info
+        :param parent_remote_path: remote_path path to this file's parent
         """
         self.id = json_data['id']
         self.kind = json_data['kind']
@@ -330,6 +335,7 @@ class RemoteFile(object):
         self.size = RemoteFile.get_upload_from_json(json_data)['size']
         self.file_hash = None
         self.hash_alg = None
+        self.remote_path = os.path.join(parent_remote_path, self.name)
 
     def set_hash(self, file_hash, hash_alg):
         """

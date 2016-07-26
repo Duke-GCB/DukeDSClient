@@ -217,19 +217,20 @@ class ProjectHandover(object):
         """
         self.remote_store.set_user_project_permission(project, user, DRAFT_USER_ACCESS_ROLE)
 
-    def handover(self, project_name, new_project_name, to_user, force_send):
+    def handover(self, project_name, new_project_name, to_user, force_send, path_filter):
         """
         Remove access to project_name for to_user, copy to new_project_name if not None,
         send message to service to email user so they can have access.
         :param project_name: str name of the pre-existing project
         :param new_project_name: str name of non-existing project to copy project_name to, if None we don't copy
         :param to_user: RemoteUser user we are handing over the project to
+        :param path_filter: PathFilter: filters what files are shared
         :return: str email we sent handover to
         """
         project = self.fetch_remote_project(project_name, must_exist=True)
         self.remove_user_permission(project, to_user)
         if new_project_name:
-            project = self._copy_project(project_name, new_project_name)
+            project = self._copy_project(project_name, new_project_name, path_filter)
         return self._share_project(HandoverApi.HANDOVER_DESTINATION, project, to_user, force_send)
 
     def remove_user_permission(self, project, user):
@@ -257,7 +258,7 @@ class ProjectHandover(object):
         sent = handover_item.send(self.handover_api, force_send)
         return to_user.email
 
-    def _copy_project(self, project_name, new_project_name):
+    def _copy_project(self, project_name, new_project_name, path_filter):
         """
         Copy pre-existing project with name project_name to non-existing project new_project_name.
         :param project_name: str project to copy from
@@ -268,19 +269,19 @@ class ProjectHandover(object):
         remote_project = self.remote_store.fetch_remote_project(new_project_name)
         if remote_project:
             raise ValueError("A project with name '{}' already exists.".format(new_project_name))
-        self._download_project(project_name, temp_directory)
+        self._download_project(project_name, temp_directory, path_filter)
         self._upload_project(new_project_name, temp_directory)
         shutil.rmtree(temp_directory)
         return self.remote_store.fetch_remote_project(new_project_name, must_exist=True)
 
-    def _download_project(self, project_name, temp_directory):
+    def _download_project(self, project_name, temp_directory, path_filter):
         """
         Download the project with project_name to temp_directory.
         :param project_name: str name of the pre-existing project
         :param temp_directory: str path to directory we can download into
         """
         self.print_func("Downloading a copy of '{}'.".format(project_name))
-        downloader = ProjectDownload(self.remote_store, project_name, temp_directory)
+        downloader = ProjectDownload(self.remote_store, project_name, temp_directory, path_filter)
         downloader.run()
 
     def _upload_project(self, project_name, temp_directory):

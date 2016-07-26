@@ -147,6 +147,7 @@ def add_email_arg(arg_parser):
                             help="Email of the person you want to give permission."
                                  " You must specify either --user or this flag.")
 
+
 def _add_auth_role_arg(arg_parser):
     """
     Adds optional auth_role parameter to a parser.
@@ -159,6 +160,7 @@ def _add_auth_role_arg(arg_parser):
                             help="Specifies authorization role for the user ('project_admin').",
                             default='project_admin')
 
+
 def _add_copy_project_arg(arg_parser):
     """
     Adds optional copy_project parameter to a parser.
@@ -169,6 +171,7 @@ def _add_copy_project_arg(arg_parser):
                             action='store_true',
                             default=False,
                             dest='skip_copy_project')
+
 
 def _add_resend_arg(arg_parser, type_str):
     """
@@ -193,6 +196,34 @@ def _add_force_arg(arg_parser, help_text):
                             help=help_text,
                             action='store_true',
                             dest='force')
+
+
+def _add_include_arg(arg_parser):
+    """
+    Adds optional repeatable include parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    """
+    arg_parser.add_argument("--include",
+                            metavar='IncludePaths',
+                            action='append',
+                            type=to_unicode,
+                            dest='include_paths',
+                            help="Specifies comma separated list of paths to include.",
+                            default=[])
+
+
+def _add_exclude_arg(arg_parser):
+    """
+    Adds optional repeatable exclude parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    """
+    arg_parser.add_argument("--exclude",
+                            metavar='ExcludePaths',
+                            action='append',
+                            type=to_unicode,
+                            dest='exclude_paths',
+                            help="Specifies comma separated list of paths to exclude.",
+                            default=[])
 
 
 class CommandParser(object):
@@ -244,6 +275,9 @@ class CommandParser(object):
         download_parser = self.subparsers.add_parser('download', description=description)
         add_project_name_arg(download_parser, help_text="Name of the project to download.")
         _add_folder_positional_arg(download_parser)
+        include_or_exclude = download_parser.add_mutually_exclusive_group(required=False)
+        _add_include_arg(include_or_exclude)
+        _add_exclude_arg(include_or_exclude)
         download_parser.set_defaults(func=download_func)
 
     def register_mail_draft_command(self, mail_draft_func):
@@ -276,6 +310,10 @@ class CommandParser(object):
         add_email_arg(user_or_email)
         _add_copy_project_arg(handover_parser)
         _add_resend_arg(handover_parser, "handover")
+        include_or_exclude = handover_parser.add_mutually_exclusive_group(required=False)
+        _add_include_arg(include_or_exclude)
+        _add_exclude_arg(include_or_exclude)
+
         handover_parser.set_defaults(func=handover_func)
 
     def register_list_command(self, list_func):

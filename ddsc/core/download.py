@@ -1,19 +1,28 @@
+from __future__ import print_function
 import os
 
-from ddsc.core.util import ProgressPrinter, ProjectWalker
+from ddsc.core.util import ProgressPrinter
 from ddsc.core.filedownloader import FileDownloader
+from ddsc.core.pathfilter import PathFilteredProject
 
 
 class ProjectDownload(object):
     """
     Creates local version of remote content.
     """
-    def __init__(self, remote_store, project_name, dest_directory):
+    def __init__(self, remote_store, project_name, dest_directory, path_filter):
+        """
+        Setup for downloading a remote project.
+        :param remote_store: RemoteStore: which remote store to download the project from
+        :param project_name: str: name of the project to download
+        :param dest_directory: str: path to where we will save the project contents
+        :param path_filter: PathFilter: determines which files will be downloaded
+        """
         self.remote_store = remote_store
         self.project_name = project_name
         self.dest_directory = dest_directory
+        self.path_filter = path_filter
         self.watcher = None
-        self.id_to_path = {}
 
     def run(self):
         """
@@ -27,18 +36,26 @@ class ProjectDownload(object):
         For each project, folder, and files send to remote store if necessary.
         :param project: LocalProject project who's contents we want to walk/send.
         """
-        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
         counter = RemoteContentCounter(project)
-        counter.run()
-        self.watcher = ProgressPrinter(counter.count, msg_verb='downloading')
-        ProjectWalker.walk_project(project, self)
-        self.watcher.finished()
+        path_filtered_project = PathFilteredProject(self.path_filter, counter)
+        path_filtered_project.run(project) # calls visit_project, visit_folder, visit_file in RemoteContentCounter
 
-    def try_create_dir(self, path):
+        self.watcher = ProgressPrinter(counter.count, msg_verb='downloading')
+        path_filtered_project = PathFilteredProject(self.path_filter, self)
+        path_filtered_project.run(project)  # calls visit_project, visit_folder, visit_file below
+
+        self.watcher.finished()
+        warnings = self.check_warnings()
+        if warnings:
+            self.watcher.show_warning(warnings)
+
+    def try_create_dir(self, remote_path):
         """
         Try to create a directory if it doesn't exist and raise error if there is a non-directory with the same name.
         :param path: str path to the directory
+        :param remote_path: str path as it exists on the remote server
         """
+        path = os.path.join(self.dest_directory, remote_path)
         if not os.path.exists(path):
             os.mkdir(path)
         elif not os.path.isdir(path):
@@ -46,23 +63,18 @@ class ProjectDownload(object):
 
     def visit_project(self, item):
         """
-        Save off the path for the top level project(dest_directory) into id_to_path.
-        Create the directory if necessary.
+        Create the parent directory if necessary.
         :param item: RemoteProject
         """
-        self.id_to_path[item.id] = self.dest_directory
-        self.try_create_dir(self.dest_directory)
+        self.try_create_dir('')
 
     def visit_folder(self, item, parent):
         """
-        Save off the path for item into id_to_path.
-        :param item: RemoteFolder item we want to mkdir/add to id_to_path
+        Make directory for item.
+        :param item: RemoteFolder item we want create a directory for.
         :param parent: RemoteProject/RemoteFolder parent of item
         """
-        parent_path = self.id_to_path[parent.id]
-        path = os.path.join(parent_path, item.name)
-        self.id_to_path[item.id] = path
-        self.try_create_dir(path)
+        self.try_create_dir(item.remote_path)
 
     def visit_file(self, item, parent):
         """
@@ -70,8 +82,7 @@ class ProjectDownload(object):
         :param item: RemoteFile file we will download
         :param parent: RemoteProject/RemoteFolder parent of item
         """
-        parent_path = self.id_to_path[parent.id]
-        path = os.path.join(parent_path, item.name)
+        path = os.path.join(self.dest_directory, item.remote_path)
         url_json = self.remote_store.data_service.get_file_url(item.id).json()
         downloader = FileDownloader(self.remote_store.config, item, url_json, path, self.watcher)
         downloader.run()
@@ -90,6 +101,12 @@ class ProjectDownload(object):
             msg = format_str.format(path, stat_info.st_size, item.size)
             raise ValueError(msg)
 
+    def check_warnings(self):
+        unused_paths = self.path_filter.get_unused_paths()
+        if unused_paths:
+            return 'WARNING: Path(s) not found {}.'.format(','.join(unused_paths))
+        return None
+
 
 class RemoteContentCounter(object):
     """
@@ -102,20 +119,6 @@ class RemoteContentCounter(object):
         """
         self.count = 0
         self.project = project
-
-    def run(self):
-        """
-        Update internal count finding bytes in the project.
-        """
-        self.walk_project(self.project)
-
-    def walk_project(self, project):
-        """
-        For each file update count based on size.
-        :param project: LocalProject project who's contents we want to walk/count.
-        """
-        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
-        ProjectWalker.walk_project(project, self)
 
     def visit_project(self, item):
         """Not making use of this part of ProjectWalker"""

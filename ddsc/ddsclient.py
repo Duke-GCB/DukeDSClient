@@ -9,6 +9,7 @@ from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
 from ddsc.core.util import ProjectFilenameList, verify_terminal_encoding
+from ddsc.core.pathfilter import PathFilter
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 
@@ -124,7 +125,8 @@ class DownloadCommand(object):
         if not folder:
             fixed_path = replace_invalid_path_chars(project_name.replace(' ', '_'))
             folder = path_does_not_exist_or_is_empty(fixed_path)
-        project_download = ProjectDownload(self.remote_store, project_name, folder)
+        path_filter = PathFilter.create(args.include_paths, args.exclude_paths)
+        project_download = ProjectDownload(self.remote_store, project_name, folder, path_filter)
         project_download.run()
 
 
@@ -213,7 +215,8 @@ class HandoverCommand(object):
             new_project_name = self.get_new_project_name(project_name)
         to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
         try:
-            dest_email = self.project_handover.handover(project_name, new_project_name, to_user, force_send)
+            path_filter = PathFilter.create(args.include_paths, args.exclude_paths)
+            dest_email = self.project_handover.handover(project_name, new_project_name, to_user, force_send, path_filter)
             print("Handover message sent to " + dest_email)
         except HandoverError as ex:
             if ex.warning:
