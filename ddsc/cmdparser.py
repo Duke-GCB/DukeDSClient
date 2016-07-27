@@ -204,11 +204,11 @@ def _add_include_arg(arg_parser):
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
     arg_parser.add_argument("--include",
-                            metavar='IncludePaths',
+                            metavar='Path',
                             action='append',
                             type=to_unicode,
                             dest='include_paths',
-                            help="Specifies comma separated list of paths to include.",
+                            help="Specifies a single path to include. This argument can be repeated.",
                             default=[])
 
 
@@ -218,11 +218,11 @@ def _add_exclude_arg(arg_parser):
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
     arg_parser.add_argument("--exclude",
-                            metavar='ExcludePaths',
+                            metavar='Path',
                             action='append',
                             type=to_unicode,
                             dest='exclude_paths',
-                            help="Specifies comma separated list of paths to exclude.",
+                            help="Specifies a single path to exclude. This argument can be repeated.",
                             default=[])
 
 
