@@ -125,7 +125,7 @@ class DownloadCommand(object):
         if not folder:
             fixed_path = replace_invalid_path_chars(project_name.replace(' ', '_'))
             folder = path_does_not_exist_or_is_empty(fixed_path)
-        path_filter = PathFilter.create(args.include_paths, args.exclude_paths)
+        path_filter = PathFilter(args.include_paths, args.exclude_paths)
         project_download = ProjectDownload(self.remote_store, project_name, folder, path_filter)
         project_download.run()
 
@@ -215,7 +215,7 @@ class HandoverCommand(object):
             new_project_name = self.get_new_project_name(project_name)
         to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
         try:
-            path_filter = PathFilter.create(args.include_paths, args.exclude_paths)
+            path_filter = PathFilter(args.include_paths, args.exclude_paths)
             dest_email = self.project_handover.handover(project_name, new_project_name, to_user, force_send, path_filter)
             print("Handover message sent to " + dest_email)
         except HandoverError as ex:

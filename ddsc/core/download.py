@@ -1,6 +1,4 @@
-from __future__ import print_function
 import os
-
 from ddsc.core.util import ProgressPrinter
 from ddsc.core.filedownloader import FileDownloader
 from ddsc.core.pathfilter import PathFilteredProject
@@ -43,7 +41,6 @@ class ProjectDownload(object):
         self.watcher = ProgressPrinter(counter.count, msg_verb='downloading')
         path_filtered_project = PathFilteredProject(self.path_filter, self)
         path_filtered_project.run(project)  # calls visit_project, visit_folder, visit_file below
-
         self.watcher.finished()
         warnings = self.check_warnings()
         if warnings:
@@ -66,7 +63,7 @@ class ProjectDownload(object):
         Create the parent directory if necessary.
         :param item: RemoteProject
         """
-        self.try_create_dir('')
+        self.try_create_dir(item.remote_path)
 
     def visit_folder(self, item, parent):
         """

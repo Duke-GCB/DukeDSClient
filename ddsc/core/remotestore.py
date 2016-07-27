@@ -67,6 +67,7 @@ class RemoteStore(object):
         """
         Add file or folder(child) to parent.
         :param parent: RemoteProject/RemoteFolder to add child to
+        :param parent_remote_path: remote_path path to this child's parent
         :param child: dict JSON data back from remote store
         """
         kind = child['kind']
@@ -80,6 +81,7 @@ class RemoteStore(object):
     def _read_folder(self, parent_remote_path, folder_json):
         """
         Create RemoteFolder and query it's children.
+        :param parent_remote_path: remote_path path to this child's parent
         :param folder_json: dict JSON data back from remote store
         :return: RemoteFolder folder we filled in
         """
@@ -92,6 +94,7 @@ class RemoteStore(object):
     def _read_file_metadata(self, parent_remote_path, file_json):
         """
         Create RemoteFile based on file_json and fetching it's hash.
+        :param parent_remote_path: remote_path path to this child's parent
         :param file_json: dict JSON data back from remote store
         :return: RemoteFile file we created from file_json
         """

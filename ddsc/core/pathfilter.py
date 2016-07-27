@@ -1,41 +1,56 @@
+"""
+Classes for filtering a list of paths based on either a list of paths to include and paths to include.
+"""
+
 import os
 from ddsc.core.util import FilteredProject
 
 
 class PathFilter(object):
-    def __init__(self):
-        self.filter = IncludeAll()
-        self.seen_paths = set()
-
-    @staticmethod
-    def create(include_paths, exclude_paths):
-        path_filter = PathFilter()
+    """
+    Represents a list of path filters that allows a path to be checked via include_path method.
+    By default all paths return True. Specify the list to include or exclude by calling set_include_paths or
+    set_exclude_paths. Returns which paths have been seen via get_unused_paths method.
+    """
+    def __init__(self, include_paths, exclude_paths):
+        """
+        Creates a path filter based on either include_paths or exclude_paths if both are filled in raises error.
+        :param include_paths: [str]: list of paths that should be included
+        :param exclude_paths: [str]: list of paths that should be excluded
+        """
         if include_paths and exclude_paths:
             raise ValueError("Programming Error: Should not specify both include_path and exclude_paths")
+
+        path_filter = IncludeAll()
         if include_paths:
-            path_filter.set_include_paths(include_paths)
+            path_filter = IncludeFilter(include_paths)
         elif exclude_paths:
-            path_filter.set_exclude_paths(exclude_paths)
-        return path_filter
+            path_filter = ExcludeFilter(exclude_paths)
 
-    @staticmethod
-    def strip_trailing_slash(paths):
-        return [path.rstrip('/') for path in paths]
-
-    def set_include_paths(self, paths):
-        self.filter = IncludeFilter(PathFilter.strip_trailing_slash(paths))
-
-    def set_exclude_paths(self, paths):
-        self.filter = ExcludeFilter(PathFilter.strip_trailing_slash(paths))
+        self.filter = path_filter
+        self.seen_paths = set()
 
     def include_path(self, path):
+        """
+        Should this path be included based on the include_paths or exclude_paths.
+        Keeps track of paths seen to allow finding unused filters.
+        :param path: str: remote path to be filtered
+        :return: bool: True if we should include the path
+        """
         self.seen_paths.add(path)
         return self.filter.include(path)
 
     def reset_seen_paths(self):
+        """
+        Clear list of paths seen via include_path method.
+        """
         self.seen_paths = set()
 
     def get_unused_paths(self):
+        """
+        Returns which include_paths or exclude_paths that were not used via include_path method.
+        :return: [str] list of filtering paths that were not used.
+        """
         return [path for path in self.filter.paths if path not in self.seen_paths]
 
 
@@ -65,10 +80,23 @@ class PathFilterUtil(object):
         """
         return PathFilterUtil.is_child(path, some_path) or PathFilterUtil.is_child(some_path, path)
 
+    @staticmethod
+    def strip_trailing_slash(paths):
+        """
+        Remove trailing slash from a list of paths
+        :param paths: [str]: paths to fix
+        :return: [str]: stripped paths
+        """
+        return [path.rstrip(os.sep) for path in paths]
+
 
 class IncludeAll(object):
+    """
+    Default filter that includes every path.
+    """
     def __init__(self):
-        self.paths = []
+        self.paths = []  # filters must have a paths property for get_unused_paths
+
     """
     Path filter that will include all paths.
     """
@@ -81,7 +109,7 @@ class IncludeFilter(object):
     Path filter that will include paths that are parent/children/equal to include_paths.
     """
     def __init__(self, paths):
-        self.paths = paths
+        self.paths = PathFilterUtil.strip_trailing_slash(paths)
 
     def include(self, some_path):
         if some_path in self.paths:
@@ -97,7 +125,7 @@ class ExcludeFilter(object):
     Path filter that will exclude paths that are children/equal to include_paths.
     """
     def __init__(self, paths):
-        self.paths = paths
+        self.paths = PathFilterUtil.strip_trailing_slash(paths)
 
     def include(self, some_path):
         if some_path in self.paths:
@@ -113,15 +141,29 @@ class PathFilteredProject(object):
     Lets visitor visit only nodes in project that are acceptable to a path_filter.
     """
     def __init__(self, path_filter, visitor):
+        """
+        Setup to allow visitor to visit files/folders from a project that pass path_filter.
+        :param path_filter: PathFilter: determines which items are sent to visitor
+        :param visitor: object: has methods to visit_project,visit_folder,visit_file that will be called from run method
+        """
         self.path_filter = path_filter
         self.visitor = visitor
         self.skipped_folder_paths = set()
         self.filtered_project = FilteredProject(self.include, visitor)
 
     def run(self, project):
+        """
+        Walk project calling visit_* methods for visitor for items.
+        :param project: RemoteProject: project to visit folders/files of.
+        """
         self.filtered_project.walk_project(project)
 
     def include(self, item):
+        """
+        Method that determines which items the visitor sees.
+        :param item: RemoteProject/RemoteFolder/RemoteItem: item to have it's remote_path checked
+        :return: bool: True if the item is to be included
+        """
         return self.path_filter.include_path(item.remote_path)
 
 

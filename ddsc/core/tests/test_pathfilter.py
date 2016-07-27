@@ -6,7 +6,7 @@ from ddsc.core.remotestore import RemoteProject, RemoteFolder, RemoteFile
 class TestPathFilter(TestCase):
     def test_invalid_path_setup(self):
         with self.assertRaises(ValueError):
-            PathFilter.create(include_paths=['data'], exclude_paths=['results'])
+            PathFilter(include_paths=['data'], exclude_paths=['results'])
 
 
 class TestPathFilteredProject(TestCase):
@@ -71,7 +71,7 @@ class TestPathFilteredProject(TestCase):
         folder2.add_child(file3)
 
     def test_no_filter(self):
-        path_filter = PathFilter.create(include_paths=[], exclude_paths=[])
+        path_filter = PathFilter(include_paths=[], exclude_paths=[])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
@@ -86,7 +86,7 @@ class TestPathFilteredProject(TestCase):
         self.assertEqual(set(expected), set(collector.visited_paths))
 
     def test_single_file_include_filter(self):
-        path_filter = PathFilter.create(include_paths=['data/rg45.txt'], exclude_paths=[])
+        path_filter = PathFilter(include_paths=['data/rg45.txt'], exclude_paths=[])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
@@ -98,7 +98,7 @@ class TestPathFilteredProject(TestCase):
         self.assertEqual(set(expected), set(collector.visited_paths))
 
     def test_single_dir_include_filter(self):
-        path_filter = PathFilter.create(include_paths=['stuff'], exclude_paths=[])
+        path_filter = PathFilter(include_paths=['stuff'], exclude_paths=[])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
@@ -109,7 +109,7 @@ class TestPathFilteredProject(TestCase):
         self.assertEqual(["stuff"], path_filter.get_unused_paths())
 
     def test_nested_dir_include_filter(self):
-        path_filter = PathFilter.create(include_paths=['data/results'], exclude_paths=[])
+        path_filter = PathFilter(include_paths=['data/results'], exclude_paths=[])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
@@ -123,7 +123,7 @@ class TestPathFilteredProject(TestCase):
         self.assertEqual(set(expected), set(collector.visited_paths))
 
     def test_nested_file_include_filter(self):
-        path_filter = PathFilter.create(include_paths=['data/results/results.csv'], exclude_paths=[])
+        path_filter = PathFilter(include_paths=['data/results/results.csv'], exclude_paths=[])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
@@ -136,7 +136,7 @@ class TestPathFilteredProject(TestCase):
         self.assertEqual(set(expected), set(collector.visited_paths))
 
     def test_nested_dir_exclude_filter(self):
-        path_filter = PathFilter.create(include_paths=[], exclude_paths=['data/results'])
+        path_filter = PathFilter(include_paths=[], exclude_paths=['data/results'])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)

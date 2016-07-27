@@ -263,6 +263,7 @@ class ProjectHandover(object):
         Copy pre-existing project with name project_name to non-existing project new_project_name.
         :param project_name: str project to copy from
         :param new_project_name: str project to copy to
+        :param path_filter: PathFilter: filters what files are shared
         :return: RemoteProject new project we copied data to
         """
         temp_directory = tempfile.mkdtemp()
@@ -279,6 +280,7 @@ class ProjectHandover(object):
         Download the project with project_name to temp_directory.
         :param project_name: str name of the pre-existing project
         :param temp_directory: str path to directory we can download into
+        :param path_filter: PathFilter: filters what files are shared
         """
         self.print_func("Downloading a copy of '{}'.".format(project_name))
         downloader = ProjectDownload(self.remote_store, project_name, temp_directory, path_filter)
