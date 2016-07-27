@@ -4,7 +4,7 @@ import sys
 import datetime
 import pipes
 from ddsc.core.handover import ProjectHandover, HandoverError
-from ddsc.core.remotestore import RemoteStore
+from ddsc.core.remotestore import RemoteStore, RemoteAuthRole
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
@@ -45,7 +45,7 @@ class DDSClient(object):
         parser.register_mail_draft_command(self._setup_run_command(MailDraftCommand))
         parser.register_handover_command(self._setup_run_command(HandoverCommand))
         parser.register_delete_command(self._setup_run_command(DeleteCommand))
-
+        parser.register_list_auth_roles_command(self._setup_run_command(ListAuthRolesCommand))
         return parser
 
     def _setup_run_command(self, command_constructor):
@@ -295,6 +295,30 @@ class DeleteCommand(object):
                 if not boolean_input_prompt(delete_prompt):
                     return
             self.remote_store.delete_project_by_name(args.project_name)
+
+
+class ListAuthRolesCommand(object):
+    """
+    List available auth roles for a project.
+    """
+    def __init__(self, config):
+        """
+        Pass in the config who can create a remote_store so we can access the remote data.
+        :param config: Config global configuration for use with this command.
+        """
+        self.remote_store = RemoteStore(config)
+
+    def run(self, args):
+        """
+        Prints out non deprecated auth roles.
+        :param args Namespace arguments parsed from the command line
+        """
+        auth_roles = self.remote_store.get_active_auth_roles(RemoteAuthRole.PROJECT_CONTEXT)
+        if auth_roles:
+            for auth_role in auth_roles:
+                print(auth_role.id, "-", auth_role.description)
+        else:
+            print("No authorization roles found.")
 
 
 def boolean_input_prompt(message):

@@ -2,6 +2,8 @@ import json
 from unittest import TestCase
 
 from ddsc.core.remotestore import RemoteProject, RemoteFolder, RemoteFile, RemoteUser
+from ddsc.core.remotestore import RemoteStore
+from ddsc.core.remotestore import RemoteAuthRole
 
 
 class TestProjectFolderFile(TestCase):
@@ -238,3 +240,167 @@ class TestRemoteUser(TestCase):
         self.assertEqual('John Smith', user.full_name)
         self.assertEqual('id:12789123897123978 username:js123 full_name:John Smith', str(user))
 
+class TestRemoteAuthRole(TestCase):
+    def test_parse_auth_role(self):
+        ROLE_DATA = {
+            "id": "project_admin",
+            "name": "Project Admin",
+            "description": "Can update project details, delete project...",
+            "permissions": [
+                {
+                    "id": "view_project"
+                },
+                {
+                    "id": "update_project"
+                },
+                {
+                    "id": "delete_project"
+                },
+                {
+                    "id": "manage_project_permissions"
+                },
+                {
+                    "id": "download_file"
+                },
+                {
+                    "id": "create_file"
+                },
+                {
+                    "id": "update_file"
+                },
+                {
+                    "id": "delete_file"
+                }
+            ],
+            "contexts": [
+                "project"
+            ],
+            "is_deprecated": False
+        }
+        auth_role = RemoteAuthRole(ROLE_DATA)
+        self.assertEqual("project_admin", auth_role.id)
+        self.assertEqual("Project Admin", auth_role.name)
+        self.assertEqual("Can update project details, delete project...", auth_role.description)
+        self.assertEqual(False, auth_role.is_deprecated)
+
+    def test_deprecated_system_role(self):
+        ROLE_DATA = {
+            "id": "system_admin",
+            "name": "System Admin",
+            "description": "Can administrate the system",
+            "permissions": [
+            {
+              "id": "system_admin"
+            }
+            ],
+            "contexts": [
+                "system"
+            ],
+            "is_deprecated": True
+        }
+        auth_role = RemoteAuthRole(ROLE_DATA)
+        self.assertEqual("system_admin", auth_role.id)
+        self.assertEqual("System Admin", auth_role.name)
+        self.assertEqual("Can administrate the system", auth_role.description)
+        self.assertEqual(True, auth_role.is_deprecated)
+
+class TestRemoteStore(TestCase):
+    def test_auth_roles_system(self):
+        JSON_DATA = {
+            "results": [
+                {
+                    "id": "system_admin",
+                    "name": "System Admin",
+                    "description": "Can administrate the system",
+                    "permissions": [
+                        {
+                            "id": "system_admin"
+                        }
+                    ],
+                    "contexts": [
+                        "system"
+                    ],
+                    "is_deprecated": False
+                },
+                {
+                    "id": "helper_admin",
+                    "name": "Helper Admin",
+                    "description": "Can administrate the system also",
+                    "permissions": [
+                        {
+                            "id": "helper_admin"
+                        }
+                    ],
+                    "contexts": [
+                        "system"
+                    ],
+                    "is_deprecated": True
+                }
+            ]
+        }
+        expected_str = "id:system_admin name:System Admin description:Can administrate the system"
+        auth_roles = RemoteStore.get_active_auth_roles_from_json(JSON_DATA)
+        self.assertEqual(1, len(auth_roles))
+        self.assertEqual(expected_str, str(auth_roles[0]))
+
+
+    def test_auth_roles_project(self):
+        JSON_DATA = {
+            "results": [
+                {
+                  "id": "project_admin",
+                  "name": "Project Admin",
+                  "description": "Can update project details, delete project, manage project level permissions and perform all file operations",
+                  "permissions": [
+                    {
+                      "id": "view_project"
+                    },
+                    {
+                      "id": "update_project"
+                    },
+                    {
+                      "id": "delete_project"
+                    },
+                    {
+                      "id": "manage_project_permissions"
+                    },
+                    {
+                      "id": "download_file"
+                    },
+                    {
+                      "id": "create_file"
+                    },
+                    {
+                      "id": "update_file"
+                    },
+                    {
+                      "id": "delete_file"
+                    }
+                  ],
+                  "contexts": [
+                    "project"
+                  ],
+                  "is_deprecated": False
+                },
+                {
+                  "id": "project_viewer",
+                  "name": "Project Viewer",
+                  "description": "Can only view project and file meta-data",
+                  "permissions": [
+                    {
+                      "id": "view_project"
+                    }
+                  ],
+                  "contexts": [
+                    "project"
+                  ],
+                  "is_deprecated": False
+                }
+            ]
+        }
+        expected_str = "joe"
+        auth_roles = RemoteStore.get_active_auth_roles_from_json(JSON_DATA)
+        self.assertEqual(2, len(auth_roles))
+        ids = set([auth_role.id for auth_role in  auth_roles])
+        expected_ids = set(["project_admin","project_viewer"])
+        self.assertEqual(expected_ids, ids)

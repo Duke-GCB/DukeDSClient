@@ -226,7 +226,8 @@ class CommandParser(object):
         when chosen.
         :param add_user_func: func Called when this option is chosen: upload_func(project_name, user_full_name, auth_role).
         """
-        description = "Gives user permission to access a remote project."
+        description = "Gives user permission to access a remote project. " \
+            "See command list_auth_roles for auth_role values."
         add_user_parser = self.subparsers.add_parser('add_user', description=description)
         add_project_name_arg(add_user_parser, help_text="Name of the project to add a user to.")
         user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
@@ -298,6 +299,15 @@ class CommandParser(object):
         add_project_name_arg(delete_parser, help_text="Name of the project to delete.")
         _add_force_arg(delete_parser, "Do not prompt before deleting.")
         delete_parser.set_defaults(func=delete_func)
+
+    def register_list_auth_roles_command(self, list_auth_roles_func):
+        """
+        Add 'delete' command delete a project from the remote store.
+        :param list_func: function: run when user choses this option.
+        """
+        description = "List authorization roles for use with add_user command."
+        delete_parser = self.subparsers.add_parser('list_auth_roles', description=description)
+        delete_parser.set_defaults(func=list_auth_roles_func)
 
     def run_command(self, args):
         """
