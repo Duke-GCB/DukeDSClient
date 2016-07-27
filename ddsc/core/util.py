@@ -71,6 +71,13 @@ class ProgressPrinter(object):
         sys.stdout.write('\rDone: 100%'.ljust(self.max_width) + '\n')
         sys.stdout.flush()
 
+    def show_warning(self, message):
+        """
+        Shows warnings to the user.
+        :param message: str: Message to display
+        """
+        print(message)
+
 
 class ProjectWalker(object):
     """
@@ -80,10 +87,9 @@ class ProjectWalker(object):
     @staticmethod
     def walk_project(project, visitor):
         """
-
+        Visit all nodes in the project tree(project, folders, files).
         :param project: LocalProject project we want to visit all children of.
         :param visitor: object must implement visit_project, visit_folder, visit_file
-        :return:
         """
         ProjectWalker._visit_content(project, None, visitor)
 
@@ -104,6 +110,39 @@ class ProjectWalker(object):
         if not KindType.is_file(item):
             for child in item.children:
                 ProjectWalker._visit_content(child, item, visitor)
+
+
+class FilteredProject(object):
+    """
+    Adds ability to filter items when a visitor is visiting a project.
+    """
+    def __init__(self, filter_func, visitor):
+        """
+        Setup to let visitor walk a project filtering out items based on a function.
+        :param filter_func: function(item): returns True to let visitor see the item
+        :param visitor: object: object with visit_project,visit_folder,visit_file methods
+        """
+        self.filter_func = filter_func
+        self.visitor = visitor
+
+    def walk_project(self, project):
+        """
+        Go through all nodes(RemoteProject,RemoteFolder,RemoteFile) in project and send them to visitor if filter allows.
+        :param project: RemoteProject: project we will walk
+        """
+        ProjectWalker.walk_project(project, self)
+
+    def visit_project(self, item):
+        if self.filter_func(item):
+            self.visitor.visit_project(item)
+
+    def visit_folder(self, item, parent):
+        if self.filter_func(item):
+            self.visitor.visit_folder(item, parent)
+
+    def visit_file(self, item, parent):
+        if self.filter_func(item):
+            self.visitor.visit_file(item, parent)
 
 
 class ProjectFilenameList(object):
