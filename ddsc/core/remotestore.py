@@ -257,6 +257,31 @@ class RemoteStore(object):
         else:
             raise ValueError("No project named '{}' found.\n".format(project_name))
 
+    def get_active_auth_roles(self, context):
+        """
+        Retrieve non-deprecated authorization roles based on a context.
+        Context should be RemoteAuthRole.PROJECT_CONTEXT or RemoteAuthRole.SYSTEM_CONTEXT.
+        :param context: str: context for which auth roles to retrieve
+        :return: [RemoteAuthRole]: list of active auth_role objects
+        """
+        response = self.data_service.get_auth_roles(context).json()
+        return self.get_active_auth_roles_from_json(response)
+
+    @staticmethod
+    def get_active_auth_roles_from_json(json_data):
+        """
+        Given a json blob response containing a list of authorization roles return the active ones
+        in an array of RemoteAuthRole objects.
+        :param json_data: list of dictionaries - data from dds in auth_role format
+        :return: [RemoteAuthRole] list of active auth_role objects
+        """
+        result = []
+        for auth_role_properties in json_data['results']:
+            auth_role = RemoteAuthRole(auth_role_properties)
+            if not auth_role.is_deprecated:
+                result.append(auth_role)
+        return result
+
 
 class RemoteProject(object):
     """
@@ -379,3 +404,23 @@ class RemoteUser(object):
 
     def __str__(self):
         return 'id:{} username:{} full_name:{}'.format(self.id, self.username, self.full_name)
+
+
+class RemoteAuthRole(object):
+    PROJECT_CONTEXT = "project"
+    SYSTEM_CONTEXT = "system"
+    """
+    Permissions a user can be given on a project.
+    """
+    def __init__(self, json_data):
+        """
+        Set properties based on json_data.
+        :param json_data: dict JSON data containing auth_role info
+        """
+        self.id = json_data['id']
+        self.name = json_data['name']
+        self.description = json_data['description']
+        self.is_deprecated = json_data['is_deprecated']
+
+    def __str__(self):
+        return 'id:{} name:{} description:{}'.format(self.id, self.name, self.description)

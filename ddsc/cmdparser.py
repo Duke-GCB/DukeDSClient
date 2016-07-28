@@ -153,11 +153,13 @@ def _add_auth_role_arg(arg_parser):
     Adds optional auth_role parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
+    help_text = "Specifies which project permissions to give to the user. Example: 'project_admin'. "
+    help_text += "See command list_auth_roles for AuthRole values."
     arg_parser.add_argument("--auth_role",
                             metavar='AuthRole',
                             type=to_unicode,
                             dest='auth_role',
-                            help="Specifies authorization role for the user ('project_admin').",
+                            help=help_text,
                             default='project_admin')
 
 
@@ -329,13 +331,22 @@ class CommandParser(object):
     def register_delete_command(self, delete_func):
         """
         Add 'delete' command delete a project from the remote store.
-        :param list_func: function: run when user choses this option.
+        :param delete_func: function: run when user choses this option.
         """
         description = "Permanently delete a project."
         delete_parser = self.subparsers.add_parser('delete', description=description)
         add_project_name_arg(delete_parser, help_text="Name of the project to delete.")
         _add_force_arg(delete_parser, "Do not prompt before deleting.")
         delete_parser.set_defaults(func=delete_func)
+
+    def register_list_auth_roles_command(self, list_auth_roles_func):
+        """
+        Add 'list_auth_roles' command to list project authorization roles that can be used with add_user.
+        :param list_auth_roles_func: function: run when user choses this option.
+        """
+        description = "List authorization roles for use with add_user command."
+        list_auth_roles_parser = self.subparsers.add_parser('list_auth_roles', description=description)
+        list_auth_roles_parser.set_defaults(func=list_auth_roles_func)
 
     def run_command(self, args):
         """

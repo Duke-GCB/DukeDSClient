@@ -524,3 +524,11 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         return self._delete("/projects/" + project_id, {})
+
+    def get_auth_roles(self, context):
+        """
+        Send GET request to get list of auth_roles for a context.
+        :param context: str which roles do we want 'project' or 'system'
+        :return: requests.Response containing the successful result
+        """
+        return self._get("/auth_roles", {"context": context}, content_type=ContentType.form)
