@@ -293,7 +293,7 @@ class CommandParser(object):
     def register_delete_command(self, delete_func):
         """
         Add 'delete' command delete a project from the remote store.
-        :param list_func: function: run when user choses this option.
+        :param delete_func: function: run when user choses this option.
         """
         description = "Permanently delete a project."
         delete_parser = self.subparsers.add_parser('delete', description=description)
@@ -303,8 +303,8 @@ class CommandParser(object):
 
     def register_list_auth_roles_command(self, list_auth_roles_func):
         """
-        Add 'delete' command delete a project from the remote store.
-        :param list_func: function: run when user choses this option.
+        Add 'list_auth_roles' command to list project authorization roles that can be used with add_user.
+        :param list_auth_roles_func: function: run when user choses this option.
         """
         description = "List authorization roles for use with add_user command."
         delete_parser = self.subparsers.add_parser('list_auth_roles', description=description)
