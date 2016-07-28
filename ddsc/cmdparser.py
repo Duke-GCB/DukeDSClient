@@ -152,11 +152,13 @@ def _add_auth_role_arg(arg_parser):
     Adds optional auth_role parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
+    help_text = "Specifies which project permissions to give to the user. Example: 'project_admin'. "
+    help_text += "See command list_auth_roles for AuthRole values."
     arg_parser.add_argument("--auth_role",
                             metavar='AuthRole',
                             type=to_unicode,
                             dest='auth_role',
-                            help="Specifies authorization role for the user ('project_admin').",
+                            help=help_text,
                             default='project_admin')
 
 def _add_copy_project_arg(arg_parser):
@@ -226,8 +228,7 @@ class CommandParser(object):
         when chosen.
         :param add_user_func: func Called when this option is chosen: upload_func(project_name, user_full_name, auth_role).
         """
-        description = "Gives user permission to access a remote project. " \
-            "See command list_auth_roles for auth_role values."
+        description = "Gives user permission to access a remote project."
         add_user_parser = self.subparsers.add_parser('add_user', description=description)
         add_project_name_arg(add_user_parser, help_text="Name of the project to add a user to.")
         user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
