@@ -531,4 +531,4 @@ class DataServiceApi(object):
         :param context: str which roles do we want 'project' or 'system'
         :return: requests.Response containing the successful result
         """
-        return self._get("/auth_roles", context)
+        return self._get("/auth_roles", {"context": context}, content_type=ContentType.form)
