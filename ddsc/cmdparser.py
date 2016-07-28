@@ -307,8 +307,8 @@ class CommandParser(object):
         :param list_auth_roles_func: function: run when user choses this option.
         """
         description = "List authorization roles for use with add_user command."
-        delete_parser = self.subparsers.add_parser('list_auth_roles', description=description)
-        delete_parser.set_defaults(func=list_auth_roles_func)
+        list_auth_roles_parser = self.subparsers.add_parser('list_auth_roles', description=description)
+        list_auth_roles_parser.set_defaults(func=list_auth_roles_func)
 
     def run_command(self, args):
         """
