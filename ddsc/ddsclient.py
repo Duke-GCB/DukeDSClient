@@ -299,7 +299,8 @@ class DeleteCommand(object):
 
 class ListAuthRolesCommand(object):
     """
-    List available auth roles for a project.
+    List available auth roles for a project. Intentionally excludes system-type auth roles.
+    System-type auth roles are accepted by DukeDS add_user API endpoint but are non-functional.
     """
     def __init__(self, config):
         """
@@ -310,7 +311,7 @@ class ListAuthRolesCommand(object):
 
     def run(self, args):
         """
-        Prints out non deprecated auth roles.
+        Prints out non deprecated project-type auth roles.
         :param args Namespace arguments parsed from the command line
         """
         auth_roles = self.remote_store.get_active_auth_roles(RemoteAuthRole.PROJECT_CONTEXT)
