@@ -36,6 +36,7 @@ export PROJ2="python3$PROJECT_PREFIX"
 echo "test upload $PROJ2"
 python3 -m ddsc upload -p $PROJ2 ddsc/tests
 python3 -m ddsc add_user -p $PROJ2 --user $USERNAME
+python3 -m ddsc remove_user -p $PROJ2 --user $USERNAME
 
 echo "test download $PROJ2"
 rm -rf /tmp/$PROJ2

@@ -42,6 +42,7 @@ class DDSClient(object):
         parser.register_list_command(self._setup_run_command(ListCommand))
         parser.register_upload_command(self._setup_run_command(UploadCommand))
         parser.register_add_user_command(self._setup_run_command(AddUserCommand))
+        parser.register_remove_user_command(self._setup_run_command(RemoveUserCommand))
         parser.register_download_command(self._setup_run_command(DownloadCommand))
         parser.register_mail_draft_command(self._setup_run_command(MailDraftCommand))
         parser.register_handover_command(self._setup_run_command(HandoverCommand))
@@ -150,10 +151,35 @@ class AddUserCommand(object):
         email = args.email                  # email of person to give permissions, will be None if username is specified
         username = args.username            # username of person to give permissions, will be None if email is specified
         auth_role = args.auth_role          # type of permission(project_admin)
-        project = self.remote_store.fetch_remote_project(project_name, must_exist=True)
+        project = self.remote_store.fetch_remote_project(project_name, must_exist=True, include_children=False)
         user = self.remote_store.lookup_user_by_email_or_username(email, username)
         self.remote_store.set_user_project_permission(project, user, auth_role)
         print(u'Gave user {} {} permissions for {}.'.format(user.full_name, auth_role, project_name))
+
+
+class RemoveUserCommand(object):
+    """
+    Removes a user from a pre-existing remote project.
+    """
+    def __init__(self, config):
+        """
+        Pass in the config who can create a remote_store so we can access the remote data.
+        :param config: Config global configuration for use with this command.
+        """
+        self.remote_store = RemoteStore(config)
+
+    def run(self, args):
+        """
+        Remove permissions from the user with user_full_name or email on the remote project with project_name.
+        :param args Namespace arguments parsed from the command line
+        """
+        project_name = args.project_name  # name of the pre-existing project to set permissions on
+        email = args.email                # email of person to remove permissions from (None if username specified)
+        username = args.username          # username of person to remove permissions from (None if email is specified)
+        project = self.remote_store.fetch_remote_project(project_name, must_exist=True, include_children=False)
+        user = self.remote_store.lookup_user_by_email_or_username(email, username)
+        self.remote_store.revoke_user_project_permission(project, user)
+        print(u'Removed permissions from user {} for project {}.'.format(user.full_name, project_name))
 
 
 class MailDraftCommand(object):

@@ -19,15 +19,18 @@ class RemoteStore(object):
         auth = DataServiceAuth(self.config)
         self.data_service = DataServiceApi(auth, self.config.url)
 
-    def fetch_remote_project(self, project_name, must_exist=False):
+    def fetch_remote_project(self, project_name, must_exist=False, include_children=True):
         """
-        Retrieve the project via project_name
+        Retrieve the project via project_name.
         :param project_name: str name of the project to try and download
-        :return: RemoteProject project requested or None if not found
+        :param must_exist: should we error if the project doesn't exist
+        :param include_children: should we read children(folders/files)
+        :return: RemoteProject project requested or None if not found(and must_exist=False)
         """
         project = self._get_my_project(project_name)
         if project:
-            self._add_project_children(project)
+            if include_children:
+                self._add_project_children(project)
         else:
             if must_exist:
                 raise ValueError(u'There is no project with the name {}'.format(project_name).encode('utf-8'))
