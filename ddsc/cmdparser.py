@@ -274,12 +274,12 @@ class CommandParser(object):
         :param remove_user_func: func Called when this option is chosen: remove_user_func(project_name, user_full_name).
         """
         description = "Removes user permission to access a remote project."
-        add_user_parser = self.subparsers.add_parser('remove_user', description=description)
-        add_project_name_arg(add_user_parser, help_text="Name of the project to remove a user from.")
-        user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
+        remove_user_parser = self.subparsers.add_parser('remove_user', description=description)
+        add_project_name_arg(remove_user_parser, help_text="Name of the project to remove a user from.")
+        user_or_email = remove_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
-        add_user_parser.set_defaults(func=remove_user_func)
+        remove_user_parser.set_defaults(func=remove_user_func)
 
     def register_download_command(self, download_func):
         """
