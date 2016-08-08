@@ -131,7 +131,7 @@ def add_user_arg(arg_parser):
                             metavar='Username',
                             type=to_unicode,
                             dest='username',
-                            help="Username(NetID) to give permissions. "
+                            help="Username(NetID) to update permissions on. "
                                  "You must specify either --email or this flag.")
 
 
@@ -144,7 +144,7 @@ def add_email_arg(arg_parser):
                             metavar='UserEmail',
                             type=to_unicode,
                             dest='email',
-                            help="Email of the person you want to give permission."
+                            help="Email of the person you want to update permissions on."
                                  " You must specify either --user or this flag.")
 
 
@@ -267,6 +267,19 @@ class CommandParser(object):
         add_email_arg(user_or_email)
         _add_auth_role_arg(add_user_parser)
         add_user_parser.set_defaults(func=add_user_func)
+
+    def register_remove_user_command(self, remove_user_func):
+        """
+        Add the remove_user command to the parser and call remove_user_func(project_name, user_full_name) when chosen.
+        :param remove_user_func: func Called when this option is chosen: remove_user_func(project_name, user_full_name).
+        """
+        description = "Removes user permission to access a remote project."
+        remove_user_parser = self.subparsers.add_parser('remove_user', description=description)
+        add_project_name_arg(remove_user_parser, help_text="Name of the project to remove a user from.")
+        user_or_email = remove_user_parser.add_mutually_exclusive_group(required=True)
+        add_user_arg(user_or_email)
+        add_email_arg(user_or_email)
+        remove_user_parser.set_defaults(func=remove_user_func)
 
     def register_download_command(self, download_func):
         """
