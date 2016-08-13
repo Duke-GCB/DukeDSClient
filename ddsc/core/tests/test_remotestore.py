@@ -4,6 +4,8 @@ from unittest import TestCase
 from ddsc.core.remotestore import RemoteProject, RemoteFolder, RemoteFile, RemoteUser
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.remotestore import RemoteAuthRole
+from ddsc.core.remotestore import RemoteProjectChildren
+from ddsc.core.util import KindType
 
 
 class TestProjectFolderFile(TestCase):
@@ -244,6 +246,7 @@ class TestRemoteUser(TestCase):
         self.assertEqual('John Smith', user.full_name)
         self.assertEqual('id:12789123897123978 username:js123 full_name:John Smith', str(user))
 
+
 class TestRemoteAuthRole(TestCase):
     def test_parse_auth_role(self):
         ROLE_DATA = {
@@ -293,9 +296,9 @@ class TestRemoteAuthRole(TestCase):
             "name": "System Admin",
             "description": "Can administrate the system",
             "permissions": [
-            {
-              "id": "system_admin"
-            }
+                {
+                    "id": "system_admin"
+                }
             ],
             "contexts": [
                 "system"
@@ -307,6 +310,7 @@ class TestRemoteAuthRole(TestCase):
         self.assertEqual("System Admin", auth_role.name)
         self.assertEqual("Can administrate the system", auth_role.description)
         self.assertEqual(True, auth_role.is_deprecated)
+
 
 class TestRemoteStore(TestCase):
     def test_auth_roles_system(self):
@@ -347,64 +351,147 @@ class TestRemoteStore(TestCase):
         self.assertEqual(1, len(auth_roles))
         self.assertEqual(expected_str, str(auth_roles[0]))
 
-
     def test_auth_roles_project(self):
         JSON_DATA = {
             "results": [
                 {
-                  "id": "project_admin",
-                  "name": "Project Admin",
-                  "description": "Can update project details, delete project, manage project level permissions and perform all file operations",
-                  "permissions": [
-                    {
-                      "id": "view_project"
-                    },
-                    {
-                      "id": "update_project"
-                    },
-                    {
-                      "id": "delete_project"
-                    },
-                    {
-                      "id": "manage_project_permissions"
-                    },
-                    {
-                      "id": "download_file"
-                    },
-                    {
-                      "id": "create_file"
-                    },
-                    {
-                      "id": "update_file"
-                    },
-                    {
-                      "id": "delete_file"
-                    }
-                  ],
-                  "contexts": [
-                    "project"
-                  ],
-                  "is_deprecated": False
+                    "id": "project_admin",
+                    "name": "Project Admin",
+                    "description": "Can update project details, delete project, manage project level permissions and perform all file operations",
+                    "permissions": [
+                        {
+                            "id": "view_project"
+                        },
+                        {
+                            "id": "update_project"
+                        },
+                        {
+                            "id": "delete_project"
+                        },
+                        {
+                            "id": "manage_project_permissions"
+                        },
+                        {
+                            "id": "download_file"
+                        },
+                        {
+                            "id": "create_file"
+                        },
+                        {
+                            "id": "update_file"
+                        },
+                        {
+                            "id": "delete_file"
+                        }
+                    ],
+                    "contexts": [
+                        "project"
+                    ],
+                    "is_deprecated": False
                 },
                 {
-                  "id": "project_viewer",
-                  "name": "Project Viewer",
-                  "description": "Can only view project and file meta-data",
-                  "permissions": [
-                    {
-                      "id": "view_project"
-                    }
-                  ],
-                  "contexts": [
-                    "project"
-                  ],
-                  "is_deprecated": False
+                    "id": "project_viewer",
+                    "name": "Project Viewer",
+                    "description": "Can only view project and file meta-data",
+                    "permissions": [
+                        {
+                            "id": "view_project"
+                        }
+                    ],
+                    "contexts": [
+                        "project"
+                    ],
+                    "is_deprecated": False
                 }
             ]
         }
         expected_str = "joe"
         auth_roles = RemoteStore.get_active_auth_roles_from_json(JSON_DATA)
         self.assertEqual(2, len(auth_roles))
-        ids = set([auth_role.id for auth_role in  auth_roles])
-        expected_ids = set(["project_admin","project_viewer"])
+        ids = set([auth_role.id for auth_role in auth_roles])
+        expected_ids = set(["project_admin", "project_viewer"])
         self.assertEqual(expected_ids, ids)
+
+
+class TestRemoteProjectChildren(TestCase):
+    def test_simple_case(self):
+        project_id = '7aa64c07-6427-44e0-ba38-0959454f77d7'
+        folder_id = '29f59d7f-c32e-4305-8148-d0c5800dd06d'
+        file_id = '85506b5f-a118-4d7a-8af7-da97b02fc6f2'
+        sample_data = [
+            {'kind': 'dds-file',
+             'parent': {'kind': 'dds-folder', 'id': folder_id},
+
+             'is_deleted': False,
+             'name': 'data.txt',
+             'upload': {'size': 10, 'hash': {'algorithm': 'md5', 'value': '3664d6f3812dbb0d80302ef990b96b51'}},
+             'id': file_id},
+            {'kind': 'dds-folder',
+             'parent': {'kind': 'dds-project', 'id': project_id},
+             'is_deleted': False,
+             'name': 'folder1',
+             'id': folder_id}]
+        remote_children = RemoteProjectChildren(project_id, sample_data)
+
+        children = remote_children._get_children_for_parent(project_id)
+        self.assert_field_values(children, field_name='id', expected_values=[folder_id])
+
+        children = remote_children._get_children_for_parent(folder_id)
+        self.assert_field_values(children, field_name='id', expected_values=[file_id])
+
+        children = remote_children._get_children_for_parent(file_id)
+        self.assert_field_values(children, field_name='id', expected_values=[])
+
+        tree = remote_children.get_tree()
+        self.assertEqual(1, len(tree))
+        self.assertEqual(folder_id, tree[0].id)
+        self.assertEqual(1, len(tree[0].children))
+        self.assertEqual(file_id, tree[0].children[0].id)
+
+    def assert_field_values(self, items, field_name, expected_values):
+        values = [item[field_name] for item in items]
+        self.assertEqual(values, expected_values)
+
+    def test_top_level_files(self):
+        project_id = 'c5da4e5e-0906-41a0-8b8f-20d99863bbaa'
+        file1_id = '35735a28-2d2c-4a11-9440-674bd345d866'
+        file2_id = 'eb3514e1-72d7-41ee-bd34-bf059f6f5947'
+        file3_id = 'cbb6e497-ed59-4456-98dc-f1aeee01b626'
+        sample_data = [{'id': file1_id,
+                        'kind': 'dds-file',
+                        'name': 'three',
+                        'is_deleted': False,
+                        'upload':
+                            {'id': '6002c346-d952-4140-8255-a28978e9a1af',
+                             'size': 10,
+                             'hash':
+                                {'algorithm': 'md5',
+                                 'value': 'b9dea26997ca089d9f20e372c50565e8'}},
+                        'parent': {'id': project_id, 'kind': 'dds-project'}},
+                       {'id': file2_id,
+                        'kind': 'dds-file',
+                        'name': 'two',
+                        'is_deleted': False,
+                        'upload':
+                            {'id': 'e710c232-14b2-4cdc-be29-9c9b4c811834',
+                             'size': 10,
+                             'hash':
+                                 {'algorithm': 'md5', 'value': '99003d4d61ca0f5367e5d88a24db7812'}},
+                        'parent': {'id': project_id, 'kind': 'dds-project'}},
+                       {'id': file3_id,
+                        'kind': 'dds-file',
+                        'name': 'one',
+                        'is_deleted': False,
+                        'upload':
+                            {'id': 'ecd507c4-8f04-404d-acef-0ced912e4cdf',
+                             'size': 10,
+                             'hash':
+                                 {'algorithm': 'md5', 'value': '240ad484da9838ab138a1a6ef864753b'}},
+                        'parent': {'id': project_id, 'kind': 'dds-project'}}]
+
+        remote_children = RemoteProjectChildren(project_id, sample_data)
+        tree = remote_children.get_tree()
+        self.assertEqual(3, len(tree))
+        self.assertEqual(file1_id, tree[0].id)
+        self.assertEqual(file2_id, tree[1].id)
+        self.assertEqual(file3_id, tree[2].id)

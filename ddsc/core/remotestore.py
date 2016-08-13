@@ -63,50 +63,9 @@ class RemoteStore(object):
         :param project: RemoteProject root of the project tree to add children too
         """
         response = self.data_service.get_project_children(project.id, '').json()
-        for child in response['results']:
-            self._add_child(project, '', child)
-
-    def _add_child(self, parent, parent_remote_path, child):
-        """
-        Add file or folder(child) to parent.
-        :param parent: RemoteProject/RemoteFolder to add child to
-        :param parent_remote_path: remote_path path to this child's parent
-        :param child: dict JSON data back from remote store
-        """
-        kind = child['kind']
-        if kind == KindType.folder_str:
-            parent.add_child(self._read_folder(parent_remote_path, child))
-        elif kind == KindType.file_str:
-            parent.add_child(self._read_file_metadata(parent_remote_path, child))
-        else:
-            raise ValueError("Unknown child type {}".format(kind))
-
-    def _read_folder(self, parent_remote_path, folder_json):
-        """
-        Create RemoteFolder and query it's children.
-        :param parent_remote_path: remote_path path to this child's parent
-        :param folder_json: dict JSON data back from remote store
-        :return: RemoteFolder folder we filled in
-        """
-        folder = RemoteFolder(folder_json, parent_remote_path)
-        response = self.data_service.get_folder_children(folder.id, '').json()
-        for child in response['results']:
-            self._add_child(folder, folder.remote_path, child)
-        return folder
-
-    def _read_file_metadata(self, parent_remote_path, file_json):
-        """
-        Create RemoteFile based on file_json and fetching it's hash.
-        :param parent_remote_path: remote_path path to this child's parent
-        :param file_json: dict JSON data back from remote store
-        :return: RemoteFile file we created from file_json
-        """
-        remote_file = RemoteFile(file_json, parent_remote_path)
-        response = self.data_service.get_file(remote_file.id)
-        file_hash = RemoteFile.get_upload_from_json(response.json())['hash']
-        if file_hash:
-            remote_file.set_hash(file_hash['value'], file_hash['algorithm'])
-        return remote_file
+        project_children = RemoteProjectChildren(project.id, response['results'])
+        for child in project_children.get_tree():
+            project.add_child(child)
 
     def lookup_user_by_email_or_username(self, email, username):
         if username:
@@ -427,3 +386,56 @@ class RemoteAuthRole(object):
 
     def __str__(self):
         return 'id:{} name:{} description:{}'.format(self.id, self.name, self.description)
+
+
+class RemoteProjectChildren(object):
+    """
+    Creates RemoteFolders and RemoteFiles as tree structure based on DukeDS recursive project children data.
+    """
+    def __init__(self, project_id, data):
+        """
+        Specify the project_id and the array of item dictionaries.
+        :param project_id: str: uuid of the project
+        :param data: [object]: DukeDS recursive project children
+        """
+        self.project_id = project_id
+        self.data = data
+
+    def _get_children_for_parent(self, parent_id):
+        """
+        Given a parent uuid return a list of dictionaries.
+        :param parent_id: str: uuid of the parent
+        :return: [dict]: children in this list with parent_id parent
+        """
+        children = []
+        for child in self.data:
+            parent = child['parent']
+            if parent['id'] == parent_id:
+                children.append(child)
+        return children
+
+    def get_tree(self):
+        """
+        Return array of RemoteFolders(with appropriate children)/RemoteFiles based on the values from constructor.
+        :return: [RemoteFolder/RemoteFile]
+        """
+        return self.get_tree_recur(self.project_id, '')
+
+    def get_tree_recur(self, parent_id, parent_path):
+        """
+        Recursively create array RemoteFolders/RemoteFiles.
+        :param parent_id: str: uuid if the parent to find children for
+        :param parent_path: str: remote path of parent to build child paths
+        :return: [RemoteFolder/RemoteFile]
+        """
+        children = []
+        for child_data in self._get_children_for_parent(parent_id):
+            if child_data['kind'] == KindType.folder_str:
+                folder = RemoteFolder(child_data, parent_path)
+                for grand_child in self.get_tree_recur(child_data['id'], folder.remote_path):
+                    folder.add_child(grand_child)
+                children.append(folder)
+            else:
+                file = RemoteFile(child_data, parent_path)
+                children.append(file)
+        return children
