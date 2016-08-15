@@ -281,7 +281,7 @@ class DataServiceApi(object):
         """
         Send GET to /projects/{project_id} filtering by a name.
         :param project_id: str uuid of the project
-        :param name_contains: str name to filter folders by
+        :param name_contains: str name to filter folders by (if not None this method works recursively)
         :return: requests.Response containing the successful result
         """
         return self._get_children('projects', project_id, name_contains)
@@ -290,7 +290,7 @@ class DataServiceApi(object):
         """
         Send GET to /folders/{folder_id} filtering by a name.
         :param folder_id: str uuid of the folder
-        :param name_contains: str name to filter children by
+        :param name_contains: str name to filter children by (if not None this method works recursively)
         :return: requests.Response containing the successful result
         """
         return self._get_children('folders', folder_id, name_contains)
@@ -300,13 +300,13 @@ class DataServiceApi(object):
         Send GET message to /<parent_name>/<parent_id>/children to fetch info about children(files and folders)
         :param parent_name: str 'projects' or 'folders'
         :param parent_id: str uuid of project or folder
-        :param name_contains: name filtering
+        :param name_contains: name filtering (if not None this method works recursively)
         :return: requests.Response containing the successful result
         """
-        data = {
-            'name_contains': name_contains
-        }
-        return self._get("/" + parent_name + "/" + parent_id + "/children", data)
+        data = {}
+        if not name_contains is None:
+            data['name_contains'] = name_contains
+        return self._get("/" + parent_name + "/" + parent_id + "/children", data, content_type=ContentType.form)
 
     def create_upload(self, project_id, filename, content_type, size,
                       hash_value, hash_alg):

@@ -18,10 +18,16 @@ from ddsc.config import create_config
 from ddsc.core.remotestore import RemoteStore
 
 
+def convertNoneStr(arg):
+    if arg == 'None':
+        return None
+    return arg
+
 
 def main(args=None):
     if args is None:
         args = sys.argv[1:]
+    args = [convertNoneStr(arg) for arg in args]
     config = create_config()
     remote_store = RemoteStore(config)
     ds = remote_store.data_service
@@ -37,7 +43,6 @@ def main(args=None):
         f = getattr(ds, args[0])
         ret = f.__call__(*args[1:])
         result = ret.json()
-
         print(yaml.safe_dump(result))
 
 
