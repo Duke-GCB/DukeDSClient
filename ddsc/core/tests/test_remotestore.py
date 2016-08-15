@@ -447,6 +447,7 @@ class TestRemoteProjectChildren(TestCase):
         self.assertEqual(folder_id, tree[0].id)
         self.assertEqual(1, len(tree[0].children))
         self.assertEqual(file_id, tree[0].children[0].id)
+        self.assertEqual('3664d6f3812dbb0d80302ef990b96b51', tree[0].children[0].file_hash)
 
     def assert_field_values(self, items, field_name, expected_values):
         values = [item[field_name] for item in items]
@@ -485,13 +486,16 @@ class TestRemoteProjectChildren(TestCase):
                         'upload':
                             {'id': 'ecd507c4-8f04-404d-acef-0ced912e4cdf',
                              'size': 10,
-                             'hash':
-                                 {'algorithm': 'md5', 'value': '240ad484da9838ab138a1a6ef864753b'}},
+                             'hash': None,
+                            },
                         'parent': {'id': project_id, 'kind': 'dds-project'}}]
 
         remote_children = RemoteProjectChildren(project_id, sample_data)
         tree = remote_children.get_tree()
         self.assertEqual(3, len(tree))
         self.assertEqual(file1_id, tree[0].id)
+        self.assertEqual('b9dea26997ca089d9f20e372c50565e8', tree[0].file_hash)
         self.assertEqual(file2_id, tree[1].id)
+        self.assertEqual('99003d4d61ca0f5367e5d88a24db7812', tree[1].file_hash)
         self.assertEqual(file3_id, tree[2].id)
+        self.assertEqual(None, tree[2].file_hash)

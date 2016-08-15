@@ -322,9 +322,14 @@ class RemoteFile(object):
         self.name = json_data['name']
         self.path = self.name # for compatibilty with ProgressPrinter
         self.is_deleted = json_data['is_deleted']
-        self.size = RemoteFile.get_upload_from_json(json_data)['size']
+        upload = RemoteFile.get_upload_from_json(json_data)
+        self.size = upload['size']
         self.file_hash = None
         self.hash_alg = None
+        hash_data = upload.get('hash')
+        if hash_data:
+            self.file_hash = hash_data.get('value')
+            self.hash_alg = hash_data.get('algorithm')
         self.remote_path = os.path.join(parent_remote_path, self.name)
 
     def set_hash(self, file_hash, hash_alg):
