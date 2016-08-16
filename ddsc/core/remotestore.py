@@ -1,4 +1,5 @@
 import os
+import requests
 from ddsc.core.ddsapi import DataServiceApi, DataServiceError, DataServiceAuth
 from ddsc.core.util import KindType
 
@@ -17,7 +18,7 @@ class RemoteStore(object):
         """
         self.config = config
         auth = DataServiceAuth(self.config)
-        self.data_service = DataServiceApi(auth, self.config.url)
+        self.data_service = DataServiceApi(auth, self.config.url, requests.Session())
 
     def fetch_remote_project(self, project_name, must_exist=False, include_children=True):
         """
