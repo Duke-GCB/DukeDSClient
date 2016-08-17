@@ -42,6 +42,7 @@ activities:
 files:
   - name: result/mouse_192.bam
     usedBy: fastqc
+    
   - name: result/fastqc_report.html
     generatedBy: fastqc
     derivedFrom: result/mouse_192.bam
