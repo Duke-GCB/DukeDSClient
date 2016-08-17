@@ -25,10 +25,25 @@ activities:
     description: DNA sequenced on Minion...
     started_on: 2016-08-17 12:20
     ended_on: 2016-08-17 14:47
+    
+file: 
+  name: result/mouse_192.bam
+  generatedBy: dna_sequenced
+```
 
-relationships:
-  - type: generatedBy
-    activity: dna_sequenced
-    file: result/mouse_192.bam
+Example Activity: Running fastqc on result/mouse_192.bam file creating result/fastqc_report.html
+```
+activities:
+  - name: fastqc
+    description: Running fastqc on...
+    started_on: 2016-08-17 12:20
+    ended_on: 2016-08-17 14:47
+    
+files:
+  - name: result/mouse_192.bam
+    usedBy: fastqc
+  - name: result/fastqc_report.html
+    generatedBy: fastqc
+    derivedFrom: result/mouse_192.bam
 ```
 
