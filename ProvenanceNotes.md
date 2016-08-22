@@ -50,7 +50,7 @@ files:
     derivedFrom: result/mouse_192.bam
 ```
 
-__The idea is that these example provenance files could be included with an upload or applied after the fact. This is subject to change when I get around to implementing this.__
+__The idea is that these example provenance files could be included with an upload or applied after the fact. This is subject to change before provenance is implemented in DukeDSClient.__
 
 
 ## Inferred Provenance
