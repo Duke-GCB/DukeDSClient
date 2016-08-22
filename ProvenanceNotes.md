@@ -50,6 +50,8 @@ files:
     derivedFrom: result/mouse_192.bam
 ```
 
+__The idea is that these example provenance files could be included with an upload or applied after the fact. This is subject to change when I get around to implementing this.__
+
 
 ## Inferred Provenance
 DukeDS can infer some relationships between the users, tools(like ddsclient), projects, and files.
