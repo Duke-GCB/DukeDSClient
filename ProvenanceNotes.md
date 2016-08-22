@@ -16,6 +16,8 @@ Activities have three relationships with files that can be recorded:
 There is one file to file relationship possible:
 * One file can be derived from another.
 
+__Examples to illustrate the ideas. (NOT the final file format).__
+
 Example Activity: DNA Sequenced creating one result/mouse_192.bam file.
 
 Here is an example of a possible file format that could be included in an upload.
@@ -47,6 +49,7 @@ files:
     generatedBy: fastqc
     derivedFrom: result/mouse_192.bam
 ```
+
 
 ## Inferred Provenance
 DukeDS can infer some relationships between the users, tools(like ddsclient), projects, and files.
