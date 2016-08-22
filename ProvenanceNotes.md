@@ -1,7 +1,7 @@
 #Provenance within the DukeDS 
 _work in progress..._
 
-
+## Manual Provenance
 Provenance with DukeDS allows users to create activites and specify relationships among activities and files.
 
 For our purposes an activity is a process that creates or modifies files.
@@ -22,7 +22,7 @@ Here is an example of a possible file format that could be included in an upload
 ```
 activities:
   - name: dna_sequenced
-    description: DNA sequenced on Minion...
+    description: DNA sequenced on MinION...
     started_on: 2016-08-17 12:20
     ended_on: 2016-08-17 14:47
     
@@ -47,4 +47,11 @@ files:
     generatedBy: fastqc
     derivedFrom: result/mouse_192.bam
 ```
+
+## Inferred Provenance
+DukeDS can infer some relationships between the users, tools(like ddsclient), projects, and files.
+These are all based on who uploaded files for a project.
+<project> wasAssociatedWith <user>
+<fileVersion> wasAttributedTo <user>
+<fileVersion> wasAttributedTo ddsclient
 
