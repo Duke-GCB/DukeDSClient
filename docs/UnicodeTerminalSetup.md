@@ -19,7 +19,7 @@ _This is only necessary if you are unable to adjust your terminal settings at th
  
 If you run the following on Linux or OSX:
 ```
-export LANG=en_US.UTF-8
+export PYTHONIOENCODING=UTF-8
 ```
-it will temporary change your terminal encoding to UTF-8.
+it will temporary change your python encoding to UTF-8.
 
