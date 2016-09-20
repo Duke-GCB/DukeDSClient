@@ -28,11 +28,11 @@ class HandoverApi(object):
     API for sending messages to a service that will email the user we are sharing with.
     Service also gives user permission to access the project for handover mode.
     """
-    MAIL_DRAFT_DESTINATION = '/drafts/'
-    HANDOVER_DESTINATION = '/handovers/'
+    SHARE_DESTINATION = '/drafts/'
+    DELIVER_DESTINATION = '/handovers/'
     DEST_TO_NAME = {
-        MAIL_DRAFT_DESTINATION: "Mail draft",
-        HANDOVER_DESTINATION: "Handover"
+        SHARE_DESTINATION: "Share",
+        DELIVER_DESTINATION: "Delivery"
     }
 
     def __init__(self, url, user_key):
@@ -88,7 +88,7 @@ class HandoverApi(object):
     def send_item(self, destination, item_id, force_send):
         """
         Run send method for item_id at destination.
-        :param destination: str which type of handover are we doing (MAIL_DRAFT_DESTINATION or HANDOVER_DESTINATION)
+        :param destination: str which type of handover are we doing (SHARE_DESTINATION or DELIVER_DESTINATION)
         :param item_id: str handover service id representing the item we want to send
         :param force_send: bool it's ok to email the item again
         :return: requests.Response containing the successful result
@@ -112,12 +112,12 @@ class HandoverApi(object):
 
 class HandoverItem(object):
     """
-    Contains data for processing either a mail draft or handover.
+    Contains data for processing either share or deliver.
     """
     def __init__(self, destination, from_user_id, to_user_id, project_id, project_name, auth_role):
         """
         Save data for use with send method.
-        :param destination: str type of message we are sending(MAIL_DRAFT_DESTINATION or HANDOVER_DESTINATION)
+        :param destination: str type of message we are sending(SHARE_DESTINATION or DELIVER_DESTINATION)
         :param from_user_id: str uuid(duke-data-service) of the user who is sending the handover
         :param to_user_id: str uuid(duke-data-service) of the user is receiving the email/handover
         :param project_id: str uuid(duke-data-service) of project we are sharing
@@ -191,17 +191,17 @@ class ProjectHandover(object):
         self.remote_store = remote_store
         self.print_func = print_func
 
-    def mail_draft(self, project_name, to_user, force_send, auth_role):
+    def share(self, project_name, to_user, force_send, auth_role):
         """
-        Send mail draft and give user read only access to the project.
+        Send mail and give user specified access to the project.
         :param project_name: str name of the project to share
         :param to_user: RemoteUser user to receive email/access
-        :param auth_role: str project role eg 'project_admin'
+        :param auth_role: str project role eg 'project_admin' to give to the user
         :return: str email we sent the draft to
         """
         project = self.fetch_remote_project(project_name, must_exist=True)
         self.set_user_project_permission(project, to_user, auth_role)
-        return self._share_project(HandoverApi.MAIL_DRAFT_DESTINATION, project, to_user, force_send, auth_role)
+        return self._share_project(HandoverApi.SHARE_DESTINATION, project, to_user, force_send, auth_role)
 
     def fetch_remote_project(self, project_name, must_exist=False):
         """
@@ -221,13 +221,14 @@ class ProjectHandover(object):
         """
         self.remote_store.set_user_project_permission(project, user, auth_role)
 
-    def handover(self, project_name, new_project_name, to_user, force_send, path_filter):
+    def deliver(self, project_name, new_project_name, to_user, force_send, path_filter):
         """
         Remove access to project_name for to_user, copy to new_project_name if not None,
         send message to service to email user so they can have access.
         :param project_name: str name of the pre-existing project
         :param new_project_name: str name of non-existing project to copy project_name to, if None we don't copy
         :param to_user: RemoteUser user we are handing over the project to
+        :param force_send: boolean enables resending of email for existing projects
         :param path_filter: PathFilter: filters what files are shared
         :return: str email we sent handover to
         """
@@ -235,7 +236,7 @@ class ProjectHandover(object):
         self.remove_user_permission(project, to_user)
         if new_project_name:
             project = self._copy_project(project_name, new_project_name, path_filter)
-        return self._share_project(HandoverApi.HANDOVER_DESTINATION, project, to_user, force_send)
+        return self._share_project(HandoverApi.DELIVER_DESTINATION, project, to_user, force_send)
 
     def remove_user_permission(self, project, user):
         """
@@ -248,7 +249,7 @@ class ProjectHandover(object):
     def _share_project(self, destination, project, to_user, force_send, auth_role=''):
         """
         Send message to remove service to email/share project with to_user.
-        :param destination: str which type of sharing we are doing (MAIL_DRAFT_DESTINATION or HANDOVER_DESTINATION)
+        :param destination: str which type of sharing we are doing (SHARE_DESTINATION or DELIVER_DESTINATION)
         :param project: RemoteProject project we are sharing
         :param to_user: RemoteUser user we are sharing with
         :param auth_role: str project role eg 'project_admin' email is customized based on this setting.

@@ -45,7 +45,7 @@ class DDSClient(object):
         parser.register_remove_user_command(self._setup_run_command(RemoveUserCommand))
         parser.register_download_command(self._setup_run_command(DownloadCommand))
         parser.register_share_command(self._setup_run_command(ShareCommand))
-        parser.register_deliver_command(self._setup_run_command(HandoverCommand))
+        parser.register_deliver_command(self._setup_run_command(DeliverCommand))
         parser.register_delete_command(self._setup_run_command(DeleteCommand))
         parser.register_list_auth_roles_command(self._setup_run_command(ListAuthRolesCommand))
         return parser
@@ -184,7 +184,7 @@ class RemoveUserCommand(object):
 
 class ShareCommand(object):
     """
-    Gives user permission and send email to that user.
+    Gives user project level permission and sends an email to that user.
     """
     def __init__(self, config):
         """
@@ -192,7 +192,7 @@ class ShareCommand(object):
         :param config: Config global configuration for use with this command.
         """
         self.remote_store = RemoteStore(config)
-        self.project_handover = ProjectHandover(config, self.remote_store, print_func=print)
+        self.service = ProjectHandover(config, self.remote_store, print_func=print)
 
     def run(self, args):
         """
@@ -206,7 +206,7 @@ class ShareCommand(object):
         auth_role = args.auth_role          # authorization role(project permissions) to give to the user
         to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
         try:
-            dest_email = self.project_handover.mail_draft(project_name, to_user, force_send, auth_role)
+            dest_email = self.service.share(project_name, to_user, force_send, auth_role)
             print("Email draft sent to " + dest_email)
         except HandoverError as ex:
             if ex.warning:
@@ -225,7 +225,7 @@ class DeliverCommand(object):
         :param config: Config global configuration for use with this command.
         """
         self.remote_store = RemoteStore(config)
-        self.project_handover = ProjectHandover(config, self.remote_store, print_func=print)
+        self.service = ProjectHandover(config, self.remote_store, print_func=print)
 
     def run(self, args):
         """
@@ -245,7 +245,7 @@ class DeliverCommand(object):
         to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
-            dest_email = self.project_handover.handover(project_name, new_project_name, to_user, force_send, path_filter)
+            dest_email = self.service.deliver(project_name, new_project_name, to_user, force_send, path_filter)
             print("Delivery message sent to " + dest_email)
         except HandoverError as ex:
             if ex.warning:

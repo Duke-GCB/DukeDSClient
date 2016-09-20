@@ -152,6 +152,7 @@ def _add_auth_role_arg(arg_parser, default_permissions):
     """
     Adds optional auth_role parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
+    :param default_permissions: default value to use for this argument
     """
     help_text = "Specifies which project permissions to give to the user. Example: 'project_admin'. "
     help_text += "See command list_auth_roles for AuthRole values."
