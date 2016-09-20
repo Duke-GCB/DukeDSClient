@@ -148,7 +148,7 @@ def add_email_arg(arg_parser):
                                  " You must specify either --user or this flag.")
 
 
-def _add_auth_role_arg(arg_parser):
+def _add_auth_role_arg(arg_parser, default_permissions):
     """
     Adds optional auth_role parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
@@ -160,7 +160,7 @@ def _add_auth_role_arg(arg_parser):
                             type=to_unicode,
                             dest='auth_role',
                             help=help_text,
-                            default='project_admin')
+                            default=default_permissions)
 
 
 def _add_copy_project_arg(arg_parser):
@@ -169,13 +169,13 @@ def _add_copy_project_arg(arg_parser):
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
     arg_parser.add_argument("--skip_copy_project",
-                            help="Should we just send the handover email and skip copying the project.",
+                            help="Should we just send the deliver email and skip copying the project.",
                             action='store_true',
                             default=False,
                             dest='skip_copy_project')
 
 
-def _add_resend_arg(arg_parser, type_str):
+def _add_resend_arg(arg_parser, resend_help):
     """
     Adds resend parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
@@ -185,7 +185,7 @@ def _add_resend_arg(arg_parser, type_str):
                             action='store_true',
                             default=False,
                             dest='resend',
-                            help="Resend {}. ".format(type_str))
+                            help=resend_help)
 
 
 def _add_force_arg(arg_parser, help_text):
@@ -265,7 +265,7 @@ class CommandParser(object):
         user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
-        _add_auth_role_arg(add_user_parser)
+        _add_auth_role_arg(add_user_parser, default_permissions='project_admin')
         add_user_parser.set_defaults(func=add_user_func)
 
     def register_remove_user_command(self, remove_user_func):
@@ -295,41 +295,41 @@ class CommandParser(object):
         _add_exclude_arg(include_or_exclude)
         download_parser.set_defaults(func=download_func)
 
-    def register_mail_draft_command(self, mail_draft_func):
+    def register_share_command(self, share_func):
         """
-        Add 'mail_draft' command for adding view only project permissions and sending email via another service.
-        :param mail_draft_func: function to run when user choses this option
+        Add 'share' command for adding view only project permissions and sending email via another service.
+        :param share_func: function to run when user choses this option
         """
-        description = "Send email about draft project being ready and give user view only permissions."
-        mail_draft_parser = self.subparsers.add_parser('mail_draft', description=description)
-        add_project_name_arg(mail_draft_parser)
-        user_or_email = mail_draft_parser.add_mutually_exclusive_group(required=True)
+        description = "Share a project with another user with specified permissions. " \
+                      "If not specified this command gives user download permissions."
+        share_parser = self.subparsers.add_parser('share', description=description)
+        add_project_name_arg(share_parser)
+        user_or_email = share_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
-        _add_resend_arg(mail_draft_parser, "email draft")
-        mail_draft_parser.set_defaults(func=mail_draft_func)
+        _add_auth_role_arg(share_parser, default_permissions='file_downloader')
+        _add_resend_arg(share_parser, "Resend share")
+        share_parser.set_defaults(func=share_func)
 
-    def register_handover_command(self, handover_func):
+    def register_deliver_command(self, deliver_func):
         """
-        Add 'handover' command for removing project permissions, possibly copying the project,
-        and sending email via another service that will give the user access once they agree.
-        :param handover_func: function to run when user choses this option
+        Add 'deliver' command for transferring a project to another user.,
+        :param deliver_func: function to run when user choses this option
         """
-        description = "Initiate handover of a project to another user. Removes other user's current permissions. " \
-                      "Makes a copy of the project. Send message to handover server to send email and allow " \
+        description = "Initiate delivery of a project to another user. Removes other user's current permissions. " \
+                      "Makes a copy of the project. Send message to handover service to send email and allow " \
                       "access to the copy of the project once user acknowledges receiving the data."
-        handover_parser = self.subparsers.add_parser('handover', description=description)
-        add_project_name_arg(handover_parser)
-        user_or_email = handover_parser.add_mutually_exclusive_group(required=True)
+        deliver_parser = self.subparsers.add_parser('deliver', description=description)
+        add_project_name_arg(deliver_parser)
+        user_or_email = deliver_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
-        _add_copy_project_arg(handover_parser)
-        _add_resend_arg(handover_parser, "handover")
-        include_or_exclude = handover_parser.add_mutually_exclusive_group(required=False)
+        _add_copy_project_arg(deliver_parser)
+        _add_resend_arg(deliver_parser, "Resend delivery")
+        include_or_exclude = deliver_parser.add_mutually_exclusive_group(required=False)
         _add_include_arg(include_or_exclude)
         _add_exclude_arg(include_or_exclude)
-
-        handover_parser.set_defaults(func=handover_func)
+        deliver_parser.set_defaults(func=deliver_func)
 
     def register_list_command(self, list_func):
         """

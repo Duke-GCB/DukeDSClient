@@ -79,7 +79,7 @@ class HandoverApi(object):
             'project_id': handover_item.project_id,
             'from_user_id': handover_item.from_user_id,
             'to_user_id': handover_item.to_user_id,
-
+            'role': handover_item.auth_role,
         })
         resp = requests.post(self.make_url(handover_item.destination), headers=self.json_headers, data=data)
         self.check_response(resp)
@@ -114,7 +114,7 @@ class HandoverItem(object):
     """
     Contains data for processing either a mail draft or handover.
     """
-    def __init__(self, destination, from_user_id, to_user_id, project_id, project_name):
+    def __init__(self, destination, from_user_id, to_user_id, project_id, project_name, auth_role):
         """
         Save data for use with send method.
         :param destination: str type of message we are sending(MAIL_DRAFT_DESTINATION or HANDOVER_DESTINATION)
@@ -122,12 +122,14 @@ class HandoverItem(object):
         :param to_user_id: str uuid(duke-data-service) of the user is receiving the email/handover
         :param project_id: str uuid(duke-data-service) of project we are sharing
         :param project_name: str name of the project (sent for debugging purposes)
+        :param auth_role: str authorization role to given to the user (determines which email to send)
         """
         self.destination = destination
         self.from_user_id = from_user_id
         self.to_user_id = to_user_id
         self.project_id = project_id
         self.project_name = project_name
+        self.auth_role = auth_role
 
     def send(self, handover_api, force_send):
         """
@@ -189,16 +191,17 @@ class ProjectHandover(object):
         self.remote_store = remote_store
         self.print_func = print_func
 
-    def mail_draft(self, project_name, to_user, force_send):
+    def mail_draft(self, project_name, to_user, force_send, auth_role):
         """
         Send mail draft and give user read only access to the project.
         :param project_name: str name of the project to share
         :param to_user: RemoteUser user to receive email/access
+        :param auth_role: str project role eg 'project_admin'
         :return: str email we sent the draft to
         """
         project = self.fetch_remote_project(project_name, must_exist=True)
-        self.give_user_read_only_access(project, to_user)
-        return self._share_project(HandoverApi.MAIL_DRAFT_DESTINATION, project, to_user, force_send)
+        self.set_user_project_permission(project, to_user, auth_role)
+        return self._share_project(HandoverApi.MAIL_DRAFT_DESTINATION, project, to_user, force_send, auth_role)
 
     def fetch_remote_project(self, project_name, must_exist=False):
         """
@@ -209,13 +212,14 @@ class ProjectHandover(object):
         """
         return self.remote_store.fetch_remote_project(project_name, must_exist=must_exist)
 
-    def give_user_read_only_access(self, project, user):
+    def set_user_project_permission(self, project, user, auth_role):
         """
-        Give user read only access to project.
+        Give user access permissions for a project.
         :param project: RemoteProject project to update permissions on
         :param user: RemoteUser user to receive permissions
+        :param auth_role: str project role eg 'project_admin'
         """
-        self.remote_store.set_user_project_permission(project, user, DRAFT_USER_ACCESS_ROLE)
+        self.remote_store.set_user_project_permission(project, user, auth_role)
 
     def handover(self, project_name, new_project_name, to_user, force_send, path_filter):
         """
@@ -241,12 +245,13 @@ class ProjectHandover(object):
         """
         self.remote_store.revoke_user_project_permission(project, user)
 
-    def _share_project(self, destination, project, to_user, force_send):
+    def _share_project(self, destination, project, to_user, force_send, auth_role=''):
         """
         Send message to remove service to email/share project with to_user.
         :param destination: str which type of sharing we are doing (MAIL_DRAFT_DESTINATION or HANDOVER_DESTINATION)
         :param project: RemoteProject project we are sharing
         :param to_user: RemoteUser user we are sharing with
+        :param auth_role: str project role eg 'project_admin' email is customized based on this setting.
         :return: the email the user should receive a message on soon
         """
         from_user = self.remote_store.get_current_user()
@@ -254,7 +259,8 @@ class ProjectHandover(object):
                                      from_user_id=from_user.id,
                                      to_user_id=to_user.id,
                                      project_id=project.id,
-                                     project_name=project.name)
+                                     project_name=project.name,
+                                     auth_role=auth_role)
         sent = handover_item.send(self.handover_api, force_send)
         return to_user.email
 

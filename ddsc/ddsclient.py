@@ -44,8 +44,8 @@ class DDSClient(object):
         parser.register_add_user_command(self._setup_run_command(AddUserCommand))
         parser.register_remove_user_command(self._setup_run_command(RemoveUserCommand))
         parser.register_download_command(self._setup_run_command(DownloadCommand))
-        parser.register_mail_draft_command(self._setup_run_command(MailDraftCommand))
-        parser.register_handover_command(self._setup_run_command(HandoverCommand))
+        parser.register_share_command(self._setup_run_command(ShareCommand))
+        parser.register_deliver_command(self._setup_run_command(HandoverCommand))
         parser.register_delete_command(self._setup_run_command(DeleteCommand))
         parser.register_list_auth_roles_command(self._setup_run_command(ListAuthRolesCommand))
         return parser
@@ -182,9 +182,9 @@ class RemoveUserCommand(object):
         print(u'Removed permissions from user {} for project {}.'.format(user.full_name, project_name))
 
 
-class MailDraftCommand(object):
+class ShareCommand(object):
     """
-    Send email that draft project is ready for a user.
+    Gives user permission and send email to that user.
     """
     def __init__(self, config):
         """
@@ -196,16 +196,17 @@ class MailDraftCommand(object):
 
     def run(self, args):
         """
-        Send email that draft project is ready for the user.
+        Gives user permission based on auth_role arg and sends email to that user.
         :param args Namespace arguments parsed from the command line
         """
         project_name = args.project_name    # name of the pre-existing project to set permissions on
         email = args.email                  # email of person to send email to
         username = args.username            # username of person to send email to, will be None if email is specified
         force_send = args.resend            # is this a resend so we should force sending
+        auth_role = args.auth_role          # authorization role(project permissions) to give to the user
         to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
         try:
-            dest_email = self.project_handover.mail_draft(project_name, to_user, force_send)
+            dest_email = self.project_handover.mail_draft(project_name, to_user, force_send, auth_role)
             print("Email draft sent to " + dest_email)
         except HandoverError as ex:
             if ex.warning:
@@ -214,9 +215,9 @@ class MailDraftCommand(object):
                 raise
 
 
-class HandoverCommand(object):
+class DeliverCommand(object):
     """
-    Send handover email that project is ready for a user to receive.
+    Transfers project to another user once they accept it via the Handover service.
     """
     def __init__(self, config):
         """
@@ -228,7 +229,9 @@ class HandoverCommand(object):
 
     def run(self, args):
         """
-        Send handover email that project is ready for a user to receive.
+        Begins process that will transfer the project to another user.
+        Send delivery message to handover service specifying a project and a user.
+        When user accepts delivery they receive access and we lose admin privileges.
         :param args Namespace arguments parsed from the command line
         """
         project_name = args.project_name    # name of the pre-existing project to set permissions on
@@ -243,7 +246,7 @@ class HandoverCommand(object):
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
             dest_email = self.project_handover.handover(project_name, new_project_name, to_user, force_send, path_filter)
-            print("Handover message sent to " + dest_email)
+            print("Delivery message sent to " + dest_email)
         except HandoverError as ex:
             if ex.warning:
                 print(ex.message)
