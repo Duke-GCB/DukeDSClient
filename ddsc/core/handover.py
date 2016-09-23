@@ -28,8 +28,8 @@ class HandoverApi(object):
     API for sending messages to a service that will email the user we are sharing with.
     Service also gives user permission to access the project for handover mode.
     """
-    SHARE_DESTINATION = '/drafts/'
-    DELIVER_DESTINATION = '/handovers/'
+    SHARE_DESTINATION = '/shares/'
+    DELIVER_DESTINATION = '/deliveries/'
     DEST_TO_NAME = {
         SHARE_DESTINATION: "Share",
         DELIVER_DESTINATION: "Delivery"
