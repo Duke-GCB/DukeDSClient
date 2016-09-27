@@ -13,7 +13,7 @@ GLOBAL_CONFIG_FILENAME = '/etc/ddsclient.conf'
 LOCAL_CONFIG_FILENAME = '~/.ddsclient'
 LOCAL_CONFIG_ENV = 'DDSCLIENT_CONF'
 DUKE_DATA_SERVICE_URL = 'https://api.dataservice.duke.edu/api/v1'
-HANDOVER_SERVICE_URL = 'https://itlab-1.gcb.duke.edu/api/v1'
+D4S2_SERVICE_URL = 'https://d4s2.gcb.duke.edu'
 MB_TO_BYTES = 1024 * 1024
 DDS_DEFAULT_UPLOAD_CHUNKS = 100 * MB_TO_BYTES
 AUTH_ENV_KEY_NAME = 'DUKE_DATA_SERVICE_AUTH'
@@ -44,7 +44,7 @@ class Config(object):
     UPLOAD_WORKERS = 'upload_workers'                  # how many worker processes used for uploading
     DOWNLOAD_WORKERS = 'download_workers'              # how many worker processes used for downloading
     DEBUG_MODE = 'debug'                               # show stack traces
-    HANDOVER_URL = 'handover_url'                      # url for use with the handover service
+    D4S2_URL = 'd4s2_url'                              # url for use with the D4S2 (share/deliver service)
     FILE_EXCLUDE_REGEX = 'file_exclude_regex'          # allows customization of which filenames will be uploaded
 
     def __init__(self):
@@ -145,12 +145,12 @@ class Config(object):
         return self.values.get(Config.DEBUG_MODE, False)
 
     @property
-    def handover_url(self):
+    def d4s2_url(self):
         """
-        Returns url for handover service or '' if not setup.
+        Returns url for D4S2 service or '' if not setup.
         :return: str url
         """
-        return self.values.get(Config.HANDOVER_URL, HANDOVER_SERVICE_URL)
+        return self.values.get(Config.D4S2_URL, D4S2_SERVICE_URL)
 
     @staticmethod
     def parse_bytes_str(value):

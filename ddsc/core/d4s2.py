@@ -1,4 +1,4 @@
-""" Handles sharing a project with another user either in draft or handover modes."""
+""" Handles sharing a project with another user either in share or deliver modes."""
 
 import json
 import os
@@ -8,10 +8,8 @@ import requests
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.download import ProjectDownload
 
-DRAFT_USER_ACCESS_ROLE = 'file_downloader'
 
-
-class HandoverError(Exception):
+class D4S2Error(Exception):
     def __init__(self, message, warning=False):
         """
         Setup error.
@@ -23,13 +21,13 @@ class HandoverError(Exception):
         self.warning = warning
 
 
-class HandoverApi(object):
+class D4S2Api(object):
     """
     API for sending messages to a service that will email the user we are sharing with.
-    Service also gives user permission to access the project for handover mode.
+    Service also gives user permission to access the project for deliver mode.
     """
     SHARE_DESTINATION = '/drafts/'
-    DELIVER_DESTINATION = '/handovers/'
+    DELIVER_DESTINATION = '/deliveries/'
     DEST_TO_NAME = {
         SHARE_DESTINATION: "Share",
         DELIVER_DESTINATION: "Delivery"
@@ -54,42 +52,42 @@ class HandoverApi(object):
         """
         return '{}{}{}'.format(self.url, destination, extra)
 
-    def get_existing_item(self, handover_item):
+    def get_existing_item(self, item):
         """
-        Lookup handover_item in remote service based on keys.
-        :param handover_item: HandoverItem data contains keys we will use for lookup.
+        Lookup item in remote service based on keys.
+        :param item: D4S2Item data contains keys we will use for lookup.
         :return: requests.Response containing the successful result
         """
         params = {
-            'project_id': handover_item.project_id,
-            'from_user_id': handover_item.from_user_id,
-            'to_user_id': handover_item.to_user_id,
+            'project_id': item.project_id,
+            'from_user_id': item.from_user_id,
+            'to_user_id': item.to_user_id,
         }
-        resp = requests.get(self.make_url(handover_item.destination), headers=self.json_headers, params=params)
+        resp = requests.get(self.make_url(item.destination), headers=self.json_headers, params=params)
         self.check_response(resp)
         return resp
 
-    def create_item(self, handover_item):
+    def create_item(self, item):
         """
-        Create a new item in handover service for handover_item at the specified destination.
-        :param handover_item: HandoverItem data to use for creating a handover item
+        Create a new item in D4S2 service for item at the specified destination.
+        :param item: D4S2Item data to use for creating a D4S2 item
         :return: requests.Response containing the successful result
         """
         data = json.dumps({
-            'project_id': handover_item.project_id,
-            'from_user_id': handover_item.from_user_id,
-            'to_user_id': handover_item.to_user_id,
-            'role': handover_item.auth_role,
+            'project_id': item.project_id,
+            'from_user_id': item.from_user_id,
+            'to_user_id': item.to_user_id,
+            'role': item.auth_role,
         })
-        resp = requests.post(self.make_url(handover_item.destination), headers=self.json_headers, data=data)
+        resp = requests.post(self.make_url(item.destination), headers=self.json_headers, data=data)
         self.check_response(resp)
         return resp
 
     def send_item(self, destination, item_id, force_send):
         """
         Run send method for item_id at destination.
-        :param destination: str which type of handover are we doing (SHARE_DESTINATION or DELIVER_DESTINATION)
-        :param item_id: str handover service id representing the item we want to send
+        :param destination: str which type of operation are we doing (SHARE_DESTINATION or DELIVER_DESTINATION)
+        :param item_id: str D4S2 service id representing the item we want to send
         :param force_send: bool it's ok to email the item again
         :return: requests.Response containing the successful result
         """
@@ -107,10 +105,10 @@ class HandoverApi(object):
         :param response: requests.Response response to be checked
         """
         if not 200 <= response.status_code < 300:
-            raise HandoverError("Request to {} failed with {}.".format(response.url, response.status_code))
+            raise D4S2Error("Request to {} failed with {}.".format(response.url, response.status_code))
 
 
-class HandoverItem(object):
+class D4S2Item(object):
     """
     Contains data for processing either share or deliver.
     """
@@ -118,8 +116,8 @@ class HandoverItem(object):
         """
         Save data for use with send method.
         :param destination: str type of message we are sending(SHARE_DESTINATION or DELIVER_DESTINATION)
-        :param from_user_id: str uuid(duke-data-service) of the user who is sending the handover
-        :param to_user_id: str uuid(duke-data-service) of the user is receiving the email/handover
+        :param from_user_id: str uuid(duke-data-service) of the user who is sending the share/delivery
+        :param to_user_id: str uuid(duke-data-service) of the user is receiving the share/delivery
         :param project_id: str uuid(duke-data-service) of project we are sharing
         :param project_name: str name of the project (sent for debugging purposes)
         :param auth_role: str authorization role to given to the user (determines which email to send)
@@ -131,31 +129,31 @@ class HandoverItem(object):
         self.project_name = project_name
         self.auth_role = auth_role
 
-    def send(self, handover_api, force_send):
+    def send(self, api, force_send):
         """
-        Send this item using handover_api.
-        :param handover_api: HandoverApi sends messages to DukeDSHandoverService
+        Send this item using api.
+        :param api: D4S2Api sends messages to D4S2
         :param force_send: bool should we send even if the item already exists
         """
-        item_id = self.get_existing_item_id(handover_api)
+        item_id = self.get_existing_item_id(api)
         if not item_id:
-            item_id = self.create_item_returning_id(handover_api)
-            handover_api.send_item(self.destination, item_id, force_send)
+            item_id = self.create_item_returning_id(api)
+            api.send_item(self.destination, item_id, force_send)
         else:
             if force_send:
-                handover_api.send_item(self.destination, item_id, force_send)
+                api.send_item(self.destination, item_id, force_send)
             else:
-                item_type = HandoverApi.DEST_TO_NAME.get(self.destination, "Item")
+                item_type = D4S2Api.DEST_TO_NAME.get(self.destination, "Item")
                 msg = "{} already sent. Run with --resend argument to resend."
-                raise HandoverError(msg.format(item_type), warning=True)
+                raise D4S2Error(msg.format(item_type), warning=True)
 
-    def get_existing_item_id(self, handover_api):
+    def get_existing_item_id(self, api):
         """
-        Lookup the id for this item via the handover service.
-        :param handover_api: HandoverApi object who communicates with handover server.
+        Lookup the id for this item via the D4S2 service.
+        :param api: D4S2Api object who communicates with D4S2 server.
         :return str id of this item or None if not found
         """
-        resp = handover_api.get_existing_item(self)
+        resp = api.get_existing_item(self)
         items = resp.json()
         num_items = len(items)
         if num_items == 0:
@@ -163,31 +161,31 @@ class HandoverItem(object):
         else:
             return items[0]['id']
 
-    def create_item_returning_id(self, handover_api):
+    def create_item_returning_id(self, api):
         """
-        Create this item in the handover service.
-        :param handover_api: HandoverApi object who communicates with handover server.
+        Create this item in the D4S2 service.
+        :param api: D4S2Api object who communicates with D4S2 server.
         :return str newly created id for this item
         """
-        resp = handover_api.create_item(self)
+        resp = api.create_item(self)
         item = resp.json()
         return item['id']
 
 
-class ProjectHandover(object):
+class D4S2Project(object):
     """
-    Transfers a project to another user via draft and final handover.
+    Transfers a project to another user via share and final delivery.
     Uses eternal API to send messages.
     """
     def __init__(self, config, remote_store, print_func):
         """
-        Setup for sharing a project and sending email on the handover service.
+        Setup for sharing a project and sending email on the D4S2 service.
         :param config: Config configuration specifying which remote_store to use.
         :param remote_store: RemoteStore remote store we will be sharing a project from
         :param print_func: func used to print output somewhere
         """
         self.config = config
-        self.handover_api = HandoverApi(config.handover_url, config.user_key)
+        self.api = D4S2Api(config.d4s2_url, config.user_key)
         self.remote_store = remote_store
         self.print_func = print_func
 
@@ -197,11 +195,11 @@ class ProjectHandover(object):
         :param project_name: str name of the project to share
         :param to_user: RemoteUser user to receive email/access
         :param auth_role: str project role eg 'project_admin' to give to the user
-        :return: str email we sent the draft to
+        :return: str email we share the project with
         """
         project = self.fetch_remote_project(project_name, must_exist=True)
         self.set_user_project_permission(project, to_user, auth_role)
-        return self._share_project(HandoverApi.SHARE_DESTINATION, project, to_user, force_send, auth_role)
+        return self._share_project(D4S2Api.SHARE_DESTINATION, project, to_user, force_send, auth_role)
 
     def fetch_remote_project(self, project_name, must_exist=False):
         """
@@ -230,13 +228,13 @@ class ProjectHandover(object):
         :param to_user: RemoteUser user we are handing over the project to
         :param force_send: boolean enables resending of email for existing projects
         :param path_filter: PathFilter: filters what files are shared
-        :return: str email we sent handover to
+        :return: str email we sent deliver to
         """
         project = self.fetch_remote_project(project_name, must_exist=True)
         self.remove_user_permission(project, to_user)
         if new_project_name:
             project = self._copy_project(project_name, new_project_name, path_filter)
-        return self._share_project(HandoverApi.DELIVER_DESTINATION, project, to_user, force_send)
+        return self._share_project(D4S2Api.DELIVER_DESTINATION, project, to_user, force_send)
 
     def remove_user_permission(self, project, user):
         """
@@ -256,13 +254,13 @@ class ProjectHandover(object):
         :return: the email the user should receive a message on soon
         """
         from_user = self.remote_store.get_current_user()
-        handover_item = HandoverItem(destination=destination,
-                                     from_user_id=from_user.id,
-                                     to_user_id=to_user.id,
-                                     project_id=project.id,
-                                     project_name=project.name,
-                                     auth_role=auth_role)
-        sent = handover_item.send(self.handover_api, force_send)
+        item = D4S2Item(destination=destination,
+                        from_user_id=from_user.id,
+                        to_user_id=to_user.id,
+                        project_id=project.id,
+                        project_name=project.name,
+                        auth_role=auth_role)
+        sent = item.send(self.api, force_send)
         return to_user.email
 
     def _copy_project(self, project_name, new_project_name, path_filter):

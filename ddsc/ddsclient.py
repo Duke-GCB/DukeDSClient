@@ -3,7 +3,7 @@ from __future__ import print_function
 import sys
 import datetime
 import pipes
-from ddsc.core.handover import ProjectHandover, HandoverError
+from ddsc.core.d4s2 import D4S2Project, D4S2Error
 from ddsc.core.remotestore import RemoteStore, RemoteAuthRole
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
@@ -192,7 +192,7 @@ class ShareCommand(object):
         :param config: Config global configuration for use with this command.
         """
         self.remote_store = RemoteStore(config)
-        self.service = ProjectHandover(config, self.remote_store, print_func=print)
+        self.service = D4S2Project(config, self.remote_store, print_func=print)
 
     def run(self, args):
         """
@@ -207,8 +207,8 @@ class ShareCommand(object):
         to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
         try:
             dest_email = self.service.share(project_name, to_user, force_send, auth_role)
-            print("Email draft sent to " + dest_email)
-        except HandoverError as ex:
+            print("Share email message sent to " + dest_email)
+        except D4S2Error as ex:
             if ex.warning:
                 print(ex.message)
             else:
@@ -217,7 +217,7 @@ class ShareCommand(object):
 
 class DeliverCommand(object):
     """
-    Transfers project to another user once they accept it via the Handover service.
+    Transfers project to another user once they accept it via the D4S2 service.
     """
     def __init__(self, config):
         """
@@ -225,18 +225,18 @@ class DeliverCommand(object):
         :param config: Config global configuration for use with this command.
         """
         self.remote_store = RemoteStore(config)
-        self.service = ProjectHandover(config, self.remote_store, print_func=print)
+        self.service = D4S2Project(config, self.remote_store, print_func=print)
 
     def run(self, args):
         """
         Begins process that will transfer the project to another user.
-        Send delivery message to handover service specifying a project and a user.
+        Send delivery message to D4S2 service specifying a project and a user.
         When user accepts delivery they receive access and we lose admin privileges.
         :param args Namespace arguments parsed from the command line
         """
         project_name = args.project_name    # name of the pre-existing project to set permissions on
-        email = args.email                  # email of person to handover to, will be None if username is specified
-        username = args.username            # username of person to handover to, will be None if email is specified
+        email = args.email                  # email of person to deliver to, will be None if username is specified
+        username = args.username            # username of person to deliver to, will be None if email is specified
         skip_copy_project = args.skip_copy_project  # should we skip the copy step
         force_send = args.resend            # is this a resend so we should force sending
         new_project_name = None
@@ -246,8 +246,8 @@ class DeliverCommand(object):
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
             dest_email = self.service.deliver(project_name, new_project_name, to_user, force_send, path_filter)
-            print("Delivery message sent to " + dest_email)
-        except HandoverError as ex:
+            print("Delivery email message sent to " + dest_email)
+        except D4S2Error as ex:
             if ex.warning:
                 print(ex.message)
             else:
