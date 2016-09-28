@@ -3,6 +3,7 @@ Objects to upload a number of chunks from a file to a remote store as part of an
 """
 
 import math
+import requests
 from multiprocessing import Process, Queue
 from ddsc.core.localstore import HashUtil
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
@@ -244,7 +245,7 @@ def upload_async(data_service_auth_data, config, upload_id,
     """
     auth = DataServiceAuth(config)
     auth.set_auth_data(data_service_auth_data)
-    data_service = DataServiceApi(auth, config.url)
+    data_service = DataServiceApi(auth, config.url, requests.Session())
     sender = ChunkSender(data_service, upload_id, filename, config.upload_bytes_per_chunk, index, num_chunks_to_send, progress_queue)
     error_msg = sender.send()
     if error_msg:
