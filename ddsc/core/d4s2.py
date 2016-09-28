@@ -8,6 +8,12 @@ import requests
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.download import ProjectDownload
 
+UNAUTHORIZED_MESSAGE = """
+ERROR: Your account does not have authorization for D4S2 (the deliver/share service).
+Please send an email to gcb-help@duke.edu titled 'D4S2 setup' so we can work with you to setup your account.
+
+"""
+
 
 class D4S2Error(Exception):
     def __init__(self, message, warning=False):
@@ -104,6 +110,8 @@ class D4S2Api(object):
         Raises error if the response isn't successful.
         :param response: requests.Response response to be checked
         """
+        if response.status_code == 401:
+            raise D4S2Error(UNAUTHORIZED_MESSAGE)
         if not 200 <= response.status_code < 300:
             raise D4S2Error("Request to {} failed with {}.".format(response.url, response.status_code))
 
