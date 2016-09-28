@@ -301,7 +301,8 @@ class CommandParser(object):
         Add 'share' command for adding view only project permissions and sending email via another service.
         :param share_func: function to run when user choses this option
         """
-        description = "Share a project with another user with specified permissions. " \
+        description = "Share a project with another user with specified  permissions. " \
+                      "Sends the other user an email message via D4S2 service. " \
                       "If not specified this command gives user download permissions."
         share_parser = self.subparsers.add_parser('share', description=description)
         add_project_name_arg(share_parser)
@@ -318,7 +319,7 @@ class CommandParser(object):
         :param deliver_func: function to run when user choses this option
         """
         description = "Initiate delivery of a project to another user. Removes other user's current permissions. " \
-                      "Makes a copy of the project. Send message to handover service to send email and allow " \
+                      "Makes a copy of the project. Send message to D4S2 service to send email and allow " \
                       "access to the copy of the project once user acknowledges receiving the data."
         deliver_parser = self.subparsers.add_parser('deliver', description=description)
         add_project_name_arg(deliver_parser)
