@@ -312,6 +312,7 @@ class DataServiceApi(object):
                       hash_value, hash_alg):
         """
         Post to /projects/{project_id}/uploads to create a uuid for uploading chunks.
+        NOTE: The optional hash_value and hash_alg parameters are being removed from the DukeDS API.
         :param project_id: str uuid of the project we are uploading data for.
         :param filename: str name of the file we want to upload
         :param content_type: str mime type of the file
@@ -351,13 +352,19 @@ class DataServiceApi(object):
         }
         return self._put("/uploads/" + upload_id + "/chunks", data)
 
-    def complete_upload(self, upload_id):
+    def complete_upload(self, upload_id, hash_value, hash_alg):
         """
         Mark the upload we created in create_upload complete.
         :param upload_id: str uuid of the upload to complete.
+        :param hash_value: str hash value of chunk
+        :param hash_alg: str algorithm used to create hash
         :return: requests.Response containing the successful result
         """
-        return self._put("/uploads/" + upload_id + "/complete", {})
+        data = {
+            "hash[value]": hash_value,
+            "hash[algorithm]": hash_alg
+        }
+        return self._put("/uploads/" + upload_id + "/complete", data, content_type=ContentType.form)
 
     def create_file(self, parent_kind, parent_id, upload_id):
         """

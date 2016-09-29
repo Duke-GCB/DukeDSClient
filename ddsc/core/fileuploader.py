@@ -55,7 +55,7 @@ class FileUploader(object):
         self.upload_id = resp.json()['id']
         chunk_processor = self._make_chunk_processor()
         chunk_processor.run()
-        self.data_service.complete_upload(self.upload_id)
+        self.data_service.complete_upload(self.upload_id, hash_value, hash_alg)
         if self.local_file.remote_id:
             file_id = self.local_file.remote_id
             self.data_service.update_file(file_id, self.upload_id)
