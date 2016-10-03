@@ -6,6 +6,7 @@ from ddsc.config import LOCAL_CONFIG_FILENAME
 
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 
+requests_session = requests.Session()
 
 class ContentType(object):
     """
@@ -409,9 +410,9 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         if http_verb == 'PUT':
-            return requests.put(host + url, data=chunk, headers=http_headers)
+            return requests_session.put(host + url, data=chunk, headers=http_headers)
         elif http_verb == 'POST':
-            return requests.post(host + url, data=chunk, headers=http_headers)
+            return requests_session.post(host + url, data=chunk, headers=http_headers)
         else:
             raise ValueError("Unsupported http_verb:" + http_verb)
 
@@ -425,7 +426,7 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         if http_verb == 'GET':
-            return requests.get(host + url, headers=http_headers, stream=True)
+            return requests_session.get(host + url, headers=http_headers, stream=True)
         else:
             raise ValueError("Unsupported http_verb:" + http_verb)
 

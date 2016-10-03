@@ -189,26 +189,28 @@ class LocalFile(object):
         :param path: path to a file on the filesystem
         """
         self.path = os.path.abspath(path)
-        self.name = os.path.basename(self.path)
-        self.size = os.path.getsize(self.path)
+        self.path_data = PathData(self.path)
+        self.name = self.path_data.name()
+        self.size = self.path_data.size()
+        self.mimetype = self.path_data.mime_type()
         self.need_to_send = True
         self.remote_id = ''
         self.is_file = True
-        (mimetype, encoding) = mimetypes.guess_type(self.path)
-        if not mimetype:
-            mimetype = 'application/octet-stream'
-        self.mimetype = mimetype
         self.kind = KindType.file_str
         self.sent_to_remote = False
 
-    def get_hashpair(self):
+    def get_path_data(self):
         """
-        Return a tuple of algorithm name(md5) and a hash of the entire file.
-        :return: (str, str) format (<algorithm>, <hashvalue>)
+        Return PathData created from internal path.
         """
-        hash = HashUtil()
-        hash.add_file(self.path)
-        return hash.hexdigest()
+        return self.path_data
+
+    def get_hash_value(self):
+        """
+        Return the current hash value for our path.
+        :return: str: hash value
+        """
+        return self.path_data.get_hash().value
 
     def update_remote_ids(self, remote_file):
         """
@@ -216,8 +218,8 @@ class LocalFile(object):
         :param remote_file: RemoteFile remote data pull remote_id from
         """
         self.remote_id = remote_file.id
-        (alg, file_hash) = self.get_hashpair()
-        if alg == remote_file.hash_alg and file_hash == remote_file.file_hash:
+        hash_data = self.path_data.get_hash()
+        if hash_data.matches(remote_file.hash_alg, remote_file.file_hash):
             self.need_to_send = False
 
     def set_remote_id_after_send(self, remote_id):
@@ -233,6 +235,105 @@ class LocalFile(object):
 
     def __str__(self):
         return 'file:{}'.format(self.name)
+
+
+class HashData(object):
+    """
+    Hash info about a file.
+    """
+    def __init__(self, hash_util):
+        """
+        Create hash info from hash_util with data already loaded.
+        :param hash_util: HashUtil with data populated
+        """
+        alg, value = hash_util.hexdigest()
+        self.alg = alg
+        self.value = value
+
+    def matches(self, hash_alg, hash_value):
+        """
+        Does our algorithm and hash value match the specified arguments.
+        :param hash_alg: str: hash algorithm
+        :param hash_value: str: hash value
+        :return: boolean
+        """
+        return self.alg == hash_alg and self.value == hash_value
+
+    @staticmethod
+    def create_from_path(path):
+        """
+        Hash the local file at path and return HashData with results.
+        :param path: str: path to file we will hash
+        :return: HashData: hash alg and value
+        """
+        hash_util = HashUtil()
+        hash_util.add_file(path)
+        return HashData(hash_util)
+
+    @staticmethod
+    def create_from_chunk(chunk):
+        """
+        Hash chunk and return HashData with results.
+        :param chunk: bytes/str: data to hash
+        :return: HashData: hash alg and value
+        """
+        hash_util = HashUtil()
+        hash_util.add_chunk(chunk)
+        return HashData(hash_util)
+
+
+class PathData(object):
+    """
+    Various information that can be derived from a filesystem path to a file.
+    """
+    def __init__(self, path):
+        """
+        Setup with path pointing to existing file.
+        :param path: str: path
+        """
+        self.path = path
+
+    def name(self):
+        """
+        Get the name portion of the file(remove directory).
+        :return: str: filename
+        """
+        return os.path.basename(self.path)
+
+    def mime_type(self):
+        """
+        Guess the mimetype of a file or 'application/octet-stream' if unable to guess.
+        :return: str: mimetype
+        """
+        mime_type, encoding = mimetypes.guess_type(self.path)
+        if not mime_type:
+            mime_type = 'application/octet-stream'
+        return mime_type
+
+    def size(self):
+        """
+        Return the file size.
+        :return: int: size of file
+        """
+        return os.path.getsize(self.path)
+
+    def get_hash(self):
+        """
+        Create HashData for the file
+        :return: HashData: alg and value of contents of the file
+        """
+        return HashData.create_from_path(self.path)
+
+    def read_whole_file(self):
+        """
+        Slurp the whole file into memory.
+        Should only be used with relatively small files.
+        :return: str: file contents
+        """
+        chunk = None
+        with open(self.path, 'rb') as infile:
+            chunk = infile.read()
+        return chunk
 
 
 class HashUtil(object):
