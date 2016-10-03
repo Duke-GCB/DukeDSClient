@@ -6,15 +6,20 @@ def no_op():
     pass
 
 
+class NoOpTask(object):
+    def __init__(self):
+        self.func = no_op
+
+
 class TestWaitingTaskList(TestCase):
     def task_ids(self, tasks):
         return [task.id for task in tasks]
 
     def test_get_next_tasks_two_tiers(self):
         task_list = WaitingTaskList()
-        task_list.add(Task(1, None, None, no_op))
-        task_list.add(Task(2, 1, None, no_op))
-        task_list.add(Task(3, 1, None, no_op))
+        task_list.add(Task(1, None, NoOpTask()))
+        task_list.add(Task(2, 1, NoOpTask()))
+        task_list.add(Task(3, 1, NoOpTask()))
 
         none_task_ids = self.task_ids(task_list.get_next_tasks(None))
         self.assertEqual([1], none_task_ids)
@@ -27,9 +32,9 @@ class TestWaitingTaskList(TestCase):
 
     def test_get_next_tasks_one_tiers(self):
         task_list = WaitingTaskList()
-        task_list.add(Task(1, None, None, no_op))
-        task_list.add(Task(2, None, None, no_op))
-        task_list.add(Task(3, None, None, no_op))
+        task_list.add(Task(1, None, NoOpTask()))
+        task_list.add(Task(2, None, NoOpTask()))
+        task_list.add(Task(3, None, NoOpTask()))
 
         none_task_ids = self.task_ids(task_list.get_next_tasks(None))
         self.assertEqual([1, 2, 3], none_task_ids)

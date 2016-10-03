@@ -2,7 +2,8 @@
 Allows user to build up a series of dependant parallel tasks.
 TaskRunner executes a list of Tasks in parallel based on how many processes can be run at once.
 Each Task consists of a unique_id, an task_id that it will wait for before running and a Command to execute.
-Each Command has methods be be run in the foreground before and after a background process.
+Each Command contains a function pointer to a global function to be run in the background and some
+setup/cleanup methods that will be run in the foreground.
 """
 
 from multiprocessing import Pool
@@ -17,18 +18,17 @@ class Task(object):
     a function that will be run in a background process.
     Command must have similar interface with before_run, create_context and after_run.
     """
-    def __init__(self, task_id, wait_for_task_id, command, runFunc):
+    def __init__(self, task_id, wait_for_task_id, command):
         """
         Setup task so it can be executed.
         :param task_id: int: unique id of this task
         :param wait_for_task_id: int: unique id of the task that this one is waiting for
-        :param command: object with foreground code to run to setup/teardown for runFunc
-        :param runFunc: function to be run (must be pickle-able)
+        :param command: object with foreground setup/teardown methods and background function
         """
         self.id = task_id
         self.wait_for_task_id = wait_for_task_id
         self.command = command
-        self.runFunc = command.runFunc
+        self.func = command.func
 
     def before_run(self, parent_task_result):
         """
@@ -209,7 +209,7 @@ class TaskExecutor(object):
         """
         task.before_run(parent_result)
         context = task.create_context()
-        pending_result = self.pool.apply_async(execute_task_async, (task.runFunc, task.id, context))
+        pending_result = self.pool.apply_async(execute_task_async, (task.func, task.id, context))
         self.pending_results.append(pending_result)
 
     def get_finished_results(self):
