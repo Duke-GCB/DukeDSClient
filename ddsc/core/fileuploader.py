@@ -46,7 +46,7 @@ class FileUploader(object):
         self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data)
         ParallelChunkProcessor(self).run()
         parent_data = ParentData(parent_kind, parent_id)
-        self.upload_operations.finish_upload(self.upload_id, hash_data, parent_data, self.local_file.remote_id)
+        return self.upload_operations.finish_upload(self.upload_id, hash_data, parent_data, self.local_file.remote_id)
 
 
 class ParentData(object):
@@ -234,6 +234,7 @@ def upload_async(data_service_auth_data, config, upload_id,
     data_service = DataServiceApi(auth, config.url)
     sender = ChunkSender(data_service, upload_id, filename, config.upload_bytes_per_chunk, index, num_chunks_to_send,
                          progress_queue)
+    return sender.send()
 
 
 class ChunkSender(object):
@@ -278,6 +279,7 @@ class ChunkSender(object):
                 self.progress_queue.processed(1)
                 chunk_num += 1
                 sent_chunks += 1
+        return None
 
     def _send_chunk(self, chunk, chunk_num):
         """

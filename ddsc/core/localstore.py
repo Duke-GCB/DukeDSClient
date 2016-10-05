@@ -337,6 +337,7 @@ class PathData(object):
 
 
 class HashUtil(object):
+    HASH_NAME = "md5"
     """
     Utility to create hash pair (name, hash) for a file or chunk.
     """
@@ -366,7 +367,7 @@ class HashUtil(object):
         return a hash pair
         :return: (str,str) -> (algorithm,value)
         """
-        return "md5", self.hash.hexdigest()
+        return HashUtil.HASH_NAME, self.hash.hexdigest()
 
 
 class FileFilter(object):
