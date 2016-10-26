@@ -9,7 +9,7 @@ SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/Get
 
 MISSING_INITIAL_SETUP_MSG = """Missing initial setup.
 You need to add agent_key and user_key to {}.
-Follow this guide: {}""".format(LOCAL_CONFIG_FILENAME, SETUP_GUIDE_URL)
+Follow this guide: {}\n""".format(LOCAL_CONFIG_FILENAME, SETUP_GUIDE_URL)
 
 SOFTWARE_AGENT_NOT_FOUND_MSG = """Your software agent was not found on the server.
 Perhaps you have the wrong URL. You can change it via the 'url' setting in {}.""".format(LOCAL_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME)
