@@ -127,7 +127,8 @@ class ProjectUploader(object):
         Upload files that were too large.
         """
         for local_file, parent in self.large_items:
-            self.process_large_file(local_file, parent)
+            if local_file.need_to_send:
+                self.process_large_file(local_file, parent)
 
     def process_large_file(self, local_file, parent):
         """
@@ -183,12 +184,13 @@ class SmallItemUploadTaskBuilder(object):
         If file is small add create small file command otherwise raise error.
         Large files shouldn't be passed to SmallItemUploadTaskBuilder.
         """
-        if item.size > self.settings.config.upload_bytes_per_chunk:
-            msg = "Programmer Error: Trying to upload large file as small item size:{} name:{}"
-            raise ValueError(msg.format(item.size, item.name))
-        else:
-            command = CreateSmallFileCommand(self.settings, item, parent)
-            self.task_runner_add(parent, item, command)
+        if item.need_to_send:
+            if item.size > self.settings.config.upload_bytes_per_chunk:
+                msg = "Programmer Error: Trying to upload large file as small item size:{} name:{}"
+                raise ValueError(msg.format(item.size, item.name))
+            else:
+                command = CreateSmallFileCommand(self.settings, item, parent)
+                self.task_runner_add(parent, item, command)
 
     def task_runner_add(self, parent, item, command):
         """
@@ -339,6 +341,7 @@ class CreateSmallFileCommand(object):
         Save uuid of file to our LocalFile
         :param remote_file_id: uuid of the file we just created/updated.
         """
+        self.settings.watcher.transferring_item(self.local_file, increment_amt=self.local_file.size)
         self.local_file.set_remote_id_after_send(remote_file_id)
 
 
