@@ -341,7 +341,7 @@ class CreateSmallFileCommand(object):
         Save uuid of file to our LocalFile
         :param remote_file_id: uuid of the file we just created/updated.
         """
-        self.settings.watcher.transferring_item(self.local_file, increment_amt=self.local_file.size)
+        self.settings.watcher.transferring_item(self.local_file)
         self.local_file.set_remote_id_after_send(remote_file_id)
 
 
