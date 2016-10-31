@@ -1,5 +1,5 @@
 """
-Allows user to build up a series of dependant parallel tasks.
+Allows user to build up a series of dependent parallel tasks.
 TaskRunner executes a list of Tasks in parallel based on how many processes can be run at once.
 Each Task consists of a unique_id, an task_id that it will wait for before running and a Command to execute.
 Each Command contains a function pointer to a global function to be run in the background and some
