@@ -3,7 +3,7 @@ from ddsc.core.localstore import LocalProject
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.util import ProgressPrinter, ProjectWalker
 from ddsc.core.fileuploader import FileUploader
-import re
+from ddsc.core.projectuploader import UploadSettings, ProjectUploader
 
 
 class ProjectUpload(object):
@@ -54,9 +54,10 @@ class ProjectUpload(object):
         Upload different items within local_project to remote store showing a progress bar.
         """
         progress_printer = ProgressPrinter(self.different_items.total_items(), msg_verb='sending')
-        sender = RemoteContentSender(self.config, self.remote_store.data_service, self.local_project.remote_id,
-                                     self.project_name, progress_printer)
-        sender.walk_project(self.local_project)
+        upload_settings = UploadSettings(self.config, self.remote_store.data_service, progress_printer,
+                                         self.project_name)
+        project_uploader = ProjectUploader(upload_settings)
+        project_uploader.run(self.local_project)
         progress_printer.finished()
 
     def get_differences_summary(self):
@@ -208,8 +209,7 @@ class UploadReport(object):
         :param parent: LocalFolder/LocalContent not used here
         """
         if item.sent_to_remote:
-            (alg, file_hash) = item.get_hashpair()
-            self._add_report_item(item.path, item.remote_id, item.size, file_hash)
+            self._add_report_item(item.path, item.remote_id, item.size, item.get_hash_value())
 
     def _report_header(self):
         return u"Upload Report for Project: '{}' {}\n".format(self.project_name, datetime.datetime.utcnow())
@@ -258,65 +258,3 @@ class ReportItem(object):
         remote_id_str = self.remote_id.ljust(max_remote_id)
         size_str = self.size.ljust(max_size)
         return u'{}    {}    {}    {}'.format(name_str, remote_id_str, size_str, self.file_hash)
-
-
-class RemoteContentSender(object):
-    """
-    Sends project, folder, and files to remote store.
-    """
-    def __init__(self, config, data_service, project_id, project_name, watcher):
-        """
-        Setup to allow remote sending.
-        :param config: ddsc.config.Config user configuration settings from YAML file/environment
-        :param data_service: DataServiceApi used to query/send data
-        :param project_id: str UUID of the project we want to add items too(can be '' for a new project)
-        :param project_name: str Name of the project to create if necessary
-        :param watcher: ProgressPrinter object we notify of items we are about to send
-        """
-        self.config = config
-        self.data_service = data_service
-        self.project_id = project_id
-        self.project_name = project_name
-        self.watcher = watcher
-
-    def walk_project(self, project):
-        """
-        For each project, folder, and files send to remote store if necessary.
-        :param project: LocalProject project who's contents we want to walk/send.
-        """
-        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
-        ProjectWalker.walk_project(project, self)
-
-    def visit_project(self, item):
-        """
-        Send a project to remote store if necessary.
-        :param item: LocalProject we should send
-        :param parent: object always None since a project doesn't have a parent
-        """
-        if not item.remote_id:
-            self.watcher.transferring_item(item)
-            result = self.data_service.create_project(self.project_name, self.project_name)
-            item.set_remote_id_after_send(result.json()['id'])
-            self.project_id = item.remote_id
-
-    def visit_folder(self, item, parent):
-        """
-        Send a folder to remote store if necessary.
-        :param item: LocalFolder we should send
-        :param parent: LocalContent/LocalFolder that contains this folder
-        """
-        if not item.remote_id:
-            self.watcher.transferring_item(item)
-            result = self.data_service.create_folder(item.name, parent.kind, parent.remote_id)
-            item.set_remote_id_after_send(result.json()['id'])
-
-    def visit_file(self, item, parent):
-        """
-        Send file to remote store if necessary.
-        :param item: LocalFile we should send
-        :param parent: LocalContent/LocalFolder that contains this file
-        """
-        if item.need_to_send:
-            file_content_sender = FileUploader(self.config, self.data_service, item, self.watcher)
-            remote_id = file_content_sender.upload(self.project_id, parent.kind, parent.remote_id)
-            item.set_remote_id_after_send(remote_id)

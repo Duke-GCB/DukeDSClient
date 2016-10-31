@@ -14,6 +14,7 @@ Follow this guide: {}\n""".format(LOCAL_CONFIG_FILENAME, SETUP_GUIDE_URL)
 SOFTWARE_AGENT_NOT_FOUND_MSG = """Your software agent was not found on the server.
 Perhaps you have the wrong URL. You can change it via the 'url' setting in {}.""".format(LOCAL_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME)
 
+requests_session = requests.Session()
 
 class ContentType(object):
     """
@@ -418,9 +419,9 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         if http_verb == 'PUT':
-            return requests.put(host + url, data=chunk, headers=http_headers)
+            return requests_session.put(host + url, data=chunk, headers=http_headers)
         elif http_verb == 'POST':
-            return requests.post(host + url, data=chunk, headers=http_headers)
+            return requests_session.post(host + url, data=chunk, headers=http_headers)
         else:
             raise ValueError("Unsupported http_verb:" + http_verb)
 
@@ -434,7 +435,7 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         if http_verb == 'GET':
-            return requests.get(host + url, headers=http_headers, stream=True)
+            return requests_session.get(host + url, headers=http_headers, stream=True)
         else:
             raise ValueError("Unsupported http_verb:" + http_verb)
 

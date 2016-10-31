@@ -5,7 +5,6 @@ from ddsc.core.remotestore import RemoteProject, RemoteFolder, RemoteFile, Remot
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.remotestore import RemoteAuthRole
 from ddsc.core.remotestore import RemoteProjectChildren
-from ddsc.core.util import KindType
 
 
 class TestProjectFolderFile(TestCase):
@@ -499,3 +498,51 @@ class TestRemoteProjectChildren(TestCase):
         self.assertEqual('99003d4d61ca0f5367e5d88a24db7812', tree[1].file_hash)
         self.assertEqual(file3_id, tree[2].id)
         self.assertEqual(None, tree[2].file_hash)
+
+
+class TestReadRemoteHash(TestCase):
+    def test_old_way(self):
+        """
+        Upload contains single "hash" property which contains "value" and "algorithm".
+        """
+        upload = {
+            "hash": {
+                "value": "aabbcc",
+                "algorithm": "md5"
+            }
+        }
+        hash_info = RemoteFile.get_hash_from_upload(upload)
+        self.assertEqual(hash_info["value"], "aabbcc")
+        self.assertEqual(hash_info["algorithm"], "md5")
+
+    def test_new_way_one_item(self):
+        """
+        Upload contains "hashes" array which contains a single element with properties "value" and "algorithm".
+        """
+        upload = {
+            "hashes": [{
+                "value": "aabbcc",
+                "algorithm": "md5"
+            }]
+        }
+        hash_info = RemoteFile.get_hash_from_upload(upload)
+        self.assertEqual(hash_info["value"], "aabbcc")
+        self.assertEqual(hash_info["algorithm"], "md5")
+
+    def test_new_way_two_item(self):
+        """
+        Upload contains "hashes" array which contains a single element with properties "value" and "algorithm".
+        """
+        upload = {
+            "hashes": [
+                {
+                    "value": "cheese",
+                    "algorithm": "cheese"
+                }, {
+                    "value": "aabbcc",
+                    "algorithm": "md5"
+                }]
+        }
+        hash_info = RemoteFile.get_hash_from_upload(upload)
+        self.assertEqual(hash_info["value"], "aabbcc")
+        self.assertEqual(hash_info["algorithm"], "md5")

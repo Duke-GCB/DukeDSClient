@@ -1,6 +1,7 @@
 import os
 from ddsc.core.ddsapi import DataServiceApi, DataServiceError, DataServiceAuth
 from ddsc.core.util import KindType
+from ddsc.core.localstore import HashUtil
 
 FETCH_ALL_USERS_PAGE_SIZE = 25
 DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
@@ -326,7 +327,7 @@ class RemoteFile(object):
         self.size = upload['size']
         self.file_hash = None
         self.hash_alg = None
-        hash_data = upload.get('hash')
+        hash_data = RemoteFile.get_hash_from_upload(upload)
         if hash_data:
             self.file_hash = hash_data.get('value')
             self.hash_alg = hash_data.get('algorithm')
@@ -350,6 +351,27 @@ class RemoteFile(object):
                 return json_data['upload']
             else:
                 raise ValueError("Invalid file json data, unable to find upload.")
+
+    @staticmethod
+    def get_hash_from_upload(upload, target_algorithm=HashUtil.HASH_NAME):
+        """
+        Find hash value in upload dictionary.
+        Older upload format stores a single hash in 'hash' property.
+        New upload format stores multiple under 'hashes' property for this one we look for a particular algorithm.
+        :param upload: dictionary: contains hash data in DukeDS upload format.
+        :param target_algorithm: str: name of the algorithm to look for if there are more than one hash
+        :return: dictionary of hash information, keys: "algorithm" and  "value"
+        """
+        hash_info = upload.get('hash')
+        if hash_info:
+            return hash_info
+        hashes_array = upload.get('hashes')
+        if hashes_array:
+            for hash_info in hashes_array:
+                algorithm = hash_info.get('algorithm')
+                if algorithm == target_algorithm:
+                    return hash_info
+        return None
 
     def __str__(self):
         return 'file: {} id:{} size:{}'.format(self.name, self.id, self.size)

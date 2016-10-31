@@ -4,9 +4,10 @@ Objects to upload a number of chunks from a file to a remote store as part of an
 
 import math
 from multiprocessing import Process, Queue
-from ddsc.core.localstore import HashUtil
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.util import ProgressQueue, wait_for_processes
+from ddsc.core.localstore import HashData
+
 
 class FileUploader(object):
     """
@@ -27,18 +28,10 @@ class FileUploader(object):
         """
         self.config = config
         self.data_service = data_service
+        self.upload_operations = FileUploadOperations(self.data_service)
         self.local_file = local_file
         self.upload_id = None
         self.watcher = watcher
-
-    def _make_chunk_processor(self):
-        """
-        Based on the passed in config determine if we should use parallel chunk processor or serial one.
-        """
-        if self.config.upload_workers:
-            if self.config.upload_workers > 1:
-                return ParallelChunkProcessor(self)
-        return SerialChunkProcessor(self)
 
     def upload(self, project_id, parent_kind, parent_id):
         """
@@ -48,24 +41,72 @@ class FileUploader(object):
         :param parent_id: str uuid of parent
         :return: str uuid of the newly uploaded file
         """
-        size = self.local_file.size
-        (hash_alg, hash_value) = self.local_file.get_hashpair()
-        name = self.local_file.name
-        resp = self.data_service.create_upload(project_id, name, self.local_file.mimetype, size, hash_value, hash_alg)
-        self.upload_id = resp.json()['id']
-        chunk_processor = self._make_chunk_processor()
-        chunk_processor.run()
-        self.data_service.complete_upload(self.upload_id, hash_value, hash_alg)
-        if self.local_file.remote_id:
-            file_id = self.local_file.remote_id
-            self.data_service.update_file(file_id, self.upload_id)
-            return file_id
-        else:
-            result = self.data_service.create_file(parent_kind, parent_id, self.upload_id)
-            return result.json()['id']
+        path_data = self.local_file.get_path_data()
+        hash_data = path_data.get_hash()
+        self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data)
+        ParallelChunkProcessor(self).run()
+        parent_data = ParentData(parent_kind, parent_id)
+        return self.upload_operations.finish_upload(self.upload_id, hash_data, parent_data, self.local_file.remote_id)
 
-    @staticmethod
-    def send_file_external(data_service, url_json, chunk):
+
+class ParentData(object):
+    """
+    Holds data about the parent of a file or folder.
+    """
+    def __init__(self, parent_kind, parent_id):
+        """
+        DukeDS info about a parent.
+        :param parent_kind: str: dds_folder/dds_file
+        :param parent_id: str: uuid of the parent
+        """
+        self.kind = parent_kind
+        self.id = parent_id
+
+
+class FileUploadOperations(object):
+    """
+    Data Service Upload file operations.
+    Wraps up upload process:
+    1) create upload
+    2) create url for part of file
+    3) upload part of file
+    4) complete upload then create new file or update existing file
+    """
+    def __init__(self, data_service):
+        """
+        Setup with specified data service we will communicate with.
+        :param data_service: DataServiceApi data service we are uploading the file to.
+        """
+        self.data_service = data_service
+
+    def create_upload(self, project_id, path_data, hash_data):
+        """
+        Create upload so we can send call further methods.
+        :param project_id: str: uuid of the project
+        :param path_data: PathData: holds file system data about the file we are uploading
+        :param hash_data: HashData: contains hash alg and value for the file we are uploading
+        :return: str: uuid for the upload
+        """
+        name = path_data.name()
+        mime_type = path_data.mime_type()
+        size = path_data.size()
+        resp = self.data_service.create_upload(project_id, name, mime_type, size, hash_data.value, hash_data.alg)
+        return resp.json()['id']
+
+    def create_file_chunk_url(self, upload_id, chunk_num, chunk):
+        """
+        Create a url for uploading a particular chunk to the datastore.
+        :param upload_id: str: uuid of the upload this chunk is for
+        :param chunk_num: int: where in the file does this chunk go
+        :param chunk: bytes: data we are going to upload
+        :return:
+        """
+        chunk_len = len(chunk)
+        hash_data = HashData.create_from_chunk(chunk)
+        resp = self.data_service.create_upload_url(upload_id, chunk_num, chunk_len, hash_data.value, hash_data.alg)
+        return resp.json()
+
+    def send_file_external(self, url_json, chunk):
         """
         Send chunk to external store specified in url_json.
         Raises ValueError on upload failure.
@@ -77,80 +118,26 @@ class FileUploader(object):
         host = url_json['host']
         url = url_json['url']
         http_headers = url_json['http_headers']
-        resp = data_service.send_external(http_verb, host, url, http_headers, chunk)
+        resp = self.data_service.send_external(http_verb, host, url, http_headers, chunk)
         if resp.status_code != 200 and resp.status_code != 201:
             raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code))
 
-    @staticmethod
-    def hash_chunk(chunk):
-        """Creates a hash from the bytes in chunk."""
-        hash = HashUtil()
-        hash.add_chunk(chunk)
-        return hash.hexdigest()
-
-
-class SerialChunkProcessor(object):
-    """
-    Uploads chunks one at a time without any additional processes.
-    """
-    def __init__(self, file_uploader):
+    def finish_upload(self, upload_id, hash_data, parent_data, remote_file_id):
         """
-        Send chunks in the file specified in file_uploader to the remote data service.
-        :param file_uploader: FileUploader contains all data we need to upload chunks of a file.
+        Complete the upload and create or update the file.
+        :param upload_id: str: uuid of the upload we are completing
+        :param hash_data: HashData: hash info about the file
+        :param parent_data: ParentData: info about the parent of this file
+        :param remote_file_id: str: uuid of this file if it already exists or None if it is a new file
+        :return: str: uuid of this file
         """
-        self.local_file = file_uploader.local_file
-        self.bytes_per_chunk = file_uploader.config.upload_bytes_per_chunk
-        self.data_service = file_uploader.data_service
-        self.watcher = file_uploader.watcher
-        self.upload_id = file_uploader.upload_id
-        self.chunk_num = 0
-
-    def run(self):
-        """
-        Sends contents of a local file to a remote data service.
-        """
-        processor = self.process_chunk
-        if self.local_file.size == 0:
-            chunk = ''
-            (chunk_hash_alg, chunk_hash_value) = FileUploader.hash_chunk(chunk)
-            self.process_chunk(chunk, chunk_hash_alg, chunk_hash_value)
+        self.data_service.complete_upload(upload_id, hash_data.value, hash_data.alg)
+        if remote_file_id:
+            self.data_service.update_file(remote_file_id, upload_id)
+            return remote_file_id
         else:
-            with open(self.local_file.path, 'rb') as infile:
-                number = 0
-                for chunk in SerialChunkProcessor.read_in_chunks(infile, self.bytes_per_chunk):
-                    (chunk_hash_alg, chunk_hash_value) = FileUploader.hash_chunk(chunk)
-                    self.process_chunk(chunk, chunk_hash_alg, chunk_hash_value)
-
-    def process_chunk(self, chunk, chunk_hash_alg, chunk_hash_value):
-        """
-        Creates 'upload' url and send bytes to that url.
-        Raises ValueError on upload failure.
-        :param chunk: bytes part of the file to send
-        :param chunk_hash_alg: str the algorithm used to hash chunk
-        :param chunk_hash_value: str the hash value of chunk
-        """
-        self.watcher.transferring_item(self.local_file)
-        resp = self.data_service.create_upload_url(self.upload_id, self.chunk_num, len(chunk),
-                                                   chunk_hash_value, chunk_hash_alg)
-        if resp.status_code == 200:
-            FileUploader.send_file_external(self.data_service, resp.json(), chunk)
-            self.chunk_num += 1
-        else:
-            raise ValueError("Failed to retrieve upload url status:" + str(resp.status_code))
-
-    @staticmethod
-    def read_in_chunks(infile, blocksize):
-        """
-        Generator to read chunks lazily.
-        :param infile: filehandle file to read from
-        :param blocksize: int size of blocks to read
-        """
-        """"""
-        while True:
-            data = infile.read(blocksize)
-            if not data:
-                break
-            yield data
+            result = self.data_service.create_file(parent_data.kind, parent_data.id, upload_id)
+            return result.json()['id']
 
 
 class ParallelChunkProcessor(object):
@@ -245,10 +232,9 @@ def upload_async(data_service_auth_data, config, upload_id,
     auth = DataServiceAuth(config)
     auth.set_auth_data(data_service_auth_data)
     data_service = DataServiceApi(auth, config.url)
-    sender = ChunkSender(data_service, upload_id, filename, config.upload_bytes_per_chunk, index, num_chunks_to_send, progress_queue)
-    error_msg = sender.send()
-    if error_msg:
-        progress_queue.error(error_msg)
+    sender = ChunkSender(data_service, upload_id, filename, config.upload_bytes_per_chunk, index, num_chunks_to_send,
+                         progress_queue)
+    return sender.send()
 
 
 class ChunkSender(object):
@@ -270,6 +256,7 @@ class ChunkSender(object):
         :param progress_queue: ProgressQueue queue we will send updates or errors to.
         """
         self.data_service = data_service
+        self.upload_operations = FileUploadOperations(self.data_service)
         self.upload_id = upload_id
         self.filename = filename
         self.chunk_size = chunk_size
@@ -288,9 +275,7 @@ class ChunkSender(object):
             infile.seek(self.index * self.chunk_size)
             while sent_chunks != self.num_chunks_to_send:
                 chunk = infile.read(self.chunk_size)
-                error_msg = self._send_chunk(chunk, chunk_num)
-                if error_msg:
-                    return error_msg
+                self._send_chunk(chunk, chunk_num)
                 self.progress_queue.processed(1)
                 chunk_num += 1
                 sent_chunks += 1
@@ -302,15 +287,6 @@ class ChunkSender(object):
         :param chunk: bytes data we are uploading
         :param chunk_num: int number associated with this chunk
         """
-        chunk_hash_alg, chunk_hash_value = FileUploader.hash_chunk(chunk)
-        resp = self.data_service.create_upload_url(self.upload_id, chunk_num, len(chunk),
-                                                   chunk_hash_value, chunk_hash_alg)
-        if resp.status_code == 200:
-            try:
-                FileUploader.send_file_external(self.data_service, resp.json(), chunk)
-                return None
-            except ValueError as err:
-                return str(err)
-        else:
-            return "Failed to retrieve upload url status:" + str(resp.status_code)
+        url_info = self.upload_operations.create_file_chunk_url(self.upload_id, chunk_num, chunk)
+        self.upload_operations.send_file_external(url_info, chunk)
 
