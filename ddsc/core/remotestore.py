@@ -58,6 +58,16 @@ class RemoteStore(object):
                 return RemoteProject(project)
         return None
 
+    def get_project_data_by_name(self, project_name):
+        response = self.data_service.get_projects().json()
+        for project in response['results']:
+            if project['name'] == project_name:
+                return project
+        return None
+
+    def get_children_for_project_id(self, project_id):
+        return self.data_service.get_project_children(project_id, '').json()
+
     def _add_project_children(self, project):
         """
         Add the rest of the project tree from the remote store to the project object.

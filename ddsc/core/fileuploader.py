@@ -6,7 +6,7 @@ import math
 from multiprocessing import Process, Queue
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.util import ProgressQueue, wait_for_processes
-from ddsc.core.localstore import HashData
+from ddsc.core.localstore import HashData, PathData
 
 
 class FileUploader(object):
@@ -18,7 +18,7 @@ class FileUploader(object):
     3) Sends the complete message to finalize the 'upload'
     4) Sends create_file message to remote store with the 'upload' id
     """
-    def __init__(self, config, data_service, local_file, watcher):
+    def __init__(self, config, data_service, local_file, watcher, project_db):
         """
         Setup for sending to remote store.
         :param config: ddsc.config.Config user configuration settings from YAML file/environment
@@ -32,6 +32,7 @@ class FileUploader(object):
         self.local_file = local_file
         self.upload_id = None
         self.watcher = watcher
+        self.project_db = project_db
 
     def upload(self, project_id, parent_kind, parent_id):
         """
@@ -41,12 +42,21 @@ class FileUploader(object):
         :param parent_id: str uuid of parent
         :return: str uuid of the newly uploaded file
         """
-        path_data = self.local_file.get_path_data()
+        path_data = PathData(self.local_file.local_path)
         hash_data = path_data.get_hash()
-        self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data)
+        mark_upload_complete = True
+        if self.local_file.upload_id:
+            self.upload_id = self.local_file.upload_id
+            if self.upload_operations.is_upload_complete(self.upload_id):
+                mark_upload_complete = False
+        else:
+            self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data)
+            self.local_file.upload_id = self.upload_id
+            self.project_db.commit_session()
         ParallelChunkProcessor(self).run()
         parent_data = ParentData(parent_kind, parent_id)
-        return self.upload_operations.finish_upload(self.upload_id, hash_data, parent_data, self.local_file.remote_id)
+        return self.upload_operations.finish_upload(self.upload_id, hash_data, parent_data,
+                                                    self.local_file.dds_id, mark_upload_complete)
 
 
 class ParentData(object):
@@ -93,6 +103,15 @@ class FileUploadOperations(object):
         resp = self.data_service.create_upload(project_id, name, mime_type, size, hash_data.value, hash_data.alg)
         return resp.json()['id']
 
+    def is_upload_complete(self, upload_id):
+        """
+        Fetch upload details and see if it has been completed
+        :param upload_id: str: uuid dds assigned to this upload
+        :return: boolean true if upload is complete
+        """
+        resp = self.data_service.get_upload(upload_id=upload_id)
+        return resp.json()['status']['completed_on'] != None
+
     def create_file_chunk_url(self, upload_id, chunk_num, chunk):
         """
         Create a url for uploading a particular chunk to the datastore.
@@ -122,16 +141,18 @@ class FileUploadOperations(object):
         if resp.status_code != 200 and resp.status_code != 201:
             raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code))
 
-    def finish_upload(self, upload_id, hash_data, parent_data, remote_file_id):
+    def finish_upload(self, upload_id, hash_data, parent_data, remote_file_id, mark_upload_complete):
         """
         Complete the upload and create or update the file.
         :param upload_id: str: uuid of the upload we are completing
         :param hash_data: HashData: hash info about the file
         :param parent_data: ParentData: info about the parent of this file
         :param remote_file_id: str: uuid of this file if it already exists or None if it is a new file
+        :param mark_upload_complete: boolean: do we need to mark the upload as complete
         :return: str: uuid of this file
         """
-        self.data_service.complete_upload(upload_id, hash_data.value, hash_data.alg)
+        if mark_upload_complete:
+            self.data_service.complete_upload(upload_id, hash_data.value, hash_data.alg)
         if remote_file_id:
             self.data_service.update_file(remote_file_id, upload_id)
             return remote_file_id
@@ -154,19 +175,28 @@ class ParallelChunkProcessor(object):
         self.upload_id = file_uploader.upload_id
         self.watcher = file_uploader.watcher
         self.local_file = file_uploader.local_file
+        self.project_db = file_uploader.project_db
 
     def run(self):
         """
         Sends contents of a local file to a remote data service.
+        :return boolean - True if we uploaded a chunk, False if all chunks were already uploaded
         """
         processes = []
         progress_queue = ProgressQueue(Queue())
         num_chunks = ParallelChunkProcessor.determine_num_chunks(self.config.upload_bytes_per_chunk,
-                                                                 self.local_file.size)
-        work_parcels = ParallelChunkProcessor.make_work_parcels(self.config.upload_workers, num_chunks)
-        for (index, num_items) in work_parcels:
-            processes.append(self.make_and_start_process(index, num_items, progress_queue))
-        wait_for_processes(processes, num_chunks, progress_queue, self.watcher, self.local_file)
+                                                                 self.local_file.file_size)
+        exclude_set = self.make_exclude_set()
+        work_parcels = ParallelChunkProcessor.make_work_parcels(self.config.upload_workers, num_chunks, exclude_set)
+        if work_parcels: #we may have uploaded all chunks but not created the file
+            for (index, num_items) in work_parcels:
+                processes.append(self.make_and_start_process(index, num_items, progress_queue))
+            wait_for_processes(processes, num_chunks, progress_queue, self.watcher, self.local_file, self.project_db)
+            return True
+        return False
+
+    def make_exclude_set(self):
+        return set([chunk.chunk_num for chunk in self.local_file.chunks])
 
     @staticmethod
     def determine_num_chunks(chunk_size, file_size):
@@ -179,7 +209,7 @@ class ParallelChunkProcessor(object):
         return int(math.ceil(float(file_size) / float(chunk_size)))
 
     @staticmethod
-    def make_work_parcels(upload_workers, num_chunks):
+    def make_work_parcels(upload_workers, num_chunks, exclude_set):
         """
         Make groups so we can split up num_chunks into similar sizes.
         Rounds up trying to keep work evenly split so sometimes it will not use all workers.
@@ -190,18 +220,8 @@ class ParallelChunkProcessor(object):
         :return [(index, num_items)] -  an array of tuples where array element will be in a separate process.
         """
         chunks_per_worker = int(math.ceil(float(num_chunks) / float(upload_workers)))
-        return ParallelChunkProcessor.divide_work(range(num_chunks), chunks_per_worker)
-
-    @staticmethod
-    def divide_work(list_of_indexes, batch_size):
-        """
-        Given a sequential list of indexes split them into num_parts.
-        :param list_of_indexes: [int] list of indexes to be divided up
-        :param batch_size: number of items to put in batch(not exact obviously)
-        :return: [(int,int)] list of (index, num_items) to be processed
-        """
-        grouped_indexes = [list_of_indexes[i:i + batch_size] for i in range(0, len(list_of_indexes), batch_size)]
-        return [(batch[0], len(batch)) for batch in grouped_indexes]
+        chunk_grouper = ChunkGrouper(num_chunks=num_chunks, batch_size=chunks_per_worker, exclude_set=exclude_set)
+        return chunk_grouper.make_range_tuples()
 
     def make_and_start_process(self, index, num_items, progress_queue):
         """
@@ -212,13 +232,13 @@ class ParallelChunkProcessor(object):
         """
         process = Process(target=upload_async,
                        args=(self.data_service.auth.get_auth_data(), self.config, self.upload_id,
-                             self.local_file.path, index, num_items, progress_queue))
+                             self.local_file.local_path, index, num_items, progress_queue, self.local_file.id))
         process.start()
         return process
 
 
 def upload_async(data_service_auth_data, config, upload_id,
-                 filename, index, num_chunks_to_send, progress_queue):
+                 filename, index, num_chunks_to_send, progress_queue, transfer_file_id):
     """
     Method run in another process called from ParallelChunkProcessor.make_and_start_process.
     :param data_service_auth_data: tuple of auth data for rebuilding DataServiceAuth
@@ -233,8 +253,51 @@ def upload_async(data_service_auth_data, config, upload_id,
     auth.set_auth_data(data_service_auth_data)
     data_service = DataServiceApi(auth, config.url)
     sender = ChunkSender(data_service, upload_id, filename, config.upload_bytes_per_chunk, index, num_chunks_to_send,
-                         progress_queue)
+                         progress_queue, transfer_file_id)
     return sender.send()
+
+
+class ChunkGrouper(object):
+    """
+    Groups chunks that can be uploaded in parallel.
+    """
+    def __init__(self, num_chunks, batch_size, exclude_set):
+        """
+        Setup data for use with make_range_tuples.
+        :param num_chunks: int: number of chunks we are trying to split up
+        :param batch_size: int: ideal batch size
+        :param exclude_set: set: chunk 0-based indexes that we want to skip
+        """
+        self.num_chunks = num_chunks
+        self.batch_size = batch_size
+        self.exclude_set = exclude_set
+
+    def make_range_tuples(self):
+        index_groups = self._make_index_groups()
+        make_tuple = ChunkGrouper.range_tuple_from_index_group
+        return [make_tuple(index_group) for index_group in index_groups]
+
+    def _make_index_groups(self):
+        result = []
+        current = []
+        for chunk_idx in range(self.num_chunks):
+            excluding = chunk_idx in self.exclude_set
+            if len(current) == self.batch_size or excluding:
+                if current:
+                    result.append(current)
+                current = []
+            if excluding:
+                continue
+            current.append(chunk_idx)
+        if current:
+            result.append(current)
+        return result
+
+    @staticmethod
+    def range_tuple_from_index_group(index_group):
+        if not index_group:
+            raise ValueError("ProgrammerError: index_group can't be empty")
+        return index_group[0], len(index_group)
 
 
 class ChunkSender(object):
@@ -244,7 +307,8 @@ class ChunkSender(object):
     Uploads the bytes at that point in the file.
     Repeats last two steps for each chunk it is supposed to send.
     """
-    def __init__(self, data_service, upload_id, filename, chunk_size, index, num_chunks_to_send, progress_queue):
+    def __init__(self, data_service, upload_id, filename, chunk_size, index, num_chunks_to_send, progress_queue,
+                 transfer_file_id):
         """
         Sends num_chunks_to_send from filename at offset index*chunk_size.
         :param data_service: DataServiceApi remote service we will be uploading to
@@ -263,6 +327,7 @@ class ChunkSender(object):
         self.index = index
         self.num_chunks_to_send = num_chunks_to_send
         self.progress_queue = progress_queue
+        self.transfer_file_id = transfer_file_id
 
     def send(self):
         """
@@ -276,7 +341,7 @@ class ChunkSender(object):
             while sent_chunks != self.num_chunks_to_send:
                 chunk = infile.read(self.chunk_size)
                 self._send_chunk(chunk, chunk_num)
-                self.progress_queue.processed(1)
+                self.progress_queue.processed(1, self.transfer_file_id, chunk_num)
                 chunk_num += 1
                 sent_chunks += 1
         return None

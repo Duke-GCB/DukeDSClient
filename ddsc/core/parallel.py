@@ -51,6 +51,13 @@ class Task(object):
         """
         return self.command.after_run(results)
 
+    def is_serial(self):
+        """
+        Does this task need to be run serially in the main process after running the other tasks.
+        :return: boolean: true if is a serial task
+        """
+        return self.command.is_serial
+
 
 class WaitingTaskList(object):
     """
@@ -111,26 +118,19 @@ class TaskRunner(object):
         self.waiting_task_list.add(Task(task_id, parent_task_id, command))
         return task_id
 
-    def get_next_tasks(self, finished_task_id):
-        """
-        Get the next set of tasks for a finished_task_id
-        :param finished_task_id: int: task id of a task that finished
-        :return: [Task]: tasks that were waiting for the finished_task_id task to finish
-        """
-        return self.waiting_task_list.get_next_tasks(None)
-
     def run(self):
         """
         Runs all tasks in this runner on the executor.
         Blocks until all tasks have been completed.
         :return:
         """
-        for task in self.get_next_tasks(None):
+        for task in self.waiting_task_list.get_next_tasks(None):
             self.executor.add_task(task, None)
         while not self.executor.is_done():
             done_task_and_result = self.executor.wait_for_tasks()
             for task, task_result in done_task_and_result:
                 self._add_sub_tasks_to_executor(task, task_result)
+        self.executor.run_serial_tasks()
 
     def _add_sub_tasks_to_executor(self, parent_task, parent_task_result):
         """
@@ -156,6 +156,7 @@ class TaskExecutor(object):
         self.task_id_to_task = {}
         self.pending_results = []
         self.tasks_at_once = tasks_at_once
+        self.serial_tasks = []
 
     def add_task(self, task, parent_task_result):
         """
@@ -163,8 +164,11 @@ class TaskExecutor(object):
         :param task: Task: task that should be run
         :param parent_task_result: object: value to be passed to task for setup
         """
-        self.tasks.append((task, parent_task_result))
-        self.task_id_to_task[task.id] = task
+        if task.is_serial():
+            self.serial_tasks.append(task)
+        else:
+            self.tasks.append((task, parent_task_result))
+            self.task_id_to_task[task.id] = task
 
     def is_done(self):
         """
@@ -227,6 +231,14 @@ class TaskExecutor(object):
                 task_and_results.append((task, result))
                 self.pending_results.remove(pending_result)
         return task_and_results
+
+    def run_serial_tasks(self):
+        """
+        Run tasks that must be processed serially in the main process.
+        """
+        for task in self.serial_tasks:
+            context = task.create_context()
+            task.func(context)
 
 
 def execute_task_async(task_func, task_id, context):

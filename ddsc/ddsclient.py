@@ -10,6 +10,13 @@ from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, repla
 from ddsc.core.download import ProjectDownload
 from ddsc.core.util import ProjectFilenameList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
+from ddsc.core.projectdb import ProjectDB, ProjectUtil, LocalOnlyCounter2, UploadReport2
+from ddsc.core.localstore import FileFilter
+
+
+
+from ddsc.core.util import ProgressPrinter
+from ddsc.core.projectuploader import UploadSettings, ProjectUploader
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 
@@ -93,15 +100,46 @@ class UploadCommand(object):
         project_name = args.project_name        # name of the remote project to create/upload to
         folders = args.folders                  # list of local files/folders to upload into the project
         follow_symlinks = args.follow_symlinks  # should we follow symlinks when traversing folders
+        storage_engine_url = 'sqlite:////tmp/jpb.db'
+        project_db = ProjectDB(storage_engine_url)
+        proj_util = ProjectUtil(project_db)
+        proj_util.followsymlinks = follow_symlinks
+        proj_util.file_include = FileFilter(self.config.file_exclude_regex).include
+        project = project_db.get_project_by_name(project_name)
+        message_prefix = ""
+        if project:
+            resume_prompt = "Resume upload {} (y/n)?".format(project_name)
+            if boolean_input_prompt(resume_prompt):
+                message_prefix = "Resuming upload. Remaining: "
+            else:
+                project_db.delete_project(project)
+                project = None
 
-        project_upload = ProjectUpload(self.config, project_name, folders, follow_symlinks=follow_symlinks)
-        print(project_upload.get_differences_summary())
-        if project_upload.needs_to_upload():
-            project_upload.run()
+
+        if not project:
+            project = proj_util.create_project_tree_for_paths(project_name, folders)
+            project_json = self.remote_store.get_project_data_by_name(project_name)
+            proj_util.update_project_info(project, project_json)
+            if project.dds_id:
+                result = self.remote_store.get_children_for_project_id(project.dds_id)
+                proj_util.update_project_content(project, result['results'])
+
+        loc = LocalOnlyCounter2(self.config.upload_bytes_per_chunk)
+        loc.count_items(project)
+        print("{}{}".format(message_prefix, loc.result_str()))
+
+        if loc.total_items() != 0:
+            progress_printer = ProgressPrinter(loc.total_items(), msg_verb='sending')
+            upload_settings = UploadSettings(self.config, self.remote_store.data_service, progress_printer,
+                                             project_name, project_db)
+            project_uploader = ProjectUploader(upload_settings)
+            project_uploader.run2(project)
+            progress_printer.finished()
             print('\n')
-            print(project_upload.get_upload_report())
+            print(ProjectUtil.get_upload_report(project, self.config))
             print('\n')
-        print(project_upload.get_url_msg())
+        print(ProjectUtil.get_project_url_str(project, self.config))
+        project_db.delete_project(project)
 
 
 class DownloadCommand(object):

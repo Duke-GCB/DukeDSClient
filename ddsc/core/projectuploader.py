@@ -1,8 +1,12 @@
 import requests
-from ddsc.core.util import ProjectWalker
+from ddsc.core.util import ProjectWalker, KindType
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData
 from ddsc.core.parallel import TaskExecutor, TaskRunner
+from ddsc.core.transferdata import TransferDB
+from ddsc.core.localstore import PathData
+import time
+import os
 
 requests_session = requests.Session()
 
@@ -11,7 +15,7 @@ class UploadSettings(object):
     """
     Settings used to upload a project
     """
-    def __init__(self, config, data_service, watcher, project_name):
+    def __init__(self, config, data_service, watcher, project_name, project_db):
         """
         :param config: ddsc.config.Config user configuration settings from YAML file/environment
         :param data_service: DataServiceApi: where we will upload to
@@ -23,6 +27,7 @@ class UploadSettings(object):
         self.watcher = watcher
         self.project_name = project_name
         self.project_id = None
+        self.project_db = project_db
 
     def get_data_service_auth_data(self):
         """
@@ -43,6 +48,8 @@ class UploadSettings(object):
         auth.set_auth_data(data_service_auth_data)
         return DataServiceApi(auth, config.url, requests_session)
 
+    def commit_session(self):
+        self.project_db.commit_session()
 
 class UploadContext(object):
     """
@@ -96,6 +103,23 @@ class ProjectUploader(object):
         # Run parts of each large item in parallel
         self.upload_large_items()
 
+    def run2(self, project):
+        self.visit_transfer_item(project, None)
+        self.runner.run()
+
+    def visit_transfer_item(self, item, parent_item):
+        self.process_item(item, parent_item)
+        for child in item.children:
+            self.visit_transfer_item(child, item)
+
+    def process_item(self, item, parent_item):
+        if item.dds_kind == KindType.project_str:
+            self.small_item_task_builder.visit_project(item)
+        if item.dds_kind == KindType.folder_str:
+            self.small_item_task_builder.visit_folder(item, parent_item)
+        if item.dds_kind == KindType.file_str:
+            self.small_item_task_builder.visit_file(item, parent_item)
+
     # Methods called by ProjectWalker.walk_project
     def visit_project(self, item):
         """
@@ -114,13 +138,7 @@ class ProjectUploader(object):
         If file is large add it to the large items to be processed after small task list.
         else file is small add it to the small task list.
         """
-        if self.is_large_file(item):
-            self.large_items.append((item, parent))
-        else:
-            self.small_item_task_builder.visit_file(item, parent)
-
-    def is_large_file(self, item):
-        return item.size > self.settings.config.upload_bytes_per_chunk
+        self.small_item_task_builder.visit_file(item, parent)
 
     def upload_large_items(self):
         """
@@ -139,8 +157,11 @@ class ProjectUploader(object):
         """
         file_content_sender = FileUploader(self.settings.config, self.settings.data_service, local_file,
                                            self.settings.watcher)
-        remote_id = file_content_sender.upload(self.settings.project_id, parent.kind, parent.remote_id)
-        local_file.set_remote_id_after_send(remote_id)
+        remote_id = file_content_sender.upload(self.settings.project_id, parent.kind, parent.dds_id)
+        self.local_file.dds_id = remote_id
+        self.local_file.need_to_send = False
+        self.local_file.was_transferred = True
+        self.settings.commit_session()
 
 
 class SmallItemUploadTaskBuilder(object):
@@ -165,17 +186,17 @@ class SmallItemUploadTaskBuilder(object):
         """
         Adds create project command to task runner if project doesn't already exist.
         """
-        if not item.remote_id:
+        if not item.dds_id:
             command = CreateProjectCommand(self.settings, item)
             self.task_runner_add(None, item, command)
         else:
-            self.settings.project_id = item.remote_id
+            self.settings.project_id = item.dds_id
 
     def visit_folder(self, item, parent):
         """
         Adds create folder command to task runner if folder doesn't already exist.
         """
-        if not item.remote_id:
+        if not item.dds_id:
             command = CreateFolderCommand(self.settings, item, parent)
             self.task_runner_add(parent, item, command)
 
@@ -185,12 +206,12 @@ class SmallItemUploadTaskBuilder(object):
         Large files shouldn't be passed to SmallItemUploadTaskBuilder.
         """
         if item.need_to_send:
-            if item.size > self.settings.config.upload_bytes_per_chunk:
-                msg = "Programmer Error: Trying to upload large file as small item size:{} name:{}"
-                raise ValueError(msg.format(item.size, item.name))
+            command = None
+            if item.file_size > self.settings.config.upload_bytes_per_chunk:
+                command = CreateLargeFileCommand(self.settings, item, parent)
             else:
                 command = CreateSmallFileCommand(self.settings, item, parent)
-                self.task_runner_add(parent, item, command)
+            self.task_runner_add(parent, item, command)
 
     def task_runner_add(self, parent, item, command):
         """
@@ -199,10 +220,12 @@ class SmallItemUploadTaskBuilder(object):
         :param parent: object: parent of item
         :param item: object: item we are running command on
         :param command: parallel TaskCommand we want to have run
+        :return int,int: task_id, parent_task_id task_id created for this command, and the parent task id(can be None)
         """
         parent_task_id = self.item_to_id.get(parent)
         task_id = self.task_runner.add(parent_task_id, command)
         self.item_to_id[item] = task_id
+        return task_id, parent_task_id
 
 
 class CreateProjectCommand(object):
@@ -219,6 +242,7 @@ class CreateProjectCommand(object):
         self.local_project = local_project
         self.project_name = settings.project_name
         self.func = upload_project_run
+        self.is_serial = False
 
     def before_run(self, parent_task_result):
         """
@@ -237,8 +261,12 @@ class CreateProjectCommand(object):
         Save uuid associated with project we just created.
         :param result_id: str: uuid of the project
         """
-        self.local_project.set_remote_id_after_send(result_id)
+        self.local_project.dds_id = result_id
+        self.local_project.need_to_send = False
+        self.local_project.was_transferred = True
+        self.settings.commit_session()
         self.settings.project_id = result_id
+
 
 
 def upload_project_run(upload_context):
@@ -268,6 +296,7 @@ class CreateFolderCommand(object):
         self.remote_folder = remote_folder
         self.parent = parent
         self.func = upload_folder_run
+        self.is_serial = False
 
     def before_run(self, parent_task_result):
         """
@@ -279,7 +308,8 @@ class CreateFolderCommand(object):
         """
         Create values to be used by upload_folder_run function.
         """
-        params = (self.remote_folder.name, self.parent.kind, self.parent.remote_id)
+        folder_name = os.path.basename(self.remote_folder.remote_path)
+        params = (folder_name, self.parent.dds_kind, self.parent.dds_id)
         return UploadContext(self.settings, params)
 
     def after_run(self, result_id):
@@ -287,7 +317,10 @@ class CreateFolderCommand(object):
         Save the uuid of our new folder back to our LocalFolder object.
         :param result_id: str: uuid of the folder we just created.
         """
-        self.remote_folder.set_remote_id_after_send(result_id)
+        self.remote_folder.dds_id = result_id
+        self.remote_folder.need_to_send = False
+        self.remote_folder.was_transferred = True
+        self.settings.commit_session()
 
 
 def upload_folder_run(upload_context):
@@ -323,6 +356,7 @@ class CreateSmallFileCommand(object):
         self.local_file = local_file
         self.parent = parent
         self.func = create_small_file
+        self.is_serial = False
 
     def before_run(self, parent_task_result):
         pass
@@ -331,9 +365,9 @@ class CreateSmallFileCommand(object):
         """
         Create values to be used by create_small_file function.
         """
-        parent_data = ParentData(self.parent.kind, self.parent.remote_id)
-        path_data = self.local_file.get_path_data()
-        params = parent_data, path_data, self.local_file.remote_id
+        parent_data = ParentData(self.parent.dds_kind, self.parent.dds_id)
+        path_data = PathData(self.local_file.local_path)
+        params = parent_data, path_data, self.local_file.dds_id, self.local_file.upload_id
         return UploadContext(self.settings, params)
 
     def after_run(self, remote_file_id):
@@ -342,7 +376,10 @@ class CreateSmallFileCommand(object):
         :param remote_file_id: uuid of the file we just created/updated.
         """
         self.settings.watcher.transferring_item(self.local_file)
-        self.local_file.set_remote_id_after_send(remote_file_id)
+        self.local_file.dds_id = remote_file_id
+        self.local_file.need_to_send = False
+        self.local_file.was_transferred = True
+        self.settings.commit_session()
 
 
 def create_small_file(upload_context):
@@ -351,9 +388,9 @@ def create_small_file(upload_context):
     Runs in a background process.
     :param upload_context: UploadContext: contains data service setup and file details.
     """
-    data_service = upload_context.make_data_service()
-    parent_data, path_data, remote_file_id = upload_context.params
 
+    data_service = upload_context.make_data_service()
+    parent_data, path_data, remote_file_id, upload_id = upload_context.params
     # The small file will fit into one chunk so read into memory and hash it.
     chunk_num = 1
     chunk = path_data.read_whole_file()
@@ -361,7 +398,42 @@ def create_small_file(upload_context):
 
     # Talk to data service uploading chunk and creating the file.
     upload_operations = FileUploadOperations(data_service)
-    upload_id = upload_operations.create_upload(upload_context.project_id, path_data, hash_data)
+    mark_upload_complete = True
+    if upload_id:
+        if upload_operations.is_upload_complete(upload_id):
+            mark_upload_complete = False
+    else:
+        upload_id = upload_operations.create_upload(upload_context.project_id, path_data, hash_data)
     url_info = upload_operations.create_file_chunk_url(upload_id, chunk_num, chunk)
     upload_operations.send_file_external(url_info, chunk)
-    return upload_operations.finish_upload(upload_id, hash_data, parent_data, remote_file_id)
+    return upload_operations.finish_upload(upload_id, hash_data, parent_data, remote_file_id, mark_upload_complete)
+
+
+class CreateLargeFileCommand(object):
+    def __init__(self, settings, local_file, parent):
+        self.settings = settings
+        self.local_file = local_file
+        self.parent = parent
+        self.func = create_large_file_func
+        self.is_serial = True
+
+    def create_context(self):
+        return self
+
+    def run(self):
+        file_content_sender = FileUploader(self.settings.config, self.settings.data_service, self.local_file,
+                                           self.settings.watcher, self.settings.project_db)
+        remote_id = file_content_sender.upload(self.settings.project_id, self.parent.dds_kind, self.parent.dds_id)
+        self.local_file.dds_id = remote_id
+        self.local_file.need_to_send = False
+        self.local_file.was_transferred = True
+        self.settings.commit_session()
+
+
+def create_large_file_func(large_file_cmd):
+    """
+    Uploads a large file in parallel.
+    Calls run method on large_file_cmd.
+    :param large_file_cmd: CreateLargeFileCommand
+    """
+    large_file_cmd.run()

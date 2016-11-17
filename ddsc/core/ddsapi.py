@@ -376,6 +376,14 @@ class DataServiceApi(object):
         }
         return self._put("/uploads/" + upload_id + "/complete", data, content_type=ContentType.form)
 
+    def get_upload(self, upload_id):
+        """
+        Get details about an upload (file contents - data about chunks uploaded).
+        :param upload_id: str: uuid dds assigned to this upload
+        :return: requests.Response containing the successful result
+        """
+        return self._get("/uploads/" + upload_id, {})
+
     def create_file(self, parent_kind, parent_id, upload_id):
         """
         Create a new file after completing an upload.

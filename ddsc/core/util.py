@@ -27,6 +27,8 @@ class KindType(object):
 
     @staticmethod
     def is_project(item):
+        if item.dds_kind:
+            return item.dds_kind == KindType.project_str
         return item.kind == KindType.project_str
 
 
@@ -56,7 +58,7 @@ class ProgressPrinter(object):
         if KindType.is_project(item):
             name = 'project'
         else:
-            name = item.path
+            name = item.remote_path
         # left justify message so we cover up the previous one
         message = u'\rProgress: {}% - {} {}'.format(percent_done, self.msg_verb, name)
         self.max_width = max(len(message), self.max_width)
@@ -192,20 +194,34 @@ class ProgressQueue(object):
         self.queue = queue
 
     def error(self, error_msg):
-        self.queue.put((ProgressQueue.ERROR, error_msg))
+        self.queue.put(ErrorItem(error_msg))
 
-    def processed(self, amt):
-        self.queue.put((ProgressQueue.PROCESSED, amt))
+    def processed(self, amt, transfer_item_id, chunk_num):
+        self.queue.put(ProgressItem(amt, transfer_item_id, chunk_num))
 
     def get(self):
         """
-        Get the next tuple added to the queue.
-        :return: (str, value): where str is either ERROR or PROCESSED and value is the message or processed int amount.
+        Get the next object added to the queue.
+        :return: object: either ErrorItem or ProgressItem and value is the message or processed int amount.
         """
         return self.queue.get()
 
 
-def wait_for_processes(processes, size, progress_queue, watcher, item):
+class ErrorItem(object):
+    def __init__(self, msg):
+        self.type = ProgressQueue.ERROR
+        self.msg = msg
+
+
+class ProgressItem(object):
+    def __init__(self, amt, transfer_file_id, chunk_num):
+        self.type = ProgressQueue.PROCESSED
+        self.amt = amt
+        self.transfer_file_id = transfer_file_id
+        self.chunk_num = chunk_num
+
+
+def wait_for_processes(processes, size, progress_queue, watcher, item, project_db):
     """
     Watch progress queue for errors or progress.
     Cleanup processes on error or success.
@@ -216,13 +232,13 @@ def wait_for_processes(processes, size, progress_queue, watcher, item):
     :param item: object: RemoteFile/LocalFile we are transferring.
     """
     while size > 0:
-        progress_type, value = progress_queue.get()
-        if progress_type == ProgressQueue.PROCESSED:
-            chunk_size = value
-            watcher.transferring_item(item, increment_amt=chunk_size)
-            size -= chunk_size
+        progress_item = progress_queue.get()
+        if progress_item.type == ProgressQueue.PROCESSED:
+            watcher.transferring_item(item, increment_amt=progress_item.amt)
+            project_db.create_file_chunk(item, progress_item.chunk_num)
+            size -= progress_item.amt
         else:
-            error_message = value
+            error_message = progress_item.msg
             for process in processes:
                 process.terminate()
             raise ValueError(error_message)

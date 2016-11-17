@@ -99,7 +99,7 @@ class FileDownloader(object):
             (temp_handle, temp_path) = tempfile.mkstemp()
             self.file_parts.append(temp_path)
             processes.append(self.make_and_start_process(range_start, range_end, progress_queue))
-        wait_for_processes(processes, int(self.file_size), progress_queue, self.watcher, self.remote_file)
+        wait_for_processes(processes, int(self.file_size), progress_queue, self.watcher, self.remote_file, None)
 
     def make_big_empty_file(self):
         """
