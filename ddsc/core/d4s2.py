@@ -7,6 +7,7 @@ import tempfile
 import requests
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.download import ProjectDownload
+from ddsapi import DataServiceAuth
 
 UNAUTHORIZED_MESSAGE = """
 ERROR: Your account does not have authorization for D4S2 (the deliver/share service).
@@ -39,7 +40,7 @@ class D4S2Api(object):
         DELIVER_DESTINATION: "Delivery"
     }
 
-    def __init__(self, url, user_key):
+    def __init__(self, url, api_token):
         """
         Setup url we will be talking to.
         :param url: str url of the service including "/api/v1" portion
@@ -47,7 +48,7 @@ class D4S2Api(object):
         self.url = url
         self.json_headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Token {}'.format(user_key)
+            'X-DukeDS-Authorization': api_token
         }
 
     def make_url(self, destination, extra=''):
@@ -193,7 +194,9 @@ class D4S2Project(object):
         :param print_func: func used to print output somewhere
         """
         self.config = config
-        self.api = D4S2Api(config.d4s2_url, config.user_key)
+        auth = DataServiceAuth(self.config)
+        api_token = auth.get_auth()
+        self.api = D4S2Api(config.d4s2_url, api_token)
         self.remote_store = remote_store
         self.print_func = print_func
 
