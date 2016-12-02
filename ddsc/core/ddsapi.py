@@ -549,3 +549,73 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         return self._get("/auth_roles", {"context": context}, content_type=ContentType.form)
+
+    def get_project_transfers(self, project_id):
+        """
+        Send GET request to get list of transfers for a project
+        :param project_id: str uuid of the project
+        :return: requests.Response containing the successful result
+        """
+        return self._get("/projects/" + project_id + "/transfers", {})
+
+    def create_project_transfer(self, project_id, to_user_ids):
+        """
+        Send POST request to initiate transfer of a project to the specified user ids
+        :param project_id: str uuid of the project
+        :param to_users: list of user uuids to receive the project
+        :return: requests.Response containing the successful result
+        """
+        data = {
+            "to_users[][id]": to_user_ids,
+        }
+        return self._post("/projects/" + project_id + "/transfers", data,
+                          content_type=ContentType.form)
+
+    def get_project_transfer(self, transfer_id):
+        """
+        Send GET request to single project_transfer by id
+        :param transfer_id: str uuid of the project_transfer
+        :return: requests.Response containing the successful result
+        """
+        return self._get("/project_transfers/" + transfer_id, {})
+
+    def _process_project_transfer(self, action, transfer_id, status_comment):
+        """
+        Send PUT request to one of the project transfer action endpoints
+        :param action: str name of the action (reject/accept/cancel)
+        :param transfer_id: str uuid of the project_transfer
+        :param status_comment: str comment about the action, optional
+        :return: requests.Response containing the successful result
+        """
+        data = {}
+        if status_comment:
+            data["status_comment"] = status_comment
+        path = "/project_transfers/{}/{}".format(transfer_id, action)
+        return self._put(path, data, content_type=ContentType.form)
+
+    def reject_project_transfer(self, transfer_id, status_comment=None):
+        """
+        Send PUT request to reject a project_transfer by id
+        :param transfer_id: str uuid of the project_transfer
+        :param status_comment: str comment or reason for rejecting or None
+        :return: requests.Response containing the successful result
+        """
+        return self._process_project_transfer('reject', transfer_id, status_comment)
+
+    def cancel_project_transfer(self, transfer_id, status_comment=None):
+        """
+        Send PUT request to cancel a project_transfer by id
+        :param transfer_id: str uuid of the project_transfer
+        :param status_comment: str comment or reason for cancelling or None
+        :return: requests.Response containing the successful result
+        """
+        return self._process_project_transfer('cancel', transfer_id, status_comment)
+
+    def accept_project_transfer(self, transfer_id, status_comment=None):
+        """
+        Send PUT request to accept a project_transfer by id
+        :param transfer_id: str uuid of the project_transfer
+        :param status_comment: str comment or reason for accepting
+        :return: requests.Response containing the successful result
+        """
+        return self._process_project_transfer('accept', transfer_id, status_comment)
