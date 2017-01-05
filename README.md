@@ -19,10 +19,10 @@ pip install --upgrade DukeDSClient
 DukeDSClient requires a config file containing an __agent_key__ and a __user_key__.
 DukeDSClient supports a global configuration file at /etc/ddsclient.conf and a user configuration file at ~/.ddsclient.
 Settings in the user configuration file override those in the global configuration.
+Details of all configuration options: [Configuration options](https://github.com/Duke-GCB/DukeDSClient/wiki/Configuration).
 
 #####  Follow these instructions to setup your __user_key__ and  __agent_key__:
-[Instructions for adding agent and user keys to the user config file.](docs/GettingAgentAndUserKeys.md)
-
+[Instructions for adding agent and user keys to the user config file.](https://github.com/Duke-GCB/DukeDSClient/wiki/Agent-User-Keys-(setup))
 
 ###Use:
 See general help screen:
