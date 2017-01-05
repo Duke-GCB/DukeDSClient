@@ -2,7 +2,13 @@
 Command line tool to upload/manage project on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
 [![Build Status](https://travis-ci.org/Duke-GCB/DukeDSClient.svg?branch=master)](https://travis-ci.org/Duke-GCB/DukeDSClient)
 
-Runs on Python 2.7 or 3.5.
+# Requirements
+- [python](https://www.python.org/) - version 2.7+ with a functional ssl module. 
+- [requests](http://docs.python-requests.org/en/master/) - python module
+- [PyYAML](http://pyyaml.org/wiki/PyYAML) - python module
+
+The preferred python versions are 2.7.9+ or 3.4.1+ as they have functional ssl modules by default.
+Older python 2.7 may work by following this guide: [Older-python-2.7-setup](https://github.com/Duke-GCB/DukeDSClient/wiki/Older-python-2.7-setup)
 
 # Install or Upgrade:
 ```
