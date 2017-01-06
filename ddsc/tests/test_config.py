@@ -12,7 +12,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.agent_key, None)
         self.assertEqual(config.auth, None)
         self.assertEqual(config.upload_bytes_per_chunk, ddsc.config.DDS_DEFAULT_UPLOAD_CHUNKS)
-        self.assertEqual(config.upload_workers, multiprocessing.cpu_count())
+        self.assertEqual(config.upload_workers, min(multiprocessing.cpu_count(), ddsc.config.MAX_DEFAULT_WORKERS))
 
     def test_global_then_local(self):
         config = ddsc.config.Config()
@@ -38,7 +38,8 @@ class TestConfig(TestCase):
         self.assertEqual(config.auth, 'secret')
         self.assertEqual(config.upload_bytes_per_chunk, 1293892)
         self.assertEqual(config.upload_workers, multiprocessing.cpu_count())
-        self.assertEqual(config.download_workers, int(math.ceil(multiprocessing.cpu_count()/2)))
+        upload_workers = min(multiprocessing.cpu_count(), ddsc.config.MAX_DEFAULT_WORKERS)
+        self.assertEqual(config.download_workers, int(math.ceil(upload_workers/2)))
 
         config.update_properties(local_config)
         self.assertEqual(config.url, 'dataservice2.com')
@@ -96,3 +97,11 @@ class TestConfig(TestCase):
         }
         for value, exp in value_and_expected:
             self.assertEqual(exp, ddsc.config.Config.parse_bytes_str(value))
+
+    def test_default_num_workers(self):
+        orig_max_default_workers = ddsc.config.MAX_DEFAULT_WORKERS
+        ddsc.config.MAX_DEFAULT_WORKERS = 5000
+        self.assertEqual(multiprocessing.cpu_count(), ddsc.config.default_num_workers())
+        ddsc.config.MAX_DEFAULT_WORKERS = 1
+        self.assertEqual(1, ddsc.config.default_num_workers())
+        ddsc.config.MAX_DEFAULT_WORKERS = orig_max_default_workers

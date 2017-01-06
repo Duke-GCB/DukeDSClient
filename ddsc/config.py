@@ -19,6 +19,7 @@ DDS_DEFAULT_UPLOAD_CHUNKS = 100 * MB_TO_BYTES
 AUTH_ENV_KEY_NAME = 'DUKE_DATA_SERVICE_AUTH'
 # when uploading skip .DS_Store, our key file, and ._ (resource fork metadata)
 FILE_EXCLUDE_REGEX_DEFAULT = '^\.DS_Store$|^\.ddsclient$|^\.\_'
+MAX_DEFAULT_WORKERS = 8
 
 
 def create_config():
@@ -30,6 +31,14 @@ def create_config():
     config.add_properties(GLOBAL_CONFIG_FILENAME)
     config.add_properties(os.environ.get(LOCAL_CONFIG_ENV, LOCAL_CONFIG_FILENAME))
     return config
+
+
+def default_num_workers():
+    """
+    Return the number of workers to use as default if not specified by a config file.
+    Returns the number of CPUs or MAX_DEFAULT_WORKERS (whichever is less).
+    """
+    return min(multiprocessing.cpu_count(), MAX_DEFAULT_WORKERS)
 
 
 class Config(object):
@@ -124,7 +133,7 @@ class Config(object):
         Return the number of parallel works to use when uploading a file.
         :return: int number of workers. Specify None or 1 to disable parallel uploading
         """
-        return self.values.get(Config.UPLOAD_WORKERS, multiprocessing.cpu_count())
+        return self.values.get(Config.UPLOAD_WORKERS, default_num_workers())
 
     @property
     def download_workers(self):
@@ -133,7 +142,7 @@ class Config(object):
         :return: int number of workers. Specify None or 1 to disable parallel downloading
         """
         # Profiling download on different servers showed half the number of CPUs to be optimum for speed.
-        default_workers = int(math.ceil(multiprocessing.cpu_count()/2))
+        default_workers = int(math.ceil(default_num_workers()/2))
         return self.values.get(Config.DOWNLOAD_WORKERS, default_workers)
 
     @property
