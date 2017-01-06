@@ -37,9 +37,9 @@ class TestConfig(TestCase):
         self.assertEqual(config.agent_key, '123')
         self.assertEqual(config.auth, 'secret')
         self.assertEqual(config.upload_bytes_per_chunk, 1293892)
-        self.assertEqual(config.upload_workers, multiprocessing.cpu_count())
-        upload_workers = min(multiprocessing.cpu_count(), ddsc.config.MAX_DEFAULT_WORKERS)
-        self.assertEqual(config.download_workers, int(math.ceil(upload_workers/2)))
+        num_upload_workers = min(multiprocessing.cpu_count(), ddsc.config.MAX_DEFAULT_WORKERS)
+        self.assertEqual(config.upload_workers, num_upload_workers)
+        self.assertEqual(config.download_workers, int(math.ceil(num_upload_workers/2)))
 
         config.update_properties(local_config)
         self.assertEqual(config.url, 'dataservice2.com')
