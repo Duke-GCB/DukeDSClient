@@ -2,8 +2,8 @@
 Command line parser for the application.
 """
 import os
-import sys
 import argparse
+from builtins import str
 
 
 INVALID_PATH_CHARS = (':', '/', '\\')
@@ -26,12 +26,7 @@ def to_unicode(s):
     :param s: string to convert to unicode
     :return: unicode string for argument
     """
-    if sys.version_info >= (3,0,0):
-        return str(s)
-    else:
-        if type(s) != unicode:
-            return unicode(s, 'utf8')
-        return s
+    return str(s)
 
 
 def add_project_name_arg(arg_parser, required=True, help_text="Name of the remote project to manage."):
