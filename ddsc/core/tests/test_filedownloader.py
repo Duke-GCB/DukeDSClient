@@ -28,6 +28,7 @@ class TestDownloader(FileDownloader):
     def make_big_empty_file(self):
         pass
 
+
 sample_url_parts = {
     'host': 'myhost',
     'url': 'stuff/',
@@ -55,7 +56,6 @@ class TestFileDownloader(TestCase):
                 (50000000, 99999999)
             ]
         )
-
 
         # Big enough file should split into three
         self.assert_make_ranges(
@@ -123,7 +123,7 @@ class TestFileDownloader(TestCase):
     def chunk_download_two_parts(self, url, headers, path, seek_amt, progress_queue):
         start, end = headers['Range'].replace("bytes=", "").split('-')
         total = (int(end) - int(start) + 1)
-        first = int(total/2)
+        first = int(total / 2)
         rest = total - first
         progress_queue.processed(first)
         progress_queue.processed(rest)

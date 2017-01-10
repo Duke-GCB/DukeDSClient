@@ -362,6 +362,3 @@ def boolean_input_prompt(message):
         result = input(message)
     result = result.upper()
     return result == "Y" or result == "YES" or result == "T" or result == "TRUE"
-
-
-

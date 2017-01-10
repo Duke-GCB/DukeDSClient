@@ -165,6 +165,3 @@ class PathFilteredProject(object):
         :return: bool: True if the item is to be included
         """
         return self.path_filter.include_path(item.remote_path)
-
-
-

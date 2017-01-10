@@ -36,11 +36,11 @@ def add_project_name_arg(arg_parser, required=True, help_text="Name of the remot
     :param help_text: str label displayed in usage
     """
     arg_parser.add_argument("-p",
-                           metavar='ProjectName',
-                           type=to_unicode,
-                           dest='project_name',
-                           help=help_text,
-                           required=required)
+                            metavar='ProjectName',
+                            type=to_unicode,
+                            dest='project_name',
+                            help=help_text,
+                            required=required)
 
 
 def _paths_must_exists(path):
@@ -51,7 +51,7 @@ def _paths_must_exists(path):
     """
     path = to_unicode(path)
     if not os.path.exists(path):
-     raise argparse.ArgumentTypeError("{} is not a valid file/folder.".format(path))
+        raise argparse.ArgumentTypeError("{} is not a valid file/folder.".format(path))
     return path
 
 
@@ -86,10 +86,10 @@ def _add_folders_positional_arg(arg_parser):
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
     arg_parser.add_argument("folders",
-                           metavar='Folders',
-                           nargs="+",
-                           help="Names of the files and/or folders to upload to the remote project.",
-                           type=_paths_must_exists)
+                            metavar='Folders',
+                            nargs="+",
+                            help="Names of the files and/or folders to upload to the remote project.",
+                            type=_paths_must_exists)
 
 
 def _add_folder_positional_arg(arg_parser):
@@ -98,12 +98,12 @@ def _add_folder_positional_arg(arg_parser):
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
     arg_parser.add_argument("folder",
-                           metavar='Folder',
-                           help="Name of the folder to download the project contents into. "
-                                "If not specified it will use the name of the project with spaces translated to '_'. "
-                                "This folder must be empty or not exist(will be created).",
-                           type=path_does_not_exist_or_is_empty,
-                           nargs='?')
+                            metavar='Folder',
+                            help="Name of the folder to download the project contents into. "
+                                 "If not specified it will use the name of the project with spaces translated to '_'. "
+                                 "This folder must be empty or not exist(will be created).",
+                            type=path_does_not_exist_or_is_empty,
+                            nargs='?')
 
 
 def _add_follow_symlinks_arg(arg_parser):
@@ -368,4 +368,3 @@ class CommandParser(object):
             parsed_args.func(parsed_args)
         else:
             self.parser.print_help()
-

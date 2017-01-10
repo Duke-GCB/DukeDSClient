@@ -143,7 +143,7 @@ class RemoteStore(object):
             total_pages = int(result.headers["x-total-pages"])
             result_page = int(result.headers["x-page"])
             if result_page == total_pages:
-                break;
+                break
             page += 1
         return users
 
@@ -321,7 +321,7 @@ class RemoteFile(object):
         self.id = json_data['id']
         self.kind = json_data['kind']
         self.name = json_data['name']
-        self.path = self.name # for compatibilty with ProgressPrinter
+        self.path = self.name  # for compatibility with ProgressPrinter
         self.is_deleted = json_data['is_deleted']
         upload = RemoteFile.get_upload_from_json(json_data)
         self.size = upload['size']

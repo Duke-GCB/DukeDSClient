@@ -1,16 +1,18 @@
 from unittest import TestCase
-
 from ddsc.core.fileuploader import ParallelChunkProcessor
+
 
 class FakeConfig(object):
     def __init__(self, upload_workers, upload_bytes_per_chunk):
         self.upload_workers = upload_workers
         self.upload_bytes_per_chunk = upload_bytes_per_chunk
 
+
 class FakeLocalFile(object):
     def __init__(self, path, mimetype):
         self.path = path
         self.mimetype = mimetype
+
 
 class TestParallelChunkProcessor(TestCase):
     def test_determine_num_chunks(self):
@@ -34,7 +36,7 @@ class TestParallelChunkProcessor(TestCase):
             # upload_workers, num_chunks, expected
             (4, 4, [(0, 1), (1, 1), (2, 1), (3, 1)]),
             (4, 19, [(0, 5), (5, 5), (10, 5), (15, 4)]),
-            (5, 31, [(0, 7), (7, 7), (14, 7), (21, 7), (28,3)]),
+            (5, 31, [(0, 7), (7, 7), (14, 7), (21, 7), (28, 3)]),
             (5, 4, [(0, 1), (1, 1), (2, 1), (3, 1)]),
             (1, 4, [(0, 4)]),
         ]

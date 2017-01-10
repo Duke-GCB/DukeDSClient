@@ -17,7 +17,7 @@ class TestPathFilteredProject(TestCase):
             "name": "mouse",
             "description": "Mouse RNA Data",
             "is_deleted": False
-            }
+        }
         folder1_fields = {
             "id": "12346",
             "kind": "dds-folder",
@@ -301,7 +301,7 @@ class TestExcludeFilter(TestCase):
         self.check_filter(path_filter, yes_values, no_values)
 
     def test_include_multiple(self):
-        path_filter = ExcludeFilter(["data/results","test/data.txt"])
+        path_filter = ExcludeFilter(["data/results", "test/data.txt"])
         yes_values = [
             "data",
             "results"

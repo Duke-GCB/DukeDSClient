@@ -484,8 +484,7 @@ class TestRemoteProjectChildren(TestCase):
                         'upload':
                             {'id': 'ecd507c4-8f04-404d-acef-0ced912e4cdf',
                              'size': 10,
-                             'hash': None,
-                            },
+                             'hash': None},
                         'parent': {'id': project_id, 'kind': 'dds-project'}}]
 
         remote_children = RemoteProjectChildren(project_id, sample_data)

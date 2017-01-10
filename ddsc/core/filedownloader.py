@@ -174,4 +174,3 @@ class ChunkDownloader(object):
                         self.progress_queue.processed(len(chunk))
         except Exception as ex:
             self.progress_queue.error(str(ex))
-

@@ -16,6 +16,7 @@ Perhaps you have the wrong URL. You can change it via the 'url' setting in {}.""
 
 requests_session = requests.Session()
 
+
 class ContentType(object):
     """
     Contains the types of content for use with http headers.
@@ -126,9 +127,10 @@ class DataServiceError(Exception):
             resp_json = {}
         if response.status_code == 500:
             if resp_json and not resp_json.get('reason'):
-                resp_json = {'reason':'Internal Server Error', 'suggestion':'Contact DDS support.'}
-        Exception.__init__(self,'Error {} on {} Reason:{} Suggestion:{}'.format(
-            response.status_code, url_suffix, resp_json.get('reason',resp_json.get('error','')), resp_json.get('suggestion','')
+                resp_json = {'reason': 'Internal Server Error', 'suggestion': 'Contact DDS support.'}
+        Exception.__init__(self, 'Error {} on {} Reason:{} Suggestion:{}'.format(
+            response.status_code, url_suffix, resp_json.get('reason', resp_json.get('error', '')),
+            resp_json.get('suggestion', '')
         ))
         self.response = resp_json
         self.url_suffix = url_suffix
@@ -228,7 +230,7 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         if 200 <= resp.status_code < 300:
-           return resp
+            return resp
         raise DataServiceError(resp, url_suffix, data)
 
     def create_project(self, project_name, desc):
@@ -314,7 +316,7 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         data = {}
-        if not name_contains is None:
+        if name_contains is not None:
             data['name_contains'] = name_contains
         return self._get("/" + parent_name + "/" + parent_id + "/children", data, content_type=ContentType.form)
 
