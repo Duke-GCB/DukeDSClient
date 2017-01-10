@@ -2,12 +2,10 @@ language: python
 python:
   - "2.7"
   - "3.5"
-# command to install dependencies
-install: "pip install -r requirements.txt"
 # command to run tests
 script: nosetests ddsc
 install:
   - pip install -r requirements.txt
-  - pip install pyflakes
+  - pip install flake8
 before_script:
-  - pyflakes ddsc
+  - flake8 --ignore E501 ddsc/
