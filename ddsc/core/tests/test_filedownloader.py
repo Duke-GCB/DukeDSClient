@@ -1,6 +1,6 @@
 from unittest import TestCase
 import ddsc.core.filedownloader
-from ddsc.core.filedownloader import FileDownloader, ChunkDownloader
+from ddsc.core.filedownloader import FileDownloader
 
 
 class FakeConfig(object):

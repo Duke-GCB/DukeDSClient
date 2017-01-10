@@ -173,7 +173,7 @@ class RemoteStore(object):
         """
         # Server errors out with 500 if a user isn't found.
         try:
-            resp = self.data_service.get_user_project_permission(project.id, user.id)
+            self.data_service.get_user_project_permission(project.id, user.id)
             self.data_service.revoke_user_project_permission(project.id, user.id)
         except DataServiceError as e:
             if e.status_code != 404:

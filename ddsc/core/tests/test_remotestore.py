@@ -404,7 +404,6 @@ class TestRemoteStore(TestCase):
                 }
             ]
         }
-        expected_str = "joe"
         auth_roles = RemoteStore.get_active_auth_roles_from_json(JSON_DATA)
         self.assertEqual(2, len(auth_roles))
         ids = set([auth_role.id for auth_role in auth_roles])

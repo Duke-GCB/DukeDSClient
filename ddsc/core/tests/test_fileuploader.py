@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from ddsc.core.fileuploader import FileUploader, ParallelChunkProcessor
+from ddsc.core.fileuploader import ParallelChunkProcessor
 
 class FakeConfig(object):
     def __init__(self, upload_workers, upload_bytes_per_chunk):
