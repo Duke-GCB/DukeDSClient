@@ -7,6 +7,7 @@ install: "pip install -r requirements.txt"
 # command to run tests
 script: nosetests ddsc
 install:
+  - pip install -r requirements.txt
   - pip install pyflakes
 before_script:
   - pyflakes ddsc
