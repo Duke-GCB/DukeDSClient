@@ -5,7 +5,6 @@ from ddsc.core.remotestore import RemoteProject, RemoteFolder, RemoteFile, Remot
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.remotestore import RemoteAuthRole
 from ddsc.core.remotestore import RemoteProjectChildren
-from ddsc.core.remotestore import FETCH_ALL_USERS_PAGE_SIZE
 
 
 class TestProjectFolderFile(TestCase):
