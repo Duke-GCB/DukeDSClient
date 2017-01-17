@@ -220,18 +220,20 @@ class DataServiceApi(object):
         :return: requests.Response containing the result
         """
         data_with_per_page = dict(get_data)
+        data_with_per_page['page'] = 1
         data_with_per_page['per_page'] = DEFAULT_RESULTS_PER_PAGE
         response = self._get(url_suffix, data_with_per_page, content_type)
-        total_pages = int(response.headers.get('x-total-pages'))
-        if total_pages and total_pages > 1:
-            multi_response = MultiJSONResponse(base_response=response, merge_array_field_name="results")
-            for page in range(2, total_pages + 1):
-                data_with_per_page['page'] = page
-                additional_response = self._get(url_suffix, data_with_per_page, content_type)
-                multi_response.add_response(additional_response)
-            return multi_response
-        else:
-            return response
+        total_pages_str = response.headers.get('x-total-pages')
+        if total_pages_str:
+            total_pages = int(total_pages_str)
+            if total_pages > 1:
+                multi_response = MultiJSONResponse(base_response=response, merge_array_field_name="results")
+                for page in range(2, total_pages + 1):
+                    data_with_per_page['page'] = page
+                    additional_response = self._get(url_suffix, data_with_per_page, content_type)
+                    multi_response.add_response(additional_response)
+                return multi_response
+        return response
 
     def _delete(self, url_suffix, get_data, content_type=ContentType.json):
         """
@@ -575,7 +577,7 @@ class DataServiceApi(object):
         :param context: str which roles do we want 'project' or 'system'
         :return: requests.Response containing the successful result
         """
-        return self._get("/auth_roles", {"context": context}, content_type=ContentType.form)
+        return self._get_all_pages("/auth_roles", {"context": context}, content_type=ContentType.form)
 
     def get_project_transfers(self, project_id):
         """
@@ -583,7 +585,7 @@ class DataServiceApi(object):
         :param project_id: str uuid of the project
         :return: requests.Response containing the successful result
         """
-        return self._get("/projects/" + project_id + "/transfers", {})
+        return self._get_all_pages("/projects/" + project_id + "/transfers", {})
 
     def create_project_transfer(self, project_id, to_user_ids):
         """
