@@ -46,9 +46,18 @@ class TestDataServiceApi(TestCase):
             fake_response(status_code=200,
                           json_return_value={"results": [1, 2, 3]},
                           num_pages=1)]
-        api = DataServiceApi(auth=MagicMock(), url="something.com/v1/", http=mock_requests)
-        response = api._get_all_pages(url_suffix="projects", get_data={}, content_type=ContentType.json)
+        api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
+        response = api._get_all_pages(url_suffix="users", get_data={}, content_type=ContentType.json)
         self.assertEqual([1, 2, 3], response.json()["results"])
+        call_args_list = mock_requests.get.call_args_list
+        self.assertEqual(1, len(call_args_list))
+        # Check first request
+        call_args = call_args_list[0]
+        first_param = call_args[0][0]
+        self.assertEqual('something.com/v1/users', first_param)
+        dict_param = call_args[1]
+        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertIn('"per_page": 10000', dict_param['params'])
 
     def test_get_all_pages_two(self):
         mock_requests = MagicMock()
@@ -63,13 +72,23 @@ class TestDataServiceApi(TestCase):
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
         response = api._get_all_pages(url_suffix="projects", get_data={}, content_type=ContentType.json)
         self.assertEqual([1, 2, 3, 4, 5], response.json()["results"])
-        calls = [
-            call('something.com/v1/projects', headers={'Content-Type': 'application/json'},
-                 params='{"per_page": 10000}'),
-            call('something.com/v1/projects', headers={'Content-Type': 'application/json'},
-                 params='{"page": 2, "per_page": 10000}')
-        ]
-        mock_requests.get.assert_has_calls(calls, any_order=False)
+        call_args_list = mock_requests.get.call_args_list
+        self.assertEqual(2, len(call_args_list))
+        # Check first request
+        call_args = call_args_list[0]
+        first_param = call_args[0][0]
+        self.assertEqual('something.com/v1/projects', first_param)
+        dict_param = call_args[1]
+        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertIn('"per_page": 10000', dict_param['params'])
+        # Check second request
+        call_args = call_args_list[1]
+        first_param = call_args[0][0]
+        self.assertEqual('something.com/v1/projects', first_param)
+        dict_param = call_args[1]
+        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertIn('"per_page": 10000', dict_param['params'])
+        self.assertIn('"page": 2', dict_param['params'])
 
     def test_get_all_pages_three(self):
         mock_requests = MagicMock()
@@ -87,13 +106,31 @@ class TestDataServiceApi(TestCase):
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
         response = api._get_all_pages(url_suffix="uploads", get_data={}, content_type=ContentType.json)
         self.assertEqual([1, 2, 3, 4, 5, 6, 7], response.json()["results"])
-        calls = [
-            call('something.com/v1/uploads', headers={'Content-Type': 'application/json'},
-                 params='{"per_page": 10000}'),
-            call('something.com/v1/uploads', headers={'Content-Type': 'application/json'},
-                 params='{"page": 2, "per_page": 10000}'),
-            call('something.com/v1/uploads', headers={'Content-Type': 'application/json'},
-                 params='{"page": 3, "per_page": 10000}')
-        ]
-        mock_requests.get.assert_has_calls(calls, any_order=False)
+        call_args_list = mock_requests.get.call_args_list
+        self.assertEqual(3, len(call_args_list))
+        # Check first request
+        call_args = call_args_list[0]
+        first_param = call_args[0][0]
+        self.assertEqual('something.com/v1/uploads', first_param)
+        dict_param = call_args[1]
+        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertIn('"per_page": 10000', dict_param['params'])
+        # Check second request
+        call_args = call_args_list[1]
+        first_param = call_args[0][0]
+        self.assertEqual('something.com/v1/uploads', first_param)
+        dict_param = call_args[1]
+        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertIn('"per_page": 10000', dict_param['params'])
+        self.assertIn('"page": 2', dict_param['params'])
+        # Check third request
+        call_args = call_args_list[2]
+        first_param = call_args[0][0]
+        self.assertEqual('something.com/v1/uploads', first_param)
+        dict_param = call_args[1]
+        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertIn('"per_page": 10000', dict_param['params'])
+        self.assertIn('"page": 3', dict_param['params'])
+
+        #mock_requests.get.assert_has_calls(calls, any_order=False)
 
