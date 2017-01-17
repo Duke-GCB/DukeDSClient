@@ -64,8 +64,10 @@ class TestDataServiceApi(TestCase):
         response = api._get_all_pages(url_suffix="projects", get_data={}, content_type=ContentType.json)
         self.assertEqual([1, 2, 3, 4, 5], response.json()["results"])
         calls = [
-            call('something.com/v1/projects', headers={'Content-Type': 'application/json'}, params='{}'),
-            call('something.com/v1/projects', headers={'Content-Type': 'application/json'}, params='{"page": 2}')
+            call('something.com/v1/projects', headers={'Content-Type': 'application/json'},
+                 params='{"per_page": 10000}'),
+            call('something.com/v1/projects', headers={'Content-Type': 'application/json'},
+                 params='{"page": 2, "per_page": 10000}')
         ]
         mock_requests.get.assert_has_calls(calls, any_order=False)
 
@@ -86,9 +88,12 @@ class TestDataServiceApi(TestCase):
         response = api._get_all_pages(url_suffix="uploads", get_data={}, content_type=ContentType.json)
         self.assertEqual([1, 2, 3, 4, 5, 6, 7], response.json()["results"])
         calls = [
-            call('something.com/v1/uploads', headers={'Content-Type': 'application/json'}, params='{}'),
-            call('something.com/v1/uploads', headers={'Content-Type': 'application/json'}, params='{"page": 2}'),
-            call('something.com/v1/uploads', headers={'Content-Type': 'application/json'}, params='{"page": 3}')
+            call('something.com/v1/uploads', headers={'Content-Type': 'application/json'},
+                 params='{"per_page": 10000}'),
+            call('something.com/v1/uploads', headers={'Content-Type': 'application/json'},
+                 params='{"page": 2, "per_page": 10000}'),
+            call('something.com/v1/uploads', headers={'Content-Type': 'application/json'},
+                 params='{"page": 3, "per_page": 10000}')
         ]
         mock_requests.get.assert_has_calls(calls, any_order=False)
 

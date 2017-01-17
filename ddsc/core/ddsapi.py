@@ -219,13 +219,15 @@ class DataServiceApi(object):
         :param content_type: str from ContentType that determines how we format the data
         :return: requests.Response containing the result
         """
-        response = self._get(url_suffix, get_data, content_type)
+        data_with_per_page = dict(get_data)
+        data_with_per_page['per_page'] = DEFAULT_RESULTS_PER_PAGE
+        response = self._get(url_suffix, data_with_per_page, content_type)
         total_pages = int(response.headers.get('x-total-pages'))
         if total_pages and total_pages > 1:
             multi_response = MultiJSONResponse(base_response=response, merge_array_field_name="results")
             for page in range(2, total_pages + 1):
-                get_data['page'] = page
-                additional_response = self._get(url_suffix, get_data, content_type)
+                data_with_per_page['page'] = page
+                additional_response = self._get(url_suffix, data_with_per_page, content_type)
                 multi_response.add_response(additional_response)
             return multi_response
         else:
