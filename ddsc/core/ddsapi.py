@@ -207,6 +207,27 @@ class DataServiceApi(object):
         resp = self.http.get(url, headers=headers, params=data_str)
         return self._check_err(resp, url_suffix, get_data)
 
+    def _get_all_pages(self, url_suffix, get_data, content_type=ContentType.json):
+        """
+        Performs GET for all pages based on x-total-pages in first response headers.
+        Merges the json() 'results' arrays.
+        :param url_suffix: str URL path we are sending a GET to
+        :param url_data: object data we are sending
+        :param content_type: str from ContentType that determines how we format the data
+        :return: requests.Response containing the result
+        """
+        response = self._get(url_suffix, get_data, content_type)
+        total_pages = response.headers.get('x-total-pages')
+        if total_pages and total_pages > 1:
+            multi_response = MultiJSONResponse(base_response=response, merge_array_field_name="results")
+            for page in range(2, total_pages + 1):
+                get_data['page'] = page
+                additional_response = self._get(url_suffix, get_data, content_type)
+                multi_response.add_response(additional_response)
+            return multi_response
+        else:
+            return response
+
     def _delete(self, url_suffix, get_data, content_type=ContentType.json):
         """
         Send DELETE request to API at url_suffix with post_data.
@@ -251,7 +272,7 @@ class DataServiceApi(object):
         Raises DataServiceError on error.
         :return: requests.Response containing the successful result
         """
-        return self._get("/projects", {})
+        return self._get_all_pages("/projects", {})
 
     def get_project_by_id(self, id):
         """
@@ -316,7 +337,8 @@ class DataServiceApi(object):
         data = {}
         if not name_contains is None:
             data['name_contains'] = name_contains
-        return self._get("/" + parent_name + "/" + parent_id + "/children", data, content_type=ContentType.form)
+        url_prefix = "/{}/{}/children".format(parent_name, parent_id)
+        return self._get_all_pages(url_prefix, data, content_type=ContentType.form)
 
     def create_upload(self, project_id, filename, content_type, size,
                       hash_value, hash_alg):
@@ -448,7 +470,7 @@ class DataServiceApi(object):
         data = {
             "full_name_contains": full_name,
         }
-        return self._get('/users', data, content_type=ContentType.form)
+        return self._get_all_pages('/users', data, content_type=ContentType.form)
 
     def get_users_by_page_and_offset(self, page, per_page):
         """
@@ -461,7 +483,7 @@ class DataServiceApi(object):
             "page": page,
             "per_page": per_page,
         }
-        return self._get('/users', data, content_type=ContentType.form)
+        return self._get_all_pages('/users', data, content_type=ContentType.form)
 
     def get_user_by_id(self, id):
         """
@@ -493,7 +515,7 @@ class DataServiceApi(object):
         :param auth_role: str project role eg 'project_admin'
         :return: requests.Response containing the successful result
         """
-        return self._get("/projects/" + project_id + "/permissions/" + user_id, {})
+        return self._get_all_pages("/projects/" + project_id + "/permissions/" + user_id, {})
 
     def revoke_user_project_permission(self, project_id, user_id):
         """
@@ -548,7 +570,7 @@ class DataServiceApi(object):
         :param context: str which roles do we want 'project' or 'system'
         :return: requests.Response containing the successful result
         """
-        return self._get("/auth_roles", {"context": context}, content_type=ContentType.form)
+        return self._get_all_pages("/auth_roles", {"context": context}, content_type=ContentType.form)
 
     def get_project_transfers(self, project_id):
         """
@@ -556,7 +578,7 @@ class DataServiceApi(object):
         :param project_id: str uuid of the project
         :return: requests.Response containing the successful result
         """
-        return self._get("/projects/" + project_id + "/transfers", {})
+        return self._get_all_pages("/projects/" + project_id + "/transfers", {})
 
     def create_project_transfer(self, project_id, to_user_ids):
         """
@@ -619,3 +641,41 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         return self._process_project_transfer('accept', transfer_id, status_comment)
+
+
+class MultiJSONResponse(object):
+    """
+    Wraps up multiple requests.Response objects into an object that will return composite dictionary for json() method.
+    """
+    def __init__(self, base_response, merge_array_field_name):
+        """
+        Setup response with primary response that will answer all methods/properties except json()
+        :param base_response: requests.Response containing the successful result that will respond methods/properties
+        :param merge_fieldname: str: name of the array field in the JSON data to merge when add_response is called
+        """
+        self.base_response = base_response
+        self.merge_array_field_name = merge_array_field_name
+        self.combined_json = self.base_response.json()
+
+    def __getattr__(self, attr):
+        """
+        Forwards all calls to base_response property
+        """
+        return getattr(self.base_response, attr)
+
+    def json(self):
+        """
+        Returns json created by merging the base response's json() merge_array_field_name value
+        :return: dict: combined dictionary from multiple responses
+        """
+        return self.combined_json
+
+    def add_response(self, response):
+        """
+        Add data from json() to data returned by json()
+        :param response: requests.Response containing the successful JSON result to be merged
+        """
+        key = self.merge_array_field_name
+        response_json = response.json()
+        value = self.combined_json[key]
+        self.combined_json[self.merge_array_field_name] = value + response_json[key]
