@@ -488,7 +488,7 @@ class DataServiceApi(object):
             "page": page,
             "per_page": per_page,
         }
-        return self._get_all_pages('/users', data, content_type=ContentType.form)
+        return self._get('/users', data, content_type=ContentType.form)
 
     def get_user_by_id(self, id):
         """
@@ -520,7 +520,7 @@ class DataServiceApi(object):
         :param auth_role: str project role eg 'project_admin'
         :return: requests.Response containing the successful result
         """
-        return self._get_all_pages("/projects/" + project_id + "/permissions/" + user_id, {})
+        return self._get("/projects/" + project_id + "/permissions/" + user_id, {})
 
     def revoke_user_project_permission(self, project_id, user_id):
         """
@@ -575,7 +575,7 @@ class DataServiceApi(object):
         :param context: str which roles do we want 'project' or 'system'
         :return: requests.Response containing the successful result
         """
-        return self._get_all_pages("/auth_roles", {"context": context}, content_type=ContentType.form)
+        return self._get("/auth_roles", {"context": context}, content_type=ContentType.form)
 
     def get_project_transfers(self, project_id):
         """
@@ -583,7 +583,7 @@ class DataServiceApi(object):
         :param project_id: str uuid of the project
         :return: requests.Response containing the successful result
         """
-        return self._get_all_pages("/projects/" + project_id + "/transfers", {})
+        return self._get("/projects/" + project_id + "/transfers", {})
 
     def create_project_transfer(self, project_id, to_user_ids):
         """
