@@ -5,7 +5,7 @@ from mock import MagicMock, call
 
 
 def fake_response(status_code, json_return_value, num_pages=1):
-    mock_response = MagicMock(status_code=status_code, headers={'x-total-pages': num_pages})
+    mock_response = MagicMock(status_code=status_code, headers={'x-total-pages': "{}".format(num_pages)})
     mock_response.json.return_value = json_return_value
     return mock_response
 

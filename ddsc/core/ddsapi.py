@@ -14,6 +14,8 @@ Follow this guide: {}\n""".format(LOCAL_CONFIG_FILENAME, SETUP_GUIDE_URL)
 SOFTWARE_AGENT_NOT_FOUND_MSG = """Your software agent was not found on the server.
 Perhaps you have the wrong URL. You can change it via the 'url' setting in {}.""".format(LOCAL_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME)
 
+DEFAULT_RESULTS_PER_PAGE = 10000
+
 requests_session = requests.Session()
 
 class ContentType(object):
@@ -211,13 +213,14 @@ class DataServiceApi(object):
         """
         Performs GET for all pages based on x-total-pages in first response headers.
         Merges the json() 'results' arrays.
+        Sets 'per_page' in get_data to DEFAULT_RESULTS_PER_PAGE.
         :param url_suffix: str URL path we are sending a GET to
         :param url_data: object data we are sending
         :param content_type: str from ContentType that determines how we format the data
         :return: requests.Response containing the result
         """
         response = self._get(url_suffix, get_data, content_type)
-        total_pages = response.headers.get('x-total-pages')
+        total_pages = int(response.headers.get('x-total-pages'))
         if total_pages and total_pages > 1:
             multi_response = MultiJSONResponse(base_response=response, merge_array_field_name="results")
             for page in range(2, total_pages + 1):
