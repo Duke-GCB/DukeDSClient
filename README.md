@@ -2,7 +2,13 @@
 Command line tool to upload/manage project on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
 [![Build Status](https://travis-ci.org/Duke-GCB/DukeDSClient.svg?branch=master)](https://travis-ci.org/Duke-GCB/DukeDSClient)
 
-Runs on Python 2.7 or 3.5.
+# Requirements
+- [python](https://www.python.org/) - version 2.7+ with a functional ssl module. 
+- [requests](http://docs.python-requests.org/en/master/) - python module
+- [PyYAML](http://pyyaml.org/wiki/PyYAML) - python module
+
+The preferred python versions are 2.7.9+ or 3.4.1+ as they have functional ssl modules by default.
+Older python 2.7 may work by following this guide: [Older-python-2.7-setup](https://github.com/Duke-GCB/DukeDSClient/wiki/Older-python-2.7-setup)
 
 # Install or Upgrade:
 ```
@@ -13,10 +19,10 @@ pip install --upgrade DukeDSClient
 DukeDSClient requires a config file containing an __agent_key__ and a __user_key__.
 DukeDSClient supports a global configuration file at /etc/ddsclient.conf and a user configuration file at ~/.ddsclient.
 Settings in the user configuration file override those in the global configuration.
+Details of all configuration options: [Configuration options](https://github.com/Duke-GCB/DukeDSClient/wiki/Configuration).
 
 #####  Follow these instructions to setup your __user_key__ and  __agent_key__:
-[Instructions for adding agent and user keys to the user config file.](docs/GettingAgentAndUserKeys.md)
-
+[Instructions for adding agent and user keys to the user config file.](https://github.com/Duke-GCB/DukeDSClient/wiki/Agent-User-Keys-(setup))
 
 ###Use:
 See general help screen:
