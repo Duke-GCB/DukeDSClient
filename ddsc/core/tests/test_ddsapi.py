@@ -57,7 +57,7 @@ class TestDataServiceApi(TestCase):
         self.assertEqual('something.com/v1/users', first_param)
         dict_param = call_args[1]
         self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
-        self.assertIn('"per_page": 10000', dict_param['params'])
+        self.assertIn('"per_page": 100', dict_param['params'])
 
     def test_get_collection_two_pages(self):
         mock_requests = MagicMock()
@@ -80,14 +80,14 @@ class TestDataServiceApi(TestCase):
         self.assertEqual('something.com/v1/projects', first_param)
         dict_param = call_args[1]
         self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
-        self.assertIn('"per_page": 10000', dict_param['params'])
+        self.assertIn('"per_page": 100', dict_param['params'])
         # Check second request
         call_args = call_args_list[1]
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/projects', first_param)
         dict_param = call_args[1]
         self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
-        self.assertIn('"per_page": 10000', dict_param['params'])
+        self.assertIn('"per_page": 100', dict_param['params'])
         self.assertIn('"page": 2', dict_param['params'])
 
     def test_get_collection_three_pages(self):
@@ -114,14 +114,14 @@ class TestDataServiceApi(TestCase):
         self.assertEqual('something.com/v1/uploads', first_param)
         dict_param = call_args[1]
         self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
-        self.assertIn('"per_page": 10000', dict_param['params'])
+        self.assertIn('"per_page": 100', dict_param['params'])
         # Check second request
         call_args = call_args_list[1]
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/uploads', first_param)
         dict_param = call_args[1]
         self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
-        self.assertIn('"per_page": 10000', dict_param['params'])
+        self.assertIn('"per_page": 100', dict_param['params'])
         self.assertIn('"page": 2', dict_param['params'])
         # Check third request
         call_args = call_args_list[2]
@@ -129,7 +129,7 @@ class TestDataServiceApi(TestCase):
         self.assertEqual('something.com/v1/uploads', first_param)
         dict_param = call_args[1]
         self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
-        self.assertIn('"per_page": 10000', dict_param['params'])
+        self.assertIn('"per_page": 100', dict_param['params'])
         self.assertIn('"page": 3', dict_param['params'])
 
     def test_put_raises_error_on_paging_response(self):
