@@ -19,7 +19,7 @@ This may be due to an incompatible DukeDS API change.
 Try upgrading ddsclient: pip install --upgrade DukeDSClient
 """
 
-DEFAULT_RESULTS_PER_PAGE = 10000
+DEFAULT_RESULTS_PER_PAGE = 100
 
 requests_session = requests.Session()
 
