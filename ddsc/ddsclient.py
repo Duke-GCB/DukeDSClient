@@ -14,6 +14,7 @@ from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
+TWO_SECONDS = 2
 
 
 class DDSClient(object):
@@ -70,7 +71,7 @@ class DDSClient(object):
             check_version()
         except VersionException as err:
             print(str(err), file=sys.stderr)
-            time.sleep(2)
+            time.sleep(TWO_SECONDS)
 
     def _run_command(self, command_constructor, args):
         """
