@@ -509,8 +509,6 @@ class DataServiceApi(object):
     def get_all_users(self):
         """
         Send GET request to /users for all users.
-        :param page: which page of the users list do we want
-        :param per_page: how many items should be on each page
         :return: requests.Response containing the successful result
         """
         data = {}
