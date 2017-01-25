@@ -506,17 +506,14 @@ class DataServiceApi(object):
         }
         return self._get_collection('/users', data, content_type=ContentType.form)
 
-    def get_all_users(self, page, per_page):
+    def get_all_users(self):
         """
         Send GET request to /users for all users.
         :param page: which page of the users list do we want
         :param per_page: how many items should be on each page
         :return: requests.Response containing the successful result
         """
-        data = {
-            "page": page,
-            "per_page": per_page,
-        }
+        data = {}
         return self._get_collection('/users', data, content_type=ContentType.form)
 
     def get_user_by_id(self, id):
