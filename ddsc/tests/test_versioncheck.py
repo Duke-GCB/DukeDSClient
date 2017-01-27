@@ -50,8 +50,3 @@ class TestVerifyEncoding(TestCase):
         self.assertEqual(list, type(version))
         self.assertEqual(int, type(version[0]))
 
-
-
-
-
-

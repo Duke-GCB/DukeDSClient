@@ -1,7 +1,6 @@
 """
-Compares installed
+Compares installed DukeDSClient vs what is on PyPI.
 """
-
 from __future__ import print_function
 import requests
 import pkg_resources
@@ -30,8 +29,6 @@ def get_pypi_version():
         raise VersionException(UNABLE_TO_ACCESS_PYPI + " Failed to connect.")
     except requests.exceptions.Timeout:
         raise VersionException(UNABLE_TO_ACCESS_PYPI + " Timeout")
-    #except requests.exceptions.Timeout:
-    #
 
 
 def get_internal_version():
