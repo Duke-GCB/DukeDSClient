@@ -229,6 +229,18 @@ def _add_exclude_arg(arg_parser):
                             default=[])
 
 
+def _add_dry_run(arg_parser, help_text):
+    """
+    Adds optional --dry-run parameter to a parser. Stored as 'dry_run'.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    :param help_text: str label displayed in usage
+    """
+    arg_parser.add_argument("--dry-run",
+                            help=help_text,
+                            action='store_true',
+                            dest='dry_run')
+
+
 class CommandParser(object):
     """
     Root command line parser. Supports the following commands: upload and add_user.
@@ -252,6 +264,7 @@ class CommandParser(object):
         add_project_name_arg(upload_parser, help_text="Name of the project to upload files/folders to.")
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
+        _add_dry_run(upload_parser, help_text="Instead of uploading display out a list of folders/files to be uploaded.")
         upload_parser.set_defaults(func=upload_func)
 
     def register_add_user_command(self, add_user_func):

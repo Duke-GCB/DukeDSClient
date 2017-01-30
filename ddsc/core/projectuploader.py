@@ -1,5 +1,5 @@
 import requests
-from ddsc.core.util import ProjectWalker
+from ddsc.core.util import ProjectWalker, KindType
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData
 from ddsc.core.parallel import TaskExecutor, TaskRunner
@@ -365,3 +365,27 @@ def create_small_file(upload_context):
     url_info = upload_operations.create_file_chunk_url(upload_id, chunk_num, chunk)
     upload_operations.send_file_external(url_info, chunk)
     return upload_operations.finish_upload(upload_id, hash_data, parent_data, remote_file_id)
+
+
+class ProjectUploadDryRun(object):
+    def __init__(self):
+        self.upload_items = []
+
+    def add_upload_item(self, name):
+        self.upload_items.append(name)
+
+    def run(self, local_project):
+        self.visit_recur(local_project)
+
+    def visit_recur(self, item):
+        if item.kind == KindType.file_str:
+            if item.need_to_send:
+                self.add_upload_item(item.path)
+        else:
+            if item.kind == KindType.project_str:
+                pass
+            else:
+                if not item.remote_id:
+                    self.add_upload_item(item.path)
+            for child in item.children:
+                self.visit_recur(child)
