@@ -686,9 +686,9 @@ class DataServiceApi(object):
         Send POST to /activities creating a new activity with the specified name and desc.
         Raises DataServiceError on error.
         :param activity_name: str name of the activity
-        :param desc: str description of the activity
-        :param started_on: str datetime when the activity started
-        :param ended_on: str datetime when the activity ended
+        :param desc: str description of the activity (optional)
+        :param started_on: str datetime when the activity started (optional)
+        :param ended_on: str datetime when the activity ended (optional)
         :return: requests.Response containing the successful result
         """
         data = {
@@ -721,10 +721,10 @@ class DataServiceApi(object):
         Send PUT request to /activities/{activity_id} to update the activity metadata.
         Raises ValueError if at least one field is not updated.
         :param activity_id: str uuid of activity
-        :param activity_name: str new name of the activity (optional)
-        :param desc: str description of the activity (option)
-        :param started_on: str date the updated activity began on
-        :param ended_on: str date the updated activity ended on
+        :param activity_name: str new name of the activity
+        :param desc: str description of the activity (optional)
+        :param started_on: str date the updated activity began on (optional)
+        :param ended_on: str date the updated activity ended on (optional)
         :return: requests.Response containing the successful result
         """
         put_data = {
