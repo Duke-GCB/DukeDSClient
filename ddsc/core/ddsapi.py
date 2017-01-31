@@ -19,6 +19,8 @@ This may be due to an incompatible DukeDS API change.
 Try upgrading ddsclient: pip install --upgrade DukeDSClient
 """
 
+MISSING_VALID_PUT_DATA = "At least one field must be updated"
+
 DEFAULT_RESULTS_PER_PAGE = 100
 
 requests_session = requests.Session()
@@ -670,6 +672,71 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         return self._process_project_transfer('accept', transfer_id, status_comment)
+        
+    def get_activities(self):
+        """
+        Send GET to /activities returning a list of all provenance activities
+        for the current user. Raises DataServiceError on error.
+        :return: requests.Response containing the successful result
+        """
+        return self._get_collection("/activities", {})
+        
+    def create_activity(self, activity_name, desc=None, started_on=None, ended_on=None):
+        """
+        Send POST to /activities creating a new activity with the specified name and desc.
+        Raises DataServiceError on error.
+        :param activity_name: str name of the activity
+        :param desc: str description of the activity
+        :param started_on: str datetime when the activity started
+        :param ended_on: str datetime when the activity ended
+        :return: requests.Response containing the successful result
+        """
+        data = {
+            "name": activity_name,
+            "description": desc,
+            "started_on": started_on,
+            "ended_on": ended_on
+        }
+        return self._post("/activities", data)
+        
+    def delete_activity(self, activity_id):
+        """
+        Send DELETE request to the url for this activity.
+        :param activity_id: str uuid of the activity
+        :return: requests.Response containing the successful result
+        """
+        return self._delete("/activities/" + activity_id, {})
+        
+    def get_activity_by_id(self, activity_id):
+        """
+        Send GET request to /activities/{id} to get activity details
+        :param id: str uuid of the activity
+        :return: requests.Response containing the successful result
+        """
+        return self._get_single_item('/activities/{}'.format(activity_id), {})
+        
+    def update_activity(self, activity_id, activity_name=None, desc=None, 
+                        started_on=None, ended_on=None):
+        """
+        Send PUT request to /activities/{activity_id} to update the activity metadata.
+        Raises ValueError if at least one field is not updated.
+        :param activity_id: str uuid of activity
+        :param activity_name: str new name of the activity (optional)
+        :param desc: str description of the activity (option)
+        :param started_on: str date the updated activity began on
+        :param ended_on: str date the updated activity ended on
+        :return: requests.Response containing the successful result
+        """
+        put_data = {
+            "name": activity_name,
+            "description": desc,
+            "started_on": started_on,
+            "ended_on": ended_on
+        }
+        if all(value==None for value in put_data.values()):
+            raise ValueError(MISSING_VALID_PUT_DATA)
+        else:
+            return self._put("/activities/" + activity_id, put_data)
 
 
 class MultiJSONResponse(object):
