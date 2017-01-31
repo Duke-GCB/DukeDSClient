@@ -19,8 +19,6 @@ This may be due to an incompatible DukeDS API change.
 Try upgrading ddsclient: pip install --upgrade DukeDSClient
 """
 
-MISSING_VALID_PUT_DATA = "At least one field must be updated"
-
 DEFAULT_RESULTS_PER_PAGE = 100
 
 requests_session = requests.Session()
