@@ -715,7 +715,7 @@ class DataServiceApi(object):
         """
         return self._get_single_item('/activities/{}'.format(activity_id), {})
         
-    def update_activity(self, activity_id, activity_name=None, desc=None, 
+    def update_activity(self, activity_id, activity_name, desc=None, 
                         started_on=None, ended_on=None):
         """
         Send PUT request to /activities/{activity_id} to update the activity metadata.
@@ -733,10 +733,7 @@ class DataServiceApi(object):
             "started_on": started_on,
             "ended_on": ended_on
         }
-        if all(value==None for value in put_data.values()):
-            raise ValueError(MISSING_VALID_PUT_DATA)
-        else:
-            return self._put("/activities/" + activity_id, put_data)
+        return self._put("/activities/" + activity_id, put_data)
 
 
 class MultiJSONResponse(object):
