@@ -3,6 +3,7 @@ import json
 import requests
 import time
 from ddsc.config import LOCAL_CONFIG_FILENAME
+from ddsc.versioncheck import APP_NAME, get_internal_version_str
 
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
@@ -158,6 +159,7 @@ class DataServiceApi(object):
         self.auth = auth
         self.base_url = url
         self.http = http
+        self.version_str = '{}/{}'.format(APP_NAME, get_internal_version_str())
 
     def _url_parts(self, url_suffix, data, content_type):
         """
@@ -173,6 +175,7 @@ class DataServiceApi(object):
             send_data = json.dumps(data)
         headers = {
             'Content-Type': content_type,
+            'User-Agent': self.version_str,
         }
         if self.auth:
             headers['Authorization'] = self.auth.get_auth()
