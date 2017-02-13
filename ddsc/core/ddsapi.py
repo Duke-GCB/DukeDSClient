@@ -21,8 +21,16 @@ Try upgrading ddsclient: pip install --upgrade DukeDSClient
 """
 
 DEFAULT_RESULTS_PER_PAGE = 100
-
 requests_session = requests.Session()
+
+
+def get_user_agent_str():
+    """
+    Returns the user agent: DukeDSClient/<versigon>
+    :return: str: user agent value
+    """
+    return '{}/{}'.format(APP_NAME, get_internal_version_str())
+
 
 class ContentType(object):
     """
@@ -44,6 +52,7 @@ class DataServiceAuth(object):
         self.config = config
         self._auth = self.config.auth
         self._expires = None
+        self.user_agent_str = get_user_agent_str()
 
     def get_auth(self):
         """
@@ -64,6 +73,7 @@ class DataServiceAuth(object):
         # Intentionally doing this manually so we don't have a chicken and egg problem with DataServiceApi.
         headers = {
             'Content-Type': ContentType.json,
+            'User-Agent': self.user_agent_str,
         }
         data = {
             "agent_key": self.config.agent_key,
@@ -159,7 +169,7 @@ class DataServiceApi(object):
         self.auth = auth
         self.base_url = url
         self.http = http
-        self.version_str = '{}/{}'.format(APP_NAME, get_internal_version_str())
+        self.user_agent_str = get_user_agent_str()
 
     def _url_parts(self, url_suffix, data, content_type):
         """
@@ -175,7 +185,7 @@ class DataServiceApi(object):
             send_data = json.dumps(data)
         headers = {
             'Content-Type': content_type,
-            'User-Agent': self.version_str,
+            'User-Agent': self.user_agent_str,
         }
         if self.auth:
             headers['Authorization'] = self.auth.get_auth()
