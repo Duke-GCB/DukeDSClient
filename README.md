@@ -90,10 +90,15 @@ ddsclient add_user -p 'Analyzed Mouse RNA' --email 'ada.lovelace@duke.edu'
 ```
 
 
-###Testing:
+### Developer Setup:
 Install dependencies:
 ```
 pip install -r devRequirements.txt 
+```
+
+Setup pre-commit hook:
+```
+ln pre-commit.sh .git/hooks/pre-commit
 ```
 
 Run linter/style checker:
