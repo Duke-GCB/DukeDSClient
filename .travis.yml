@@ -6,5 +6,9 @@ python:
 install: 
   - "python setup.py install"
   - "pip install -r devRequirements.txt"
+  - "pip install coveralls"
 # command to run tests
-script: nosetests ddsc
+script:
+  coverage run --source=moscowdjango,meetup manage.py test
+after_success:
+  coveralls
