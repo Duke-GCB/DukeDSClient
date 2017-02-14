@@ -90,7 +90,7 @@ ddsclient add_user -p 'Analyzed Mouse RNA' --email 'ada.lovelace@duke.edu'
 ```
 
 
-### Developer Setup:
+### Developer:
 Install dependencies:
 ```
 pip install -r devRequirements.txt 
