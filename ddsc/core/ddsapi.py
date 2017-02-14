@@ -3,6 +3,7 @@ import json
 import requests
 import time
 from ddsc.config import LOCAL_CONFIG_FILENAME
+from ddsc.versioncheck import APP_NAME, get_internal_version_str
 
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
@@ -14,7 +15,21 @@ Follow this guide: {}\n""".format(LOCAL_CONFIG_FILENAME, SETUP_GUIDE_URL)
 SOFTWARE_AGENT_NOT_FOUND_MSG = """Your software agent was not found on the server.
 Perhaps you have the wrong URL. You can change it via the 'url' setting in {}.""".format(LOCAL_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME)
 
+UNEXPECTED_PAGING_DATA_RECEIVED = """Received unexpected paging data in single item response.
+This may be due to an incompatible DukeDS API change.
+Try upgrading ddsclient: pip install --upgrade DukeDSClient
+"""
+
+DEFAULT_RESULTS_PER_PAGE = 100
 requests_session = requests.Session()
+
+
+def get_user_agent_str():
+    """
+    Returns the user agent: DukeDSClient/<versigon>
+    :return: str: user agent value
+    """
+    return '{}/{}'.format(APP_NAME, get_internal_version_str())
 
 
 class ContentType(object):
@@ -37,6 +52,7 @@ class DataServiceAuth(object):
         self.config = config
         self._auth = self.config.auth
         self._expires = None
+        self.user_agent_str = get_user_agent_str()
 
     def get_auth(self):
         """
@@ -57,6 +73,7 @@ class DataServiceAuth(object):
         # Intentionally doing this manually so we don't have a chicken and egg problem with DataServiceApi.
         headers = {
             'Content-Type': ContentType.json,
+            'User-Agent': self.user_agent_str,
         }
         data = {
             "agent_key": self.config.agent_key,
@@ -153,82 +170,132 @@ class DataServiceApi(object):
         self.auth = auth
         self.base_url = url
         self.http = http
+        self.user_agent_str = get_user_agent_str()
 
-    def _url_parts(self, url_suffix, url_data, content_type):
+    def _url_parts(self, url_suffix, data, content_type):
         """
         Format the url data based on config_type.
         :param url_suffix: str URL path we are sending a GET/POST/PUT to
-        :param url_data: object data we are sending
+        :param data: object data we are sending
         :param content_type: str from ContentType that determines how we format the data
         :return: complete url, formatted data, and headers for sending
         """
         url = self.base_url + url_suffix
-        send_data = url_data
+        send_data = data
         if content_type == ContentType.json:
-            send_data = json.dumps(url_data)
+            send_data = json.dumps(data)
         headers = {
             'Content-Type': content_type,
+            'User-Agent': self.user_agent_str,
         }
         if self.auth:
             headers['Authorization'] = self.auth.get_auth()
         return url, send_data, headers
 
-    def _post(self, url_suffix, post_data, content_type=ContentType.json):
+    def _post(self, url_suffix, data, content_type=ContentType.json):
         """
         Send POST request to API at url_suffix with post_data.
+        Raises error if x-total-pages is contained in the response.
         :param url_suffix: str URL path we are sending a POST to
-        :param url_data: object data we are sending
+        :param data: object data we are sending
         :param content_type: str from ContentType that determines how we format the data
         :return: requests.Response containing the result
         """
-        (url, data_str, headers) = self._url_parts(url_suffix, post_data, content_type=content_type)
+        (url, data_str, headers) = self._url_parts(url_suffix, data, content_type=content_type)
         resp = self.http.post(url, data_str, headers=headers)
-        return self._check_err(resp, url_suffix, post_data)
+        return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
-    def _put(self, url_suffix, put_data, content_type=ContentType.json):
+    def _put(self, url_suffix, data, content_type=ContentType.json):
         """
         Send PUT request to API at url_suffix with post_data.
+        Raises error if x-total-pages is contained in the response.
         :param url_suffix: str URL path we are sending a PUT to
-        :param url_data: object data we are sending
+        :param data: object data we are sending
         :param content_type: str from ContentType that determines how we format the data
         :return: requests.Response containing the result
         """
-        (url, data_str, headers) = self._url_parts(url_suffix, put_data, content_type=content_type)
+        (url, data_str, headers) = self._url_parts(url_suffix, data, content_type=content_type)
         resp = self.http.put(url, data_str, headers=headers)
-        return self._check_err(resp, url_suffix, put_data)
+        return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
-    def _get(self, url_suffix, get_data, content_type=ContentType.json):
+    def _get_single_item(self, url_suffix, data, content_type=ContentType.json):
         """
         Send GET request to API at url_suffix with post_data.
+        Raises error if x-total-pages is contained in the response.
         :param url_suffix: str URL path we are sending a GET to
         :param url_data: object data we are sending
         :param content_type: str from ContentType that determines how we format the data
         :return: requests.Response containing the result
         """
-        (url, data_str, headers) = self._url_parts(url_suffix, get_data, content_type=content_type)
+        (url, data_str, headers) = self._url_parts(url_suffix, data, content_type=content_type)
         resp = self.http.get(url, headers=headers, params=data_str)
-        return self._check_err(resp, url_suffix, get_data)
+        return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
-    def _delete(self, url_suffix, get_data, content_type=ContentType.json):
+    def _get_single_page(self, url_suffix, data, content_type, page_num):
         """
-        Send DELETE request to API at url_suffix with post_data.
-        :param url_suffix: str URL path we are sending a DELETE to
-        :param url_data: object data we are sending
+        Send GET request to API at url_suffix with post_data adding page and per_page parameters to
+        retrieve a single page. Always requests with per_page=DEFAULT_RESULTS_PER_PAGE.
+        :param url_suffix: str URL path we are sending a GET to
+        :param data: object data we are sending
+        :param content_type: str from ContentType that determines how we format the data
+        :param page_num: int: page number to fetch
+        :return: requests.Response containing the result
+        """
+        data_with_per_page = dict(data)
+        data_with_per_page['page'] = page_num
+        data_with_per_page['per_page'] = DEFAULT_RESULTS_PER_PAGE
+        (url, data_str, headers) = self._url_parts(url_suffix, data_with_per_page, content_type=content_type)
+        resp = self.http.get(url, headers=headers, params=data_str)
+        return self._check_err(resp, url_suffix, data, allow_pagination=True)
+
+    def _get_collection(self, url_suffix, data, content_type=ContentType.json):
+        """
+        Performs GET for all pages based on x-total-pages in first response headers.
+        Merges the json() 'results' arrays.
+        If x-total-pages is missing or 1 just returns the response without fetching multiple pages.
+        :param url_suffix: str URL path we are sending a GET to
+        :param data: object data we are sending
         :param content_type: str from ContentType that determines how we format the data
         :return: requests.Response containing the result
         """
-        (url, data_str, headers) = self._url_parts(url_suffix, get_data, content_type=content_type)
-        resp = self.http.delete(url, headers=headers, params=data_str)
-        return self._check_err(resp, url_suffix, get_data)
+        response = self._get_single_page(url_suffix, data, content_type, page_num=1)
+        total_pages_str = response.headers.get('x-total-pages')
+        if total_pages_str:
+            total_pages = int(total_pages_str)
+            if total_pages > 1:
+                multi_response = MultiJSONResponse(base_response=response, merge_array_field_name="results")
+                for page in range(2, total_pages + 1):
+                    additional_response = self._get_single_page(url_suffix, data, content_type, page_num=page)
+                    multi_response.add_response(additional_response)
+                return multi_response
+        return response
 
-    def _check_err(self, resp, url_suffix, data):
+    def _delete(self, url_suffix, data, content_type=ContentType.json):
+        """
+        Send DELETE request to API at url_suffix with post_data.
+        Raises error if x-total-pages is contained in the response.
+        :param url_suffix: str URL path we are sending a DELETE to
+        :param data: object data we are sending
+        :param content_type: str from ContentType that determines how we format the data
+        :return: requests.Response containing the result
+        """
+        (url, data_str, headers) = self._url_parts(url_suffix, data, content_type=content_type)
+        resp = self.http.delete(url, headers=headers, params=data_str)
+        return self._check_err(resp, url_suffix, data, allow_pagination=False)
+
+    @staticmethod
+    def _check_err(resp, url_suffix, data, allow_pagination):
         """
         Raise DataServiceError if the response wasn't successful.
         :param resp: requests.Response back from the request
         :param url_suffix: str url to include in an error message
         :param data: data payload we sent
+        :param allow_pagination: when False and response headers contains 'x-total-pages' raises an error.
         :return: requests.Response containing the successful result
         """
+        total_pages = resp.headers.get('x-total-pages')
+        if not allow_pagination and total_pages:
+            raise ValueError(UNEXPECTED_PAGING_DATA_RECEIVED)
         if 200 <= resp.status_code < 300:
             return resp
         raise DataServiceError(resp, url_suffix, data)
@@ -253,7 +320,7 @@ class DataServiceApi(object):
         Raises DataServiceError on error.
         :return: requests.Response containing the successful result
         """
-        return self._get("/projects", {})
+        return self._get_collection("/projects", {})
 
     def get_project_by_id(self, id):
         """
@@ -261,7 +328,7 @@ class DataServiceApi(object):
         :param id: str uuid of the project
         :return: requests.Response containing the successful result
         """
-        return self._get('/projects/{}'.format(id), {})
+        return self._get_single_item('/projects/{}'.format(id), {})
 
     def get_file_url(self, file_id):
         """
@@ -270,7 +337,7 @@ class DataServiceApi(object):
         :param file_id: str uuid of the file we want to download
         :return: requests.Response containing the successful result
         """
-        return self._get("/files/{}/url".format(file_id), {})
+        return self._get_single_item("/files/{}/url".format(file_id), {})
 
     def create_folder(self, folder_name, parent_kind_str, parent_uuid):
         """
@@ -318,7 +385,8 @@ class DataServiceApi(object):
         data = {}
         if name_contains is not None:
             data['name_contains'] = name_contains
-        return self._get("/" + parent_name + "/" + parent_id + "/children", data, content_type=ContentType.form)
+        url_prefix = "/{}/{}/children".format(parent_name, parent_id)
+        return self._get_collection(url_prefix, data, content_type=ContentType.form)
 
     def create_upload(self, project_id, filename, content_type, size,
                       hash_value, hash_alg):
@@ -450,20 +518,15 @@ class DataServiceApi(object):
         data = {
             "full_name_contains": full_name,
         }
-        return self._get('/users', data, content_type=ContentType.form)
+        return self._get_collection('/users', data, content_type=ContentType.form)
 
-    def get_users_by_page_and_offset(self, page, per_page):
+    def get_all_users(self):
         """
-        Send GET request to /users filtering by those full name contains full_name.
-        :param page: which page of the users list do we want
-        :param per_page: how many items should be on each page
+        Send GET request to /users for all users.
         :return: requests.Response containing the successful result
         """
-        data = {
-            "page": page,
-            "per_page": per_page,
-        }
-        return self._get('/users', data, content_type=ContentType.form)
+        data = {}
+        return self._get_collection('/users', data, content_type=ContentType.form)
 
     def get_user_by_id(self, id):
         """
@@ -471,7 +534,7 @@ class DataServiceApi(object):
         :param id: str uuid of the user
         :return: requests.Response containing the successful result
         """
-        return self._get('/users/{}'.format(id), {})
+        return self._get_single_item('/users/{}'.format(id), {})
 
     def set_user_project_permission(self, project_id, user_id, auth_role):
         """
@@ -495,7 +558,7 @@ class DataServiceApi(object):
         :param auth_role: str project role eg 'project_admin'
         :return: requests.Response containing the successful result
         """
-        return self._get("/projects/" + project_id + "/permissions/" + user_id, {})
+        return self._get_single_item("/projects/" + project_id + "/permissions/" + user_id, {})
 
     def revoke_user_project_permission(self, project_id, user_id):
         """
@@ -513,7 +576,7 @@ class DataServiceApi(object):
         :param file_id: str uuid of the file we want info about
         :return: requests.Response containing the successful result
         """
-        return self._get('/files/' + file_id, {})
+        return self._get_single_item('/files/' + file_id, {})
 
     def get_api_token(self, agent_key, user_key):
         """
@@ -534,7 +597,7 @@ class DataServiceApi(object):
         Send GET request to get info about current user.
         :return: requests.Response containing the successful result
         """
-        return self._get("/current_user", {})
+        return self._get_single_item("/current_user", {})
 
     def delete_project(self, project_id):
         """
@@ -550,7 +613,7 @@ class DataServiceApi(object):
         :param context: str which roles do we want 'project' or 'system'
         :return: requests.Response containing the successful result
         """
-        return self._get("/auth_roles", {"context": context}, content_type=ContentType.form)
+        return self._get_all_pages("/auth_roles", {"context": context}, content_type=ContentType.form)
 
     def get_project_transfers(self, project_id):
         """
@@ -558,7 +621,7 @@ class DataServiceApi(object):
         :param project_id: str uuid of the project
         :return: requests.Response containing the successful result
         """
-        return self._get("/projects/" + project_id + "/transfers", {})
+        return self._get_all_pages("/projects/" + project_id + "/transfers", {})
 
     def create_project_transfer(self, project_id, to_user_ids):
         """
@@ -579,7 +642,7 @@ class DataServiceApi(object):
         :param transfer_id: str uuid of the project_transfer
         :return: requests.Response containing the successful result
         """
-        return self._get("/project_transfers/" + transfer_id, {})
+        return self._get_single_item("/project_transfers/" + transfer_id, {})
 
     def _process_project_transfer(self, action, transfer_id, status_comment):
         """
@@ -621,3 +684,103 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         return self._process_project_transfer('accept', transfer_id, status_comment)
+        
+    def get_activities(self):
+        """
+        Send GET to /activities returning a list of all provenance activities
+        for the current user. Raises DataServiceError on error.
+        :return: requests.Response containing the successful result
+        """
+        return self._get_collection("/activities", {})
+        
+    def create_activity(self, activity_name, desc=None, started_on=None, ended_on=None):
+        """
+        Send POST to /activities creating a new activity with the specified name and desc.
+        Raises DataServiceError on error.
+        :param activity_name: str name of the activity
+        :param desc: str description of the activity (optional)
+        :param started_on: str datetime when the activity started (optional)
+        :param ended_on: str datetime when the activity ended (optional)
+        :return: requests.Response containing the successful result
+        """
+        data = {
+            "name": activity_name,
+            "description": desc,
+            "started_on": started_on,
+            "ended_on": ended_on
+        }
+        return self._post("/activities", data)
+        
+    def delete_activity(self, activity_id):
+        """
+        Send DELETE request to the url for this activity.
+        :param activity_id: str uuid of the activity
+        :return: requests.Response containing the successful result
+        """
+        return self._delete("/activities/" + activity_id, {})
+        
+    def get_activity_by_id(self, activity_id):
+        """
+        Send GET request to /activities/{id} to get activity details
+        :param id: str uuid of the activity
+        :return: requests.Response containing the successful result
+        """
+        return self._get_single_item('/activities/{}'.format(activity_id), {})
+        
+    def update_activity(self, activity_id, activity_name, desc=None, 
+                        started_on=None, ended_on=None):
+        """
+        Send PUT request to /activities/{activity_id} to update the activity metadata.
+        Raises ValueError if at least one field is not updated.
+        :param activity_id: str uuid of activity
+        :param activity_name: str new name of the activity
+        :param desc: str description of the activity (optional)
+        :param started_on: str date the updated activity began on (optional)
+        :param ended_on: str date the updated activity ended on (optional)
+        :return: requests.Response containing the successful result
+        """
+        put_data = {
+            "name": activity_name,
+            "description": desc,
+            "started_on": started_on,
+            "ended_on": ended_on
+        }
+        return self._put("/activities/" + activity_id, put_data)
+
+
+class MultiJSONResponse(object):
+    """
+    Wraps up multiple requests.Response objects into an object that will return composite dictionary for json() method.
+    """
+    def __init__(self, base_response, merge_array_field_name):
+        """
+        Setup response with primary response that will answer all methods/properties except json()
+        :param base_response: requests.Response containing the successful result that will respond methods/properties
+        :param merge_fieldname: str: name of the array field in the JSON data to merge when add_response is called
+        """
+        self.base_response = base_response
+        self.merge_array_field_name = merge_array_field_name
+        self.combined_json = self.base_response.json()
+
+    def __getattr__(self, attr):
+        """
+        Forwards all calls to base_response property
+        """
+        return getattr(self.base_response, attr)
+
+    def json(self):
+        """
+        Returns json created by merging the base response's json() merge_array_field_name value
+        :return: dict: combined dictionary from multiple responses
+        """
+        return self.combined_json
+
+    def add_response(self, response):
+        """
+        Add data from json() to data returned by json()
+        :param response: requests.Response containing the successful JSON result to be merged
+        """
+        key = self.merge_array_field_name
+        response_json = response.json()
+        value = self.combined_json[key]
+        self.combined_json[self.merge_array_field_name] = value + response_json[key]

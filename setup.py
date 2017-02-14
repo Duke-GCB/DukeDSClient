@@ -2,7 +2,7 @@ from setuptools import setup
 
 
 setup(name='DukeDSClient',
-        version='0.3.2',
+        version='0.3.5',
         description='Command line tool(ddsclient) to upload/manage projects on the duke-data-service.',
         url='https://github.com/Duke-GCB/DukeDSClient',
         keywords='duke dds dukedataservice',
@@ -16,7 +16,7 @@ setup(name='DukeDSClient',
           'six',
         ],
         test_suite='nose.collector',
-        tests_require=['nose'],
+        tests_require=['nose', 'mock'],
         entry_points={
             'console_scripts': [
                 'ddsclient = ddsc.__main__:main'

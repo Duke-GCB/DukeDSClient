@@ -4,6 +4,7 @@ from builtins import input
 import sys
 import datetime
 import pipes
+import time
 from ddsc.core.d4s2 import D4S2Project, D4S2Error
 from ddsc.core.remotestore import RemoteStore, RemoteAuthRole
 from ddsc.core.upload import ProjectUpload
@@ -11,8 +12,10 @@ from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, repla
 from ddsc.core.download import ProjectDownload
 from ddsc.core.util import ProjectFilenameList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
+from ddsc.versioncheck import check_version, VersionException
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
+TWO_SECONDS = 2
 
 
 class DDSClient(object):
@@ -61,6 +64,16 @@ class DDSClient(object):
         """
         return lambda args: self._run_command(command_constructor, args)
 
+    def _check_pypi_version(self):
+        """
+        When the version is out of date or we have trouble retrieving it print a error to stderr and pause.
+        """
+        try:
+            check_version()
+        except VersionException as err:
+            print(str(err), file=sys.stderr)
+            time.sleep(TWO_SECONDS)
+
     def _run_command(self, command_constructor, args):
         """
         Run command_constructor and call run(args) on the resulting object
@@ -68,6 +81,7 @@ class DDSClient(object):
         :param args: object arguments for specific command created by CommandParser
         """
         verify_terminal_encoding(sys.stdout.encoding)
+        self._check_pypi_version()
         command = command_constructor(self.config)
         command.run(args)
 

@@ -132,19 +132,11 @@ class RemoteStore(object):
         Retrieves all users from data service.
         :return: [RemoteUser] list of all users we downloaded
         """
-        page = 1
-        per_page = FETCH_ALL_USERS_PAGE_SIZE
         users = []
-        while True:
-            result = self.data_service.get_users_by_page_and_offset(page, per_page)
-            user_list_json = result.json()
-            for user_json in user_list_json['results']:
-                users.append(RemoteUser(user_json))
-            total_pages = int(result.headers["x-total-pages"])
-            result_page = int(result.headers["x-page"])
-            if result_page == total_pages:
-                break
-            page += 1
+        result = self.data_service.get_all_users()
+        user_list_json = result.json()
+        for user_json in user_list_json['results']:
+            users.append(RemoteUser(user_json))
         return users
 
     def fetch_user(self, id):
