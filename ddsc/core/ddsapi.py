@@ -3,6 +3,7 @@ import json
 import requests
 import time
 from ddsc.config import LOCAL_CONFIG_FILENAME
+from ddsc.versioncheck import APP_NAME, get_internal_version_str
 
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
@@ -20,8 +21,16 @@ Try upgrading ddsclient: pip install --upgrade DukeDSClient
 """
 
 DEFAULT_RESULTS_PER_PAGE = 100
-
 requests_session = requests.Session()
+
+
+def get_user_agent_str():
+    """
+    Returns the user agent: DukeDSClient/<versigon>
+    :return: str: user agent value
+    """
+    return '{}/{}'.format(APP_NAME, get_internal_version_str())
+
 
 class ContentType(object):
     """
@@ -43,6 +52,7 @@ class DataServiceAuth(object):
         self.config = config
         self._auth = self.config.auth
         self._expires = None
+        self.user_agent_str = get_user_agent_str()
 
     def get_auth(self):
         """
@@ -63,6 +73,7 @@ class DataServiceAuth(object):
         # Intentionally doing this manually so we don't have a chicken and egg problem with DataServiceApi.
         headers = {
             'Content-Type': ContentType.json,
+            'User-Agent': self.user_agent_str,
         }
         data = {
             "agent_key": self.config.agent_key,
@@ -158,6 +169,7 @@ class DataServiceApi(object):
         self.auth = auth
         self.base_url = url
         self.http = http
+        self.user_agent_str = get_user_agent_str()
 
     def _url_parts(self, url_suffix, data, content_type):
         """
@@ -173,6 +185,7 @@ class DataServiceApi(object):
             send_data = json.dumps(data)
         headers = {
             'Content-Type': content_type,
+            'User-Agent': self.user_agent_str,
         }
         if self.auth:
             headers['Authorization'] = self.auth.get_auth()

@@ -56,7 +56,8 @@ class TestDataServiceApi(TestCase):
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/users', first_param)
         dict_param = call_args[1]
-        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
         self.assertIn('"per_page": 100', dict_param['params'])
 
     def test_get_collection_two_pages(self):
@@ -79,14 +80,16 @@ class TestDataServiceApi(TestCase):
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/projects', first_param)
         dict_param = call_args[1]
-        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
         self.assertIn('"per_page": 100', dict_param['params'])
         # Check second request
         call_args = call_args_list[1]
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/projects', first_param)
         dict_param = call_args[1]
-        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
         self.assertIn('"per_page": 100', dict_param['params'])
         self.assertIn('"page": 2', dict_param['params'])
 
@@ -113,14 +116,16 @@ class TestDataServiceApi(TestCase):
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/uploads', first_param)
         dict_param = call_args[1]
-        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
         self.assertIn('"per_page": 100', dict_param['params'])
         # Check second request
         call_args = call_args_list[1]
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/uploads', first_param)
         dict_param = call_args[1]
-        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
         self.assertIn('"per_page": 100', dict_param['params'])
         self.assertIn('"page": 2', dict_param['params'])
         # Check third request
@@ -128,7 +133,8 @@ class TestDataServiceApi(TestCase):
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/uploads', first_param)
         dict_param = call_args[1]
-        self.assertEqual({'Content-Type': 'application/json'}, dict_param['headers'])
+        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
         self.assertIn('"per_page": 100', dict_param['params'])
         self.assertIn('"page": 3', dict_param['params'])
 

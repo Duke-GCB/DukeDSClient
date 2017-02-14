@@ -35,8 +35,15 @@ def get_internal_version():
     """
     Returns internal version info.
     """
-    version_str = pkg_resources.get_distribution(APP_NAME).version
+    version_str = get_internal_version_str()
     return _parse_version_str(version_str)
+
+
+def get_internal_version_str():
+    """
+    Returns internal version string.
+    """
+    return pkg_resources.get_distribution(APP_NAME).version
 
 
 def _parse_version_str(version_str):
