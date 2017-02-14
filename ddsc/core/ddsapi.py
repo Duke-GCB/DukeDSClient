@@ -684,7 +684,7 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         return self._process_project_transfer('accept', transfer_id, status_comment)
-        
+
     def get_activities(self):
         """
         Send GET to /activities returning a list of all provenance activities
@@ -692,7 +692,7 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         return self._get_collection("/activities", {})
-        
+
     def create_activity(self, activity_name, desc=None, started_on=None, ended_on=None):
         """
         Send POST to /activities creating a new activity with the specified name and desc.
@@ -710,7 +710,7 @@ class DataServiceApi(object):
             "ended_on": ended_on
         }
         return self._post("/activities", data)
-        
+
     def delete_activity(self, activity_id):
         """
         Send DELETE request to the url for this activity.
@@ -718,16 +718,16 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         return self._delete("/activities/" + activity_id, {})
-        
+
     def get_activity_by_id(self, activity_id):
         """
         Send GET request to /activities/{id} to get activity details
-        :param id: str uuid of the activity
+        :param activity_id: str uuid of the activity
         :return: requests.Response containing the successful result
         """
         return self._get_single_item('/activities/{}'.format(activity_id), {})
-        
-    def update_activity(self, activity_id, activity_name, desc=None, 
+
+    def update_activity(self, activity_id, activity_name, desc=None,
                         started_on=None, ended_on=None):
         """
         Send PUT request to /activities/{activity_id} to update the activity metadata.
