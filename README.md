@@ -1,6 +1,7 @@
 # DukeDSClient
 Command line tool to upload/manage project on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
 [![Build Status](https://travis-ci.org/Duke-GCB/DukeDSClient.svg?branch=master)](https://travis-ci.org/Duke-GCB/DukeDSClient)
+[![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg?branch=coveralls)](https://coveralls.io/github/Duke-GCB/DukeDSClient?branch=coveralls)
 
 # Requirements
 - [python](https://www.python.org/) - version 2.7+ with a functional ssl module. 
