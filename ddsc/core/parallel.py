@@ -243,5 +243,3 @@ def execute_task_async(task_func, task_id, context):
     except:
         # Put all exception text into an exception and raise that so main process will print this out
         raise Exception("".join(traceback.format_exception(*sys.exc_info())))
-
-

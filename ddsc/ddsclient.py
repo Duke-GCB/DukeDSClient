@@ -1,5 +1,6 @@
 """ Runs the appropriate command for a user based on arguments. """
 from __future__ import print_function
+from builtins import input
 import sys
 import datetime
 import pipes
@@ -372,9 +373,6 @@ def boolean_input_prompt(message):
     if sys.version_info >= (3, 0, 0):
         result = input(message)
     else:
-        result = raw_input(message)
+        result = input(message)
     result = result.upper()
     return result == "Y" or result == "YES" or result == "T" or result == "TRUE"
-
-
-

@@ -36,7 +36,7 @@ class ProjectDownload(object):
         """
         counter = RemoteContentCounter(project)
         path_filtered_project = PathFilteredProject(self.path_filter, counter)
-        path_filtered_project.run(project) # calls visit_project, visit_folder, visit_file in RemoteContentCounter
+        path_filtered_project.run(project)  # calls visit_project, visit_folder, visit_file in RemoteContentCounter
 
         self.watcher = ProgressPrinter(counter.count, msg_verb='downloading')
         path_filtered_project = PathFilteredProject(self.path_filter, self)

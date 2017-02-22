@@ -49,4 +49,3 @@ class TestVerifyEncoding(TestCase):
         version = get_pypi_version()
         self.assertEqual(list, type(version))
         self.assertEqual(int, type(version[0]))
-

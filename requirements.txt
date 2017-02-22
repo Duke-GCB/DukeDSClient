@@ -1,2 +1,4 @@
 requests==2.13.0
 PyYAML==3.12
+future==0.16.0
+six==1.10.0

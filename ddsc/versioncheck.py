@@ -25,7 +25,7 @@ def get_pypi_version():
         data = response.json()
         version_str = data["info"]["version"]
         return _parse_version_str(version_str)
-    except requests.exceptions.ConnectionError as err:
+    except requests.exceptions.ConnectionError:
         raise VersionException(UNABLE_TO_ACCESS_PYPI + " Failed to connect.")
     except requests.exceptions.Timeout:
         raise VersionException(UNABLE_TO_ACCESS_PYPI + " Timeout")

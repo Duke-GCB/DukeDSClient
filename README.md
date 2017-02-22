@@ -93,11 +93,28 @@ ddsclient add_user -p 'Analyzed Mouse RNA' --email 'ada.lovelace@duke.edu'
 ```
 
 
-###Testing:
-From the root directory run the following:
+### Developer:
+Install dependencies:
+```
+pip install -r devRequirements.txt 
+```
+
+Setup pre-commit hook:
+```
+ln pre-commit.sh .git/hooks/pre-commit
+```
+
+Run linter/style checker:
+```
+flake8 --ignore E501 ddsc/
+```
+
+Run the tests
 ```
 python setup.py test
 ```
+
+
 
 ### Data Service Web Portal:
 [Duke Data Service Portal](https://dataservice.duke.edu).

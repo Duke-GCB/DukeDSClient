@@ -165,7 +165,7 @@ class RemoteStore(object):
         """
         # Server errors out with 500 if a user isn't found.
         try:
-            resp = self.data_service.get_user_project_permission(project.id, user.id)
+            self.data_service.get_user_project_permission(project.id, user.id)
             self.data_service.revoke_user_project_permission(project.id, user.id)
         except DataServiceError as e:
             if e.status_code != 404:
@@ -313,7 +313,7 @@ class RemoteFile(object):
         self.id = json_data['id']
         self.kind = json_data['kind']
         self.name = json_data['name']
-        self.path = self.name # for compatibilty with ProgressPrinter
+        self.path = self.name  # for compatibility with ProgressPrinter
         self.is_deleted = json_data['is_deleted']
         upload = RemoteFile.get_upload_from_json(json_data)
         self.size = upload['size']

@@ -268,7 +268,7 @@ class D4S2Project(object):
                         project_id=project.id,
                         project_name=project.name,
                         auth_role=auth_role)
-        sent = item.send(self.api, force_send)
+        item.send(self.api, force_send)
         return to_user.email
 
     def _copy_project(self, project_name, new_project_name, path_filter):
