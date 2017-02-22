@@ -7,7 +7,7 @@ import tempfile
 import requests
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.download import ProjectDownload
-from ddsapi import DataServiceAuth
+from ddsc.core.ddsapi import DataServiceAuth
 
 UNAUTHORIZED_MESSAGE = """
 ERROR: Your account does not have authorization for D4S2 (the deliver/share service).
