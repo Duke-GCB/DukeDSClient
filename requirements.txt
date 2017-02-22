@@ -1,2 +1,2 @@
-requests==2.9.1
-PyYAML==3.11
+requests==2.13.0
+PyYAML==3.12
