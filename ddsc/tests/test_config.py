@@ -17,14 +17,14 @@ class TestConfig(TestCase):
     def test_global_then_local(self):
         config = ddsc.config.Config()
         global_config = {
-            'url':'dataservice1.com',
+            'url': 'dataservice1.com',
             'user_key': 'abc',
             'agent_key': '123',
             'auth': 'secret',
             'upload_bytes_per_chunk': 1293892,
         }
         local_config = {
-            'url':'dataservice2.com',
+            'url': 'dataservice2.com',
             'user_key': 'cde',
             'agent_key': '456',
             'upload_workers': 45,
@@ -39,7 +39,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.upload_bytes_per_chunk, 1293892)
         num_upload_workers = min(multiprocessing.cpu_count(), ddsc.config.MAX_DEFAULT_WORKERS)
         self.assertEqual(config.upload_workers, num_upload_workers)
-        self.assertEqual(config.download_workers, int(math.ceil(num_upload_workers/2)))
+        self.assertEqual(config.download_workers, int(math.ceil(num_upload_workers / 2)))
 
         config.update_properties(local_config)
         self.assertEqual(config.url, 'dataservice2.com')
@@ -76,7 +76,6 @@ class TestConfig(TestCase):
         }
         config.update_properties(config2)
         self.assertEqual(config.get_portal_url_base(), 'uatest.dataservice1.com')
-
 
         config3 = {
             'url': 'https://apidev.dataservice1.com/api/v1',

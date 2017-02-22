@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, ContentType, UNEXPECTED_PAGING_DATA_RECEIVED
-from mock import MagicMock, call
+from mock import MagicMock
 
 
 def fake_response_with_pages(status_code, json_return_value, num_pages=1):
@@ -14,6 +14,7 @@ class TestMultiJSONResponse(TestCase):
     """
     Tests that we can merge multiple JSON responses arrays with a given name(merge_array_field_name).
     """
+
     def test_pass_through_works_with_one_response(self):
         mock_response = fake_response_with_pages(status_code=200, json_return_value={"results": [1, 2, 3]})
         multi_response = MultiJSONResponse(mock_response, "results")
@@ -44,8 +45,8 @@ class TestDataServiceApi(TestCase):
         mock_requests = MagicMock()
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200,
-                          json_return_value={"results": [1, 2, 3]},
-                          num_pages=1)]
+                                     json_return_value={"results": [1, 2, 3]},
+                                     num_pages=1)]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
         response = api._get_collection(url_suffix="users", data={}, content_type=ContentType.json)
         self.assertEqual([1, 2, 3], response.json()["results"])
@@ -64,11 +65,11 @@ class TestDataServiceApi(TestCase):
         mock_requests = MagicMock()
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200,
-                          json_return_value={"results": [1, 2, 3]},
-                          num_pages=2),
+                                     json_return_value={"results": [1, 2, 3]},
+                                     num_pages=2),
             fake_response_with_pages(status_code=200,
-                          json_return_value={"results": [4, 5]},
-                          num_pages=2)
+                                     json_return_value={"results": [4, 5]},
+                                     num_pages=2)
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
         response = api._get_collection(url_suffix="projects", data={}, content_type=ContentType.json)
@@ -97,14 +98,14 @@ class TestDataServiceApi(TestCase):
         mock_requests = MagicMock()
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200,
-                          json_return_value={"results": [1, 2, 3]},
-                          num_pages=3),
+                                     json_return_value={"results": [1, 2, 3]},
+                                     num_pages=3),
             fake_response_with_pages(status_code=200,
-                          json_return_value={"results": [4, 5]},
-                          num_pages=3),
+                                     json_return_value={"results": [4, 5]},
+                                     num_pages=3),
             fake_response_with_pages(status_code=200,
-                          json_return_value={"results": [6, 7]},
-                          num_pages=3)
+                                     json_return_value={"results": [6, 7]},
+                                     num_pages=3)
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
         response = api._get_collection(url_suffix="uploads", data={}, content_type=ContentType.json)
@@ -145,7 +146,7 @@ class TestDataServiceApi(TestCase):
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
         with self.assertRaises(ValueError) as er:
-            resp = api._put(url_suffix='stuff',data={})
+            api._put(url_suffix='stuff', data={})
         self.assertEqual(UNEXPECTED_PAGING_DATA_RECEIVED, str(er.exception))
 
     def test_post_raises_error_on_paging_response(self):
@@ -155,7 +156,7 @@ class TestDataServiceApi(TestCase):
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
         with self.assertRaises(ValueError) as er:
-            resp = api._post(url_suffix='stuff', data={})
+            api._post(url_suffix='stuff', data={})
         self.assertEqual(UNEXPECTED_PAGING_DATA_RECEIVED, str(er.exception))
 
     def test_delete_raises_error_on_paging_response(self):
@@ -165,7 +166,7 @@ class TestDataServiceApi(TestCase):
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
         with self.assertRaises(ValueError) as er:
-            resp = api._delete(url_suffix='stuff', data={})
+            api._delete(url_suffix='stuff', data={})
         self.assertEqual(UNEXPECTED_PAGING_DATA_RECEIVED, str(er.exception))
 
     def test_get_single_item_raises_error_on_paging_response(self):
@@ -175,7 +176,7 @@ class TestDataServiceApi(TestCase):
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
         with self.assertRaises(ValueError) as er:
-            resp = api._get_single_item(url_suffix='stuff', data={})
+            api._get_single_item(url_suffix='stuff', data={})
         self.assertEqual(UNEXPECTED_PAGING_DATA_RECEIVED, str(er.exception))
 
     def test_get_single_page_works_on_paging_response(self):
@@ -186,4 +187,3 @@ class TestDataServiceApi(TestCase):
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
         resp = api._get_single_page(url_suffix='stuff', data={}, content_type=ContentType.json, page_num=1)
         self.assertEqual(True, resp.json()['ok'])
-

@@ -404,7 +404,6 @@ class TestRemoteStore(TestCase):
                 }
             ]
         }
-        expected_str = "joe"
         auth_roles = RemoteStore.get_active_auth_roles_from_json(JSON_DATA)
         self.assertEqual(2, len(auth_roles))
         ids = set([auth_role.id for auth_role in auth_roles])
@@ -485,8 +484,7 @@ class TestRemoteProjectChildren(TestCase):
                         'upload':
                             {'id': 'ecd507c4-8f04-404d-acef-0ced912e4cdf',
                              'size': 10,
-                             'hash': None,
-                            },
+                             'hash': None},
                         'parent': {'id': project_id, 'kind': 'dds-project'}}]
 
         remote_children = RemoteProjectChildren(project_id, sample_data)

@@ -1,6 +1,6 @@
 import sys
 
-TERMINAL_ENCODING_NOT_UTF_ERROR="""
+TERMINAL_ENCODING_NOT_UTF_ERROR = """
 ERROR: DukeDSClient requires UTF terminal encoding.
 
 Follow this guide for adjusting your terminal encoding:
@@ -51,7 +51,7 @@ class ProgressPrinter(object):
         :param item: LocalFile, LocalFolder, or LocalContent(project) that is about to be sent.
         :param increment_amt: int amount to increase our count(how much progress have we made)
         """
-        percent_done = int(float(self.cnt)/float(self.total) * 100.0)
+        percent_done = int(float(self.cnt) / float(self.total) * 100.0)
         name = ''
         if KindType.is_project(item):
             name = 'project'
