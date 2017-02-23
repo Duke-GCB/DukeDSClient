@@ -3,7 +3,7 @@ Command line parser for the application.
 """
 import os
 import argparse
-from builtins import str
+import six
 
 
 INVALID_PATH_CHARS = (':', '/', '\\')
@@ -26,7 +26,7 @@ def to_unicode(s):
     :param s: string to convert to unicode
     :return: unicode string for argument
     """
-    return str(s)
+    return s if six.PY3 else unicode(s, 'utf-8')
 
 
 def add_project_name_arg(arg_parser, required=True, help_text="Name of the remote project to manage."):
