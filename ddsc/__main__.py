@@ -3,6 +3,7 @@ import sys
 from ddsc.config import create_config
 from ddsc.ddsclient import DDSClient
 
+
 def print_exception_and_exit(ex):
     """
     Print out error message and exit

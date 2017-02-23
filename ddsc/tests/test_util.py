@@ -2,13 +2,13 @@ from unittest import TestCase
 import subprocess
 import os
 import tempfile
-from ddsc.core.util import mode_allows_group_or_other, verify_file_private, CONFIG_FILE_PERMISSIONS_ERROR
+from ddsc.core.util import mode_allows_group_or_other, verify_file_private
 from mock import patch
 
 
 def make_temp_filename():
     tempfilename = tempfile.mktemp()
-    with open(tempfilename, 'w') as outfile:
+    with open(tempfilename, 'w'):
         pass
     return tempfilename
 
@@ -62,7 +62,7 @@ class TestUtil(TestCase):
         mock_platform.system.return_value = 'Linux'
         tempfilename = make_temp_filename()
         set_file_perm(tempfilename, '0777')
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(ValueError):
             verify_file_private(tempfilename)
 
     @patch("ddsc.core.util.platform")
