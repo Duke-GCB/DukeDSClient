@@ -4,6 +4,8 @@ import re
 import math
 import yaml
 import multiprocessing
+from ddsc.core.util import verify_file_private
+
 try:
     from urllib.parse import urlparse
 except ImportError:
@@ -66,6 +68,7 @@ class Config(object):
         """
         filename = os.path.expanduser(filename)
         if os.path.exists(filename):
+            verify_file_private(filename)
             with open(filename, 'r') as yaml_file:
                 self.update_properties(yaml.load(yaml_file))
 
