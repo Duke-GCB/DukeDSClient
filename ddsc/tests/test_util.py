@@ -75,3 +75,9 @@ class TestUtil(TestCase):
         verify_file_private(tempfilename)
         set_file_perm(tempfilename, '0500')
         verify_file_private(tempfilename)
+
+    @patch("ddsc.core.util.platform")
+    def test_non_existant_file_no_raises(self, mock_platform):
+        mock_platform.system.return_value = 'Linux'
+        tempfilename = './file.never.gonna.exist'
+        verify_file_private(tempfilename)

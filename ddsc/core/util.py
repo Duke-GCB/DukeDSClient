@@ -257,9 +257,11 @@ def verify_file_private(filename):
     On windows this never raises due to the implementation of stat.
     """
     if platform.system().upper() != 'WINDOWS':
-        file_stat = os.stat(filename)
-        if mode_allows_group_or_other(file_stat.st_mode):
-            raise ValueError(CONFIG_FILE_PERMISSIONS_ERROR)
+        filename = os.path.expanduser(filename)
+        if os.path.exists(filename):
+            file_stat = os.stat(filename)
+            if mode_allows_group_or_other(file_stat.st_mode):
+                raise ValueError(CONFIG_FILE_PERMISSIONS_ERROR)
 
 
 def mode_allows_group_or_other(st_mode):
