@@ -122,7 +122,7 @@ class RemoteStore(object):
         """
         try:
             return self.lookup_user_by_username(username)
-        except NotFoundError as ex:
+        except NotFoundError:
             return self.register_user_by_username(username)
 
     def register_user_by_username(self, username):

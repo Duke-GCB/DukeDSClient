@@ -591,7 +591,7 @@ class TestRemoteAuthProvider(TestCase):
             "id": "123",
             "username": "joe",
             "full_name": "Joe Shoe",
-            "email":"",
+            "email": "",
         }
         mock_data_service_api().get_auth_providers.return_value = providers_response
         mock_data_service_api().auth_provider_add_user.return_value = add_user_response
@@ -612,10 +612,10 @@ class TestRemoteAuthProvider(TestCase):
             "id": "123",
             "username": "joe",
             "full_name": "Joe Shoe",
-            "email":"",
+            "email": "",
         }
         mock_data_service_api().get_auth_providers.return_value = providers_response
         mock_data_service_api().auth_provider_add_user.return_value = add_user_response
         remote_store = RemoteStore(MagicMock())
         with self.assertRaises(ValueError):
-            user = remote_store.register_user_by_username("joe")
+            remote_store.register_user_by_username("joe")
