@@ -3,6 +3,7 @@ Command line parser for the application.
 """
 import os
 import argparse
+import six
 from builtins import str
 
 
@@ -26,7 +27,7 @@ def to_unicode(s):
     :param s: string to convert to unicode
     :return: unicode string for argument
     """
-    return str(s)
+    return s if six.PY3 else str(s, 'utf-8')
 
 
 def add_project_name_arg(arg_parser, required=True, help_text="Name of the remote project to manage."):

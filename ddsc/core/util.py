@@ -243,11 +243,11 @@ def wait_for_processes(processes, size, progress_queue, watcher, item):
 
 def verify_terminal_encoding(encoding):
     """
-    Raises ValueError with error message when terminal encoding is not Unicode(contains UTF).
+    Raises ValueError with error message when terminal encoding is not Unicode(contains UTF ignoring case).
     :param encoding: str: encoding we want to check
     """
     encoding = encoding or ''
-    if not ("UTF" in encoding):
+    if not ("UTF" in encoding.upper()):
         raise ValueError(TERMINAL_ENCODING_NOT_UTF_ERROR)
 
 
