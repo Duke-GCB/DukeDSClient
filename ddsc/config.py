@@ -31,8 +31,10 @@ def create_config():
     """
     config = Config()
     config.add_properties(GLOBAL_CONFIG_FILENAME)
-    user_config_filename = os.environ.get(LOCAL_CONFIG_ENV, LOCAL_CONFIG_FILENAME)
-    verify_file_private(user_config_filename)
+    user_config_filename = os.environ.get(LOCAL_CONFIG_ENV)
+    if not user_config_filename:
+        user_config_filename = LOCAL_CONFIG_FILENAME
+        verify_file_private(user_config_filename)
     config.add_properties(user_config_filename)
     return config
 
