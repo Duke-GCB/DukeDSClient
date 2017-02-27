@@ -24,9 +24,10 @@ FILE_EXCLUDE_REGEX_DEFAULT = '^\.DS_Store$|^\.ddsclient$|^\.\_'
 MAX_DEFAULT_WORKERS = 8
 
 
-def create_config():
+def create_config(allow_insecure_config_file=False):
     """
     Create config based on /etc/ddsclient.conf and ~/.ddsclient.conf($DDSCLIENT_CONF)
+    :param allow_insecure_config_file: bool: when true we will not check ~/.ddsclient permissions.
     :return: Config with the configuration to use for DDSClient.
     """
     config = Config()
@@ -34,7 +35,8 @@ def create_config():
     user_config_filename = os.environ.get(LOCAL_CONFIG_ENV)
     if not user_config_filename:
         user_config_filename = LOCAL_CONFIG_FILENAME
-        verify_file_private(user_config_filename)
+        if not allow_insecure_config_file:
+            verify_file_private(user_config_filename)
     config.add_properties(user_config_filename)
     return config
 
