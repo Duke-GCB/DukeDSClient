@@ -4,6 +4,7 @@ import ddsc.config
 import multiprocessing
 from mock.mock import patch
 
+
 class TestConfig(TestCase):
     def test_empty_config(self):
         config = ddsc.config.Config()
@@ -111,7 +112,7 @@ class TestConfig(TestCase):
         mock_os.path.expanduser.return_value = '/never/gonna/happen.file'
         mock_os.path.exists.return_value = False
         mock_os.environ.get.return_value = None
-        config = ddsc.config.create_config()
+        ddsc.config.create_config()
         mock_verify_file_private.assert_called()
 
     @patch('ddsc.config.os')
@@ -120,5 +121,5 @@ class TestConfig(TestCase):
         mock_os.path.expanduser.return_value = '/never/gonna/happen.file'
         mock_os.path.exists.return_value = False
         mock_os.environ.get.return_value = "/shared/ddsclient.config"
-        config = ddsc.config.create_config()
+        ddsc.config.create_config()
         mock_verify_file_private.assert_not_called()
