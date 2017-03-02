@@ -233,3 +233,38 @@ class TestDataServiceApi(TestCase):
         self.assertEqual(user, result.json())
         expected_url = 'something.com/v1/auth_providers/123/affiliates/joe/dds_user/'
         self.assertEqual(expected_url, mock_requests.post.call_args_list[0][0][0])
+
+    def test_list_auth_roles(self):
+        return_value = {
+            "results": [
+                {
+                    "id": "project_admin",
+                    "name": "Project Admin",
+                }
+            ]
+        }
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=return_value, num_pages=1)
+        ]
+        api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
+        resp = api.get_auth_roles(context='')
+        self.assertEqual(1, len(resp.json()['results']))
+        self.assertEqual("Project Admin", resp.json()['results'][0]['name'])
+
+    def test_get_project_transfers(self):
+        return_value = {
+            "results": [
+                {
+                    "id": "1234"
+                }
+            ]
+        }
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=return_value, num_pages=1)
+        ]
+        api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
+        resp = api.get_project_transfers(project_id='4521')
+        self.assertEqual(1, len(resp.json()['results']))
+        self.assertEqual("1234", resp.json()['results'][0]['id'])
