@@ -10,6 +10,12 @@ def fake_response_with_pages(status_code, json_return_value, num_pages=1):
     return mock_response
 
 
+def fake_response(status_code, json_return_value):
+    mock_response = MagicMock(status_code=status_code, headers={})
+    mock_response.json.return_value = json_return_value
+    return mock_response
+
+
 class TestMultiJSONResponse(TestCase):
     """
     Tests that we can merge multiple JSON responses arrays with a given name(merge_array_field_name).
@@ -187,3 +193,43 @@ class TestDataServiceApi(TestCase):
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
         resp = api._get_single_page(url_suffix='stuff', data={}, content_type=ContentType.json, page_num=1)
         self.assertEqual(True, resp.json()['ok'])
+
+    def test_get_auth_providers(self):
+        provider = {
+            "id": "aca35ba3-a44a-47c2-8b3b-afe43a88360d",
+            "service_id": "cfde039d-f550-47e7-833c-9ebc4e257847",
+            "name": "Duke Authentication Service",
+            "is_deprecated": True,
+            "is_default": True,
+            "login_initiation_url": "https://someurl"
+        }
+        json_results = {
+            "results": [
+                provider
+            ]
+        }
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=json_results, num_pages=1)
+        ]
+        api = DataServiceApi(auth=None, url="something.com/v1", http=mock_requests)
+        result = api.get_auth_providers()
+        self.assertEqual(200, result.status_code)
+        self.assertEqual(json_results, result.json())
+        self.assertEqual('something.com/v1/auth_providers', mock_requests.get.call_args_list[0][0][0])
+
+    def test_auth_provider_add_user(self):
+        user = {
+            "id": "abc4e9-9987-47eb-bb4e-19f0203efbf6",
+            "username": "joe",
+        }
+        mock_requests = MagicMock()
+        mock_requests.post.side_effect = [
+            fake_response(status_code=200, json_return_value=user)
+        ]
+        api = DataServiceApi(auth=None, url="something.com/v1", http=mock_requests)
+        result = api.auth_provider_add_user('123', "joe")
+        self.assertEqual(200, result.status_code)
+        self.assertEqual(user, result.json())
+        expected_url = 'something.com/v1/auth_providers/123/affiliates/joe/dds_user/'
+        self.assertEqual(expected_url, mock_requests.post.call_args_list[0][0][0])

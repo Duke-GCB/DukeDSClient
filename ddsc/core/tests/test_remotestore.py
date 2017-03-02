@@ -1,10 +1,12 @@
 import json
 from unittest import TestCase
-
+from mock import MagicMock
+from mock.mock import patch
 from ddsc.core.remotestore import RemoteProject, RemoteFolder, RemoteFile, RemoteUser
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.remotestore import RemoteAuthRole
 from ddsc.core.remotestore import RemoteProjectChildren
+from ddsc.core.remotestore import RemoteAuthProvider
 
 
 class TestProjectFolderFile(TestCase):
@@ -544,3 +546,76 @@ class TestReadRemoteHash(TestCase):
         hash_info = RemoteFile.get_hash_from_upload(upload)
         self.assertEqual(hash_info["value"], "aabbcc")
         self.assertEqual(hash_info["algorithm"], "md5")
+
+
+class TestRemoteAuthProvider(TestCase):
+    def setUp(self):
+        self.provider_data1 = {
+            "id": "aca35ba3-a44a-47c2-8b3b-afe43a88360d",
+            "service_id": "cfde039d-f550-47e7-833c-9ebc4e257847",
+            "name": "Duke Authentication Service",
+            "is_deprecated": False,
+            "is_default": True,
+            "login_initiation_url": "https://someurl"
+        }
+
+    def test_constructor(self):
+        auth_provider = RemoteAuthProvider(self.provider_data1)
+        self.assertEqual(auth_provider.id, "aca35ba3-a44a-47c2-8b3b-afe43a88360d")
+        self.assertEqual(auth_provider.service_id, "cfde039d-f550-47e7-833c-9ebc4e257847")
+        self.assertEqual(auth_provider.name, "Duke Authentication Service")
+        self.assertEqual(auth_provider.is_deprecated, False)
+        self.assertEqual(auth_provider.is_default, True)
+        self.assertEqual(auth_provider.login_initiation_url, "https://someurl")
+
+    @patch("ddsc.core.remotestore.DataServiceApi")
+    def test_get_auth_providers(self, mock_data_service_api):
+        response = MagicMock()
+        response.json.return_value = {
+            "results": [self.provider_data1]
+        }
+        mock_data_service_api().get_auth_providers.return_value = response
+        remote_store = RemoteStore(MagicMock())
+        providers = remote_store.get_auth_providers()
+        self.assertEqual(len(providers), 1)
+        self.assertEqual(providers[0].name, "Duke Authentication Service")
+
+    @patch("ddsc.core.remotestore.DataServiceApi")
+    def test_register_user_by_username(self, mock_data_service_api):
+        providers_response = MagicMock()
+        providers_response.json.return_value = {
+            "results": [self.provider_data1]
+        }
+        add_user_response = MagicMock()
+        add_user_response.json.return_value = {
+            "id": "123",
+            "username": "joe",
+            "full_name": "Joe Shoe",
+            "email": "",
+        }
+        mock_data_service_api().get_auth_providers.return_value = providers_response
+        mock_data_service_api().auth_provider_add_user.return_value = add_user_response
+        remote_store = RemoteStore(MagicMock())
+        user = remote_store.register_user_by_username("joe")
+        self.assertEqual(user.id, "123")
+        self.assertEqual(user.username, "joe")
+        mock_data_service_api().auth_provider_add_user.assert_called_with(self.provider_data1['id'], 'joe')
+
+    @patch("ddsc.core.remotestore.DataServiceApi")
+    def test_register_user_by_username_with_no_default_provider(self, mock_data_service_api):
+        providers_response = MagicMock()
+        providers_response.json.return_value = {
+            "results": []
+        }
+        add_user_response = MagicMock()
+        add_user_response.json.return_value = {
+            "id": "123",
+            "username": "joe",
+            "full_name": "Joe Shoe",
+            "email": "",
+        }
+        mock_data_service_api().get_auth_providers.return_value = providers_response
+        mock_data_service_api().auth_provider_add_user.return_value = add_user_response
+        remote_store = RemoteStore(MagicMock())
+        with self.assertRaises(ValueError):
+            remote_store.register_user_by_username("joe")

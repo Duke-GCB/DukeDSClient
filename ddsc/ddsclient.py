@@ -166,7 +166,7 @@ class AddUserCommand(object):
         username = args.username            # username of person to give permissions, will be None if email is specified
         auth_role = args.auth_role          # type of permission(project_admin)
         project = self.remote_store.fetch_remote_project(project_name, must_exist=True, include_children=False)
-        user = self.remote_store.lookup_user_by_email_or_username(email, username)
+        user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         self.remote_store.set_user_project_permission(project, user, auth_role)
         print(u'Gave user {} {} permissions for {}.'.format(user.full_name, auth_role, project_name))
 
@@ -191,7 +191,7 @@ class RemoveUserCommand(object):
         email = args.email                # email of person to remove permissions from (None if username specified)
         username = args.username          # username of person to remove permissions from (None if email is specified)
         project = self.remote_store.fetch_remote_project(project_name, must_exist=True, include_children=False)
-        user = self.remote_store.lookup_user_by_email_or_username(email, username)
+        user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         self.remote_store.revoke_user_project_permission(project, user)
         print(u'Removed permissions from user {} for project {}.'.format(user.full_name, project_name))
 
@@ -218,7 +218,7 @@ class ShareCommand(object):
         username = args.username            # username of person to send email to, will be None if email is specified
         force_send = args.resend            # is this a resend so we should force sending
         auth_role = args.auth_role          # authorization role(project permissions) to give to the user
-        to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
+        to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         try:
             dest_email = self.service.share(project_name, to_user, force_send, auth_role)
             print("Share email message sent to " + dest_email)
@@ -256,7 +256,7 @@ class DeliverCommand(object):
         new_project_name = None
         if not skip_copy_project:
             new_project_name = self.get_new_project_name(project_name)
-        to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
+        to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
             dest_email = self.service.deliver(project_name, new_project_name, to_user, force_send, path_filter)

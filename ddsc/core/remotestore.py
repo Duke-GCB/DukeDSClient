@@ -34,7 +34,7 @@ class RemoteStore(object):
                 self._add_project_children(project)
         else:
             if must_exist:
-                raise ValueError(u'There is no project with the name {}'.format(project_name).encode('utf-8'))
+                raise NotFoundError(u'There is no project with the name {}'.format(project_name).encode('utf-8'))
         return project
 
     def fetch_remote_project_by_id(self, id):
@@ -68,10 +68,18 @@ class RemoteStore(object):
         for child in project_children.get_tree():
             project.add_child(child)
 
-    def lookup_user_by_email_or_username(self, email, username):
+    def lookup_or_register_user_by_email_or_username(self, email, username):
+        """
+        Lookup user by email or username. Only fill in one field.
+        For username it will try to register if not found.
+        :param email: str: email address of the user
+        :param username: netid of the user to find
+        :return: RemoteUser
+        """
         if username:
-            return self.lookup_user_by_username(username)
+            return self.get_or_register_user_by_username(username)
         else:
+            # API doesn't support registering user by email address yet
             return self.lookup_user_by_email(email)
 
     def lookup_user_by_name(self, full_name):
@@ -85,26 +93,71 @@ class RemoteStore(object):
         results = json_data['results']
         found_cnt = len(results)
         if found_cnt == 0:
-            raise ValueError("User not found:" + full_name)
+            raise NotFoundError("User not found:" + full_name)
         elif found_cnt > 1:
             raise ValueError("Multiple users with name:" + full_name)
         user = RemoteUser(results[0])
         if user.full_name.lower() != full_name.lower():
-            raise ValueError("User not found:" + full_name)
+            raise NotFoundError("User not found:" + full_name)
         return user
 
     def lookup_user_by_username(self, username):
         """
         Finds the single user who has this username or raises ValueError.
         :param username: str username we are looking for
-        :return: RemoteUser user we found
+        :return: RemoteUser: user we found
         """
         matches = [user for user in self.fetch_all_users() if user.username == username]
         if not matches:
-            raise ValueError('Username not found: {}.'.format(username))
+            raise NotFoundError('Username not found: {}.'.format(username))
         if len(matches) > 1:
             raise ValueError('Multiple users with same username found: {}.'.format(username))
         return matches[0]
+
+    def get_or_register_user_by_username(self, username):
+        """
+        Try to lookup user by username. If not found try registering the user.
+        :param username: str: username to lookup
+        :return: RemoteUser: user we found
+        """
+        try:
+            return self.lookup_user_by_username(username)
+        except NotFoundError:
+            return self.register_user_by_username(username)
+
+    def register_user_by_username(self, username):
+        """
+        Tries to register user with the first non-deprecated auth provider.
+        Raises ValueError if the data service doesn't have any non-deprecated providers.
+        :param username: str: netid of the user we are trying to register
+        :return: RemoteUser: user that was created for our netid
+        """
+        current_providers = [prov.id for prov in self.get_auth_providers() if not prov.is_deprecated]
+        if not current_providers:
+            raise ValueError("Unable to register user: no non-deprecated providers found!")
+        auth_provider_id = current_providers[0]
+        return self._register_user_by_username(auth_provider_id, username)
+
+    def _register_user_by_username(self, auth_provider_id, username):
+        """
+        Tries to register a user who has a valid netid but isn't registered with DukeDS yet under auth_provider_id.
+        :param auth_provider_id: str: id from RemoteAuthProvider to use for registering
+        :param username: str: netid of the user we are trying to register
+        :return: RemoteUser: user that was created for our netid
+        """
+        user_json = self.data_service.auth_provider_add_user(auth_provider_id, username).json()
+        return RemoteUser(user_json)
+
+    def get_auth_providers(self):
+        """
+        Return the list of authorization providers.
+        :return: [RemoteAuthProvider]: list of remote auth providers
+        """
+        providers = []
+        response = self.data_service.get_auth_providers().json()
+        for data in response['results']:
+            providers.append(RemoteAuthProvider(data))
+        return providers
 
     def lookup_user_by_email(self, email):
         """
@@ -458,3 +511,24 @@ class RemoteProjectChildren(object):
                 file = RemoteFile(child_data, parent_path)
                 children.append(file)
         return children
+
+
+class RemoteAuthProvider(object):
+    def __init__(self, json_data):
+        """
+        Set properties based on json_data.
+        :param json_data: dict JSON data containing auth_role info
+        """
+        self.id = json_data['id']
+        self.service_id = json_data['service_id']
+        self.name = json_data['name']
+        self.is_deprecated = json_data['is_deprecated']
+        self.is_default = json_data['is_default']
+        self.is_deprecated = json_data['is_deprecated']
+        self.login_initiation_url = json_data['login_initiation_url']
+
+
+class NotFoundError(Exception):
+    def __init__(self, message):
+        Exception.__init__(self, message)
+        self.message = message

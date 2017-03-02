@@ -747,6 +747,26 @@ class DataServiceApi(object):
         }
         return self._put("/activities/" + activity_id, put_data)
 
+    def get_auth_providers(self):
+        """
+        List Authentication Providers Lists Authentication Providers
+        Returns an array of auth provider details
+        :return: requests.Response containing the successful result
+        """
+        return self._get_collection("/auth_providers", {})
+
+    def auth_provider_add_user(self, auth_provider_id, username):
+        """
+        Transform an institutional affiliates UID, such as a Duke NetID, to a DDS specific user identity;
+        can be used by clients prior to calling DDS APIs that require a DDS user in the request payload.
+        Returns user details. Can be safely called multiple times.
+        :param auth_provider_id: str: auth provider who supports user adding
+        :param username: str: netid we wish to register with DukeDS
+        :return: requests.Response containing the successful result
+        """
+        url = "/auth_providers/{}/affiliates/{}/dds_user/".format(auth_provider_id, username)
+        return self._post(url, {})
+
 
 class MultiJSONResponse(object):
     """
