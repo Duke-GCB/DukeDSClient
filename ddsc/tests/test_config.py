@@ -2,6 +2,7 @@ from unittest import TestCase
 import math
 import ddsc.config
 import multiprocessing
+from mock.mock import patch
 
 
 class TestConfig(TestCase):
@@ -104,3 +105,21 @@ class TestConfig(TestCase):
         ddsc.config.MAX_DEFAULT_WORKERS = 1
         self.assertEqual(1, ddsc.config.default_num_workers())
         ddsc.config.MAX_DEFAULT_WORKERS = orig_max_default_workers
+
+    @patch('ddsc.config.os')
+    @patch('ddsc.config.verify_file_private')
+    def test_create_config_no_env_set(self, mock_verify_file_private, mock_os):
+        mock_os.path.expanduser.return_value = '/never/gonna/happen.file'
+        mock_os.path.exists.return_value = False
+        mock_os.environ.get.return_value = None
+        ddsc.config.create_config()
+        mock_verify_file_private.assert_called()
+
+    @patch('ddsc.config.os')
+    @patch('ddsc.config.verify_file_private')
+    def test_create_config_with_env_set(self, mock_verify_file_private, mock_os):
+        mock_os.path.expanduser.return_value = '/never/gonna/happen.file'
+        mock_os.path.exists.return_value = False
+        mock_os.environ.get.return_value = "/shared/ddsclient.config"
+        ddsc.config.create_config()
+        mock_verify_file_private.assert_not_called()

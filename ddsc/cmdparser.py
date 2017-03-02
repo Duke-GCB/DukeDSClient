@@ -3,6 +3,7 @@ Command line parser for the application.
 """
 import os
 import argparse
+import six
 from builtins import str
 
 
@@ -26,7 +27,7 @@ def to_unicode(s):
     :param s: string to convert to unicode
     :return: unicode string for argument
     """
-    return str(s)
+    return s if six.PY3 else str(s, 'utf-8')
 
 
 def add_project_name_arg(arg_parser, required=True, help_text="Name of the remote project to manage."):
@@ -224,6 +225,18 @@ def _add_exclude_arg(arg_parser):
                             default=[])
 
 
+def _skip_config_file_permission_check(arg_parser):
+    """
+    Adds optional follow_symlinks parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    """
+    arg_parser.add_argument("--allow_insecure_config_file",
+                            help="Do not check the config file ~/.ddsclient permissions.",
+                            action='store_true',
+                            dest='allow_insecure_config_file',
+                            default=False)
+
+
 class CommandParser(object):
     """
     Root command line parser. Supports the following commands: upload and add_user.
@@ -232,6 +245,7 @@ class CommandParser(object):
     """
     def __init__(self):
         self.parser = argparse.ArgumentParser()
+        _skip_config_file_permission_check(self.parser)
         self.subparsers = self.parser.add_subparsers()
         self.upload_func = None
         self.add_user_func = None
