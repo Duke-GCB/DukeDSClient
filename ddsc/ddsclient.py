@@ -13,6 +13,7 @@ from ddsc.core.download import ProjectDownload
 from ddsc.core.util import ProjectFilenameList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException
+from ddsc.config import create_config
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 TWO_SECONDS = 2
@@ -22,12 +23,8 @@ class DDSClient(object):
     """
     Runs various commands based on arguments.
     """
-    def __init__(self, config):
-        """
-        Pass in the configuration for the data service.
-        :param config: ddsc.config.Config configuration object to be used with the DataServiceApi.
-        """
-        self.config = config
+    def __init__(self):
+        self.show_error_stack_trace = False
 
     def run_command(self, args):
         """
@@ -82,7 +79,9 @@ class DDSClient(object):
         """
         verify_terminal_encoding(sys.stdout.encoding)
         self._check_pypi_version()
-        command = command_constructor(self.config)
+        config = create_config(allow_insecure_config_file=args.allow_insecure_config_file)
+        self.show_error_stack_trace = config.debug_mode
+        command = command_constructor(config)
         command.run(args)
 
 

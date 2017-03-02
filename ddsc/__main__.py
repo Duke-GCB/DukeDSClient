@@ -1,18 +1,16 @@
 """Duke data service command line project management utility."""
 import sys
-from ddsc.config import create_config
 from ddsc.ddsclient import DDSClient
 
 
 def main(args=None):
     if args is None:
         args = sys.argv[1:]
-    config = create_config()
+    client = DDSClient()
     try:
-        client = DDSClient(config)
         client.run_command(args)
     except Exception as ex:
-        if config.debug_mode:
+        if client.show_error_stack_trace:
             raise
         else:
             sys.stderr.write(str(ex))
