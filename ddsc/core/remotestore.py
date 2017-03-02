@@ -127,14 +127,14 @@ class RemoteStore(object):
 
     def register_user_by_username(self, username):
         """
-        Tries to register user with the default auth provider returning remote user info.
+        Tries to register user with the first non-deprecated auth provider.
         Raises ValueError if the data service doesn't have any default providers.
         :param username: str: netid of the user we are trying to register
         :return: RemoteUser: user that was created for our netid
         """
-        default_providers = [prov.id for prov in self.get_auth_providers() if prov.is_default]
+        default_providers = [prov.id for prov in self.get_auth_providers() if not prov.is_deprecated]
         if not default_providers:
-            raise ValueError("Unable to register user: no default providers found!")
+            raise ValueError("Unable to register user: no non-deprecated providers found!")
         auth_provider_id = default_providers[0]
         return self._register_user_by_username(auth_provider_id, username)
 
