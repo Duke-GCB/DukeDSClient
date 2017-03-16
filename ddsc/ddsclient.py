@@ -14,6 +14,7 @@ from ddsc.core.util import ProjectFilenameList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException
 from ddsc.config import create_config
+from ddsc.core.provenance import upload_provenance
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 TWO_SECONDS = 2
@@ -49,6 +50,7 @@ class DDSClient(object):
         parser.register_deliver_command(self._setup_run_command(DeliverCommand))
         parser.register_delete_command(self._setup_run_command(DeleteCommand))
         parser.register_list_auth_roles_command(self._setup_run_command(ListAuthRolesCommand))
+        parser.register_create_provenance_command(self._setup_run_command(CreateProvenanceCommand))
         return parser
 
     def _setup_run_command(self, command_constructor):
@@ -366,6 +368,23 @@ class ListAuthRolesCommand(object):
                 print(auth_role.id, "-", auth_role.description)
         else:
             print("No authorization roles found.")
+
+
+class CreateProvenanceCommand(object):
+    def __init__(self, config):
+        """
+        Pass in the config who can create a remote_store so we can access the remote data.
+        :param config: Config global configuration for use with this command.
+        """
+        self.remote_store = RemoteStore(config)
+
+    def run(self, args):
+        """
+        Creates provenance data based on a PROV-N file (https://www.w3.org/TR/prov-n/)
+        :param args Namespace arguments parsed from the command line
+        """
+        provenance_filename = args.provenance_filename
+        upload_provenance(self.remote_store.data_service, provenance_filename)
 
 
 def boolean_input_prompt(message):

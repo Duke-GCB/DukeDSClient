@@ -237,6 +237,17 @@ def _skip_config_file_permission_check(arg_parser):
                             default=False)
 
 
+def _add_provenance_filename_positional_arg(arg_parser):
+    """
+    Adds provenance_filename parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    """
+    arg_parser.add_argument("provenance_filename",
+                            metavar='ProvenanceFilename',
+                            help="Filename containing DukedS PROV-N data.",
+                            type=_paths_must_exists)
+
+
 class CommandParser(object):
     """
     Root command line parser. Supports the following commands: upload and add_user.
@@ -371,6 +382,16 @@ class CommandParser(object):
         description = "List authorization roles for use with add_user command."
         list_auth_roles_parser = self.subparsers.add_parser('list_auth_roles', description=description)
         list_auth_roles_parser.set_defaults(func=list_auth_roles_func)
+
+    def register_create_provenance_command(self, create_provenance_func):
+        """
+        Add 'create_provenance' command to create provenance data.
+        :param create_provenance_func: function: run when user choses this option.
+        """
+        description = "Creates provenance data in DukeDS based on a PROV-JSON file."
+        create_provenance_parser = self.subparsers.add_parser('create_provenance', description=description)
+        _add_provenance_filename_positional_arg(create_provenance_parser)
+        create_provenance_parser.set_defaults(func=create_provenance_func)
 
     def run_command(self, args):
         """
