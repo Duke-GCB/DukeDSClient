@@ -112,7 +112,7 @@ def _add_follow_symlinks_arg(arg_parser):
     Adds optional follow_symlinks parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
-    arg_parser.add_argument("--follow_symlinks",
+    arg_parser.add_argument("--follow-symlinks",
                             help="Follow symbolic links(experimental).",
                             action='store_true',
                             dest='follow_symlinks')
@@ -152,7 +152,7 @@ def _add_auth_role_arg(arg_parser, default_permissions):
     """
     help_text = "Specifies which project permissions to give to the user. Example: 'project_admin'. "
     help_text += "See command list_auth_roles for AuthRole values."
-    arg_parser.add_argument("--auth_role",
+    arg_parser.add_argument("--auth-role",
                             metavar='AuthRole',
                             type=to_unicode,
                             dest='auth_role',
@@ -165,7 +165,7 @@ def _add_copy_project_arg(arg_parser):
     Adds optional copy_project parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
-    arg_parser.add_argument("--skip_copy_project",
+    arg_parser.add_argument("--skip-copy",
                             help="Should we just send the deliver email and skip copying the project.",
                             action='store_true',
                             default=False,
@@ -230,7 +230,7 @@ def _skip_config_file_permission_check(arg_parser):
     Adds optional follow_symlinks parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
-    arg_parser.add_argument("--allow_insecure_config_file",
+    arg_parser.add_argument("--allow-insecure-config-file",
                             help="Do not check the config file ~/.ddsclient permissions.",
                             action='store_true',
                             dest='allow_insecure_config_file',
@@ -265,12 +265,13 @@ class CommandParser(object):
 
     def register_add_user_command(self, add_user_func):
         """
-        Add the add_user command to the parser and call add_user_func(project_name, user_full_name, auth_role)
+        Add the add-user command to the parser and call add_user_func(project_name, user_full_name, auth_role)
         when chosen.
         :param add_user_func: func Called when this option is chosen: upload_func(project_name, user_full_name, auth_role).
         """
         description = "Gives user permission to access a remote project."
-        add_user_parser = self.subparsers.add_parser('add_user', description=description)
+        add_user_parser = self.subparsers.add_parser('add-user', description=description)
+        self.subparsers.choices['add_user'] = add_user_parser
         add_project_name_arg(add_user_parser, help_text="Name of the project to add a user to.")
         user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
@@ -280,11 +281,12 @@ class CommandParser(object):
 
     def register_remove_user_command(self, remove_user_func):
         """
-        Add the remove_user command to the parser and call remove_user_func(project_name, user_full_name) when chosen.
+        Add the remove-user command to the parser and call remove_user_func(project_name, user_full_name) when chosen.
         :param remove_user_func: func Called when this option is chosen: remove_user_func(project_name, user_full_name).
         """
         description = "Removes user permission to access a remote project."
-        remove_user_parser = self.subparsers.add_parser('remove_user', description=description)
+        remove_user_parser = self.subparsers.add_parser('remove-user', description=description)
+        self.subparsers.choices['remove_user'] = remove_user_parser
         add_project_name_arg(remove_user_parser, help_text="Name of the project to remove a user from.")
         user_or_email = remove_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
@@ -369,7 +371,7 @@ class CommandParser(object):
         :param list_auth_roles_func: function: run when user choses this option.
         """
         description = "List authorization roles for use with add_user command."
-        list_auth_roles_parser = self.subparsers.add_parser('list_auth_roles', description=description)
+        list_auth_roles_parser = self.subparsers.add_parser('list-auth-roles', description=description)
         list_auth_roles_parser.set_defaults(func=list_auth_roles_func)
 
     def run_command(self, args):
