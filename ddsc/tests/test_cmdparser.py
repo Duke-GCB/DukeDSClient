@@ -11,9 +11,9 @@ class TestCommandParser(TestCase):
     def test_register_add_user_command(self):
         command_parser = CommandParser()
         command_parser.register_add_user_command(no_op)
-        self.assertEqual(['add-user'], command_parser.subparsers.choices.keys())
+        self.assertEqual(['add-user'], list(command_parser.subparsers.choices.keys()))
 
     def test_register_remove_user_command(self):
         command_parser = CommandParser()
         command_parser.register_remove_user_command(no_op)
-        self.assertEqual(['remove-user'], command_parser.subparsers.choices.keys())
+        self.assertEqual(['remove-user'], list(command_parser.subparsers.choices.keys()))
