@@ -271,7 +271,6 @@ class CommandParser(object):
         """
         description = "Gives user permission to access a remote project."
         add_user_parser = self.subparsers.add_parser('add-user', description=description)
-        self.subparsers.choices['add_user'] = add_user_parser
         add_project_name_arg(add_user_parser, help_text="Name of the project to add a user to.")
         user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
@@ -286,7 +285,6 @@ class CommandParser(object):
         """
         description = "Removes user permission to access a remote project."
         remove_user_parser = self.subparsers.add_parser('remove-user', description=description)
-        self.subparsers.choices['remove_user'] = remove_user_parser
         add_project_name_arg(remove_user_parser, help_text="Name of the project to remove a user from.")
         user_or_email = remove_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
