@@ -115,7 +115,8 @@ class D4S2Api(object):
         if response.status_code == 401:
             raise D4S2Error(UNAUTHORIZED_MESSAGE)
         if not 200 <= response.status_code < 300:
-            raise D4S2Error("Request to {} failed with {}.".format(response.url, response.status_code))
+            raise D4S2Error("Request to {} failed with {}:\n{}.".format(response.url, response.status_code,
+                                                                        response.text))
 
 
 class D4S2Item(object):
