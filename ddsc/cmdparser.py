@@ -237,6 +237,17 @@ def _skip_config_file_permission_check(arg_parser):
                             default=False)
 
 
+def _add_message_file(arg_parser, help_text):
+    """
+    Add mesage file argument with help_text to arg_parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    :param help_text: str: help text for this argument
+    """
+    arg_parser.add_argument('--msg-file',
+                            type=argparse.FileType('r'),
+                            help=help_text)
+
+
 class CommandParser(object):
     """
     Root command line parser. Supports the following commands: upload and add_user.
@@ -320,6 +331,8 @@ class CommandParser(object):
         add_email_arg(user_or_email)
         _add_auth_role_arg(share_parser, default_permissions='file_downloader')
         _add_resend_arg(share_parser, "Resend share")
+        _add_message_file(share_parser, "Filename containing a message to be sent with the share. "
+                                        "Pass - to read from stdin.")
         share_parser.set_defaults(func=share_func)
 
     def register_deliver_command(self, deliver_func):
@@ -340,6 +353,8 @@ class CommandParser(object):
         include_or_exclude = deliver_parser.add_mutually_exclusive_group(required=False)
         _add_include_arg(include_or_exclude)
         _add_exclude_arg(include_or_exclude)
+        _add_message_file(deliver_parser, "Filename containing a message to be sent with the delivery. "
+                                          "Pass - to read from stdin.")
         deliver_parser.set_defaults(func=deliver_func)
 
     def register_list_command(self, list_func):

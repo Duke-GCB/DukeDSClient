@@ -218,9 +218,11 @@ class ShareCommand(object):
         username = args.username            # username of person to send email to, will be None if email is specified
         force_send = args.resend            # is this a resend so we should force sending
         auth_role = args.auth_role          # authorization role(project permissions) to give to the user
+        msg_file = args.msg_file            # message file who's contents will be sent with the share
+        message = read_argument_file_contents(msg_file)
         to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         try:
-            dest_email = self.service.share(project_name, to_user, force_send, auth_role)
+            dest_email = self.service.share(project_name, to_user, force_send, auth_role, message)
             print("Share email message sent to " + dest_email)
         except D4S2Error as ex:
             if ex.warning:
@@ -253,13 +255,16 @@ class DeliverCommand(object):
         username = args.username            # username of person to deliver to, will be None if email is specified
         skip_copy_project = args.skip_copy_project  # should we skip the copy step
         force_send = args.resend            # is this a resend so we should force sending
+        msg_file = args.msg_file            # message file who's contents will be sent with the delivery
+        message = read_argument_file_contents(msg_file)
         new_project_name = None
         if not skip_copy_project:
             new_project_name = self.get_new_project_name(project_name)
         to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
-            dest_email = self.service.deliver(project_name, new_project_name, to_user, force_send, path_filter)
+            dest_email = self.service.deliver(project_name, new_project_name, to_user, force_send, path_filter,
+                                              message)
             print("Delivery email message sent to " + dest_email)
         except D4S2Error as ex:
             if ex.warning:
@@ -375,3 +380,17 @@ def boolean_input_prompt(message):
         result = input(message)
     result = result.upper()
     return result == "Y" or result == "YES" or result == "T" or result == "TRUE"
+
+
+def read_argument_file_contents(infile):
+    """
+    return the contents of a file or "" if infile is None.
+    If the infile is STDIN displays a message to tell user how to quit entering data.
+    :param infile: file handle to read from
+    :return: str: contents of the file
+    """
+    if infile:
+        if infile == sys.stdin:
+            print("Enter message and press CTRL-d when done:")
+        return infile.read()
+    return ""
