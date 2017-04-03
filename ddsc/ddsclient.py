@@ -220,6 +220,7 @@ class ShareCommand(object):
         auth_role = args.auth_role          # authorization role(project permissions) to give to the user
         msg_file = args.msg_file            # message file who's contents will be sent with the share
         message = read_argument_file_contents(msg_file)
+        print("Sharing project.")
         to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         try:
             dest_email = self.service.share(project_name, to_user, force_send, auth_role, message)
@@ -257,6 +258,7 @@ class DeliverCommand(object):
         force_send = args.resend            # is this a resend so we should force sending
         msg_file = args.msg_file            # message file who's contents will be sent with the delivery
         message = read_argument_file_contents(msg_file)
+        print("Delivering project.")
         new_project_name = None
         if not skip_copy_project:
             new_project_name = self.get_new_project_name(project_name)
