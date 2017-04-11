@@ -37,8 +37,8 @@ class TestProjectFolderFile(TestCase):
         grand.add_child(parent)
         grand.add_child(otherparent)
         self.assertEqual(('folder:grand ['
-                           'folder:parent [file:setup.py, file:requirements.txt], '
-                           'folder:otherparent []]'), str(grand))
+                          'folder:parent [file:setup.py, file:requirements.txt], '
+                          'folder:otherparent []]'), str(grand))
 
 
 class TestProjectContent(TestCase):
@@ -103,27 +103,27 @@ class TestProjectContent(TestCase):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/results')
         self.assertEqual(('project: [folder:results ['
-                           'file:result1929.txt, '
-                           'file:result2929.txt, '
-                           'folder:subresults [file:result1002.txt, file:result13.txt, file:result15.txt], '
-                           'folder:subresults2 []'
-                           ']]'), str(content))
+                          'file:result1929.txt, '
+                          'file:result2929.txt, '
+                          'folder:subresults [file:result1002.txt, file:result13.txt, file:result15.txt], '
+                          'folder:subresults2 []'
+                          ']]'), str(content))
 
     def test_big_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder')
         self.assertEqual(('project: [folder:DukeDsClientTestFolder ['
-                           'file:note.txt, '
-                           'folder:emptyfolder [], '
-                           'folder:results ['
-                           'file:result1929.txt, file:result2929.txt, folder:subresults '
-                           '[file:result1002.txt, file:result13.txt, file:result15.txt], '
-                           'folder:subresults2 []'
-                           '], '
-                           'folder:scripts ['
-                           'file:makemoney.sh'
-                           ']'
-                           ']]'), str(content))
+                          'file:note.txt, '
+                          'folder:emptyfolder [], '
+                          'folder:results ['
+                          'file:result1929.txt, file:result2929.txt, folder:subresults '
+                          '[file:result1002.txt, file:result13.txt, file:result15.txt], '
+                          'folder:subresults2 []'
+                          '], '
+                          'folder:scripts ['
+                          'file:makemoney.sh'
+                          ']'
+                          ']]'), str(content))
 
     def test_include_dot_files(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)

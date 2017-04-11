@@ -1,6 +1,10 @@
 # DukeDSClient
 Command line tool to upload/manage project on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
+
 [![Build Status](https://travis-ci.org/Duke-GCB/DukeDSClient.svg?branch=master)](https://travis-ci.org/Duke-GCB/DukeDSClient)
+[![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg?branch=coveralls)](https://coveralls.io/github/Duke-GCB/DukeDSClient?branch=coveralls)
+[![Dependency Status](https://gemnasium.com/badges/github.com/Duke-GCB/DukeDSClient.svg)](https://gemnasium.com/github.com/Duke-GCB/DukeDSClient)
+
 
 # Requirements
 - [python](https://www.python.org/) - version 2.7+ with a functional ssl module. 
@@ -89,11 +93,28 @@ ddsclient add_user -p 'Analyzed Mouse RNA' --email 'ada.lovelace@duke.edu'
 ```
 
 
-###Testing:
-From the root directory run the following:
+### Developer:
+Install dependencies:
+```
+pip install -r devRequirements.txt 
+```
+
+Setup pre-commit hook:
+```
+ln pre-commit.sh .git/hooks/pre-commit
+```
+
+Run linter/style checker:
+```
+flake8 --ignore E501 ddsc/
+```
+
+Run the tests
 ```
 python setup.py test
 ```
+
+
 
 ### Data Service Web Portal:
 [Duke Data Service Portal](https://dataservice.duke.edu).

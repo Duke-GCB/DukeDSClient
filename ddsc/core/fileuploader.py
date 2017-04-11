@@ -211,8 +211,8 @@ class ParallelChunkProcessor(object):
         :param progress_queue: ProgressQueue queue to send notifications of progress or errors
         """
         process = Process(target=upload_async,
-                       args=(self.data_service.auth.get_auth_data(), self.config, self.upload_id,
-                             self.local_file.path, index, num_items, progress_queue))
+                          args=(self.data_service.auth.get_auth_data(), self.config, self.upload_id,
+                                self.local_file.path, index, num_items, progress_queue))
         process.start()
         return process
 
@@ -289,4 +289,3 @@ class ChunkSender(object):
         """
         url_info = self.upload_operations.create_file_chunk_url(self.upload_id, chunk_num, chunk)
         self.upload_operations.send_file_external(url_info, chunk)
-

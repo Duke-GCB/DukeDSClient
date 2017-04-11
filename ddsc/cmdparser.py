@@ -2,8 +2,9 @@
 Command line parser for the application.
 """
 import os
-import sys
 import argparse
+import six
+from builtins import str
 
 
 INVALID_PATH_CHARS = (':', '/', '\\')
@@ -26,12 +27,7 @@ def to_unicode(s):
     :param s: string to convert to unicode
     :return: unicode string for argument
     """
-    if sys.version_info >= (3,0,0):
-        return str(s)
-    else:
-        if type(s) != unicode:
-            return unicode(s, 'utf8')
-        return s
+    return s if six.PY3 else str(s, 'utf-8')
 
 
 def add_project_name_arg(arg_parser, required=True, help_text="Name of the remote project to manage."):
@@ -41,11 +37,11 @@ def add_project_name_arg(arg_parser, required=True, help_text="Name of the remot
     :param help_text: str label displayed in usage
     """
     arg_parser.add_argument("-p",
-                           metavar='ProjectName',
-                           type=to_unicode,
-                           dest='project_name',
-                           help=help_text,
-                           required=required)
+                            metavar='ProjectName',
+                            type=to_unicode,
+                            dest='project_name',
+                            help=help_text,
+                            required=required)
 
 
 def _paths_must_exists(path):
@@ -56,7 +52,7 @@ def _paths_must_exists(path):
     """
     path = to_unicode(path)
     if not os.path.exists(path):
-     raise argparse.ArgumentTypeError("{} is not a valid file/folder.".format(path))
+        raise argparse.ArgumentTypeError("{} is not a valid file/folder.".format(path))
     return path
 
 
@@ -91,10 +87,10 @@ def _add_folders_positional_arg(arg_parser):
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
     arg_parser.add_argument("folders",
-                           metavar='Folders',
-                           nargs="+",
-                           help="Names of the files and/or folders to upload to the remote project.",
-                           type=_paths_must_exists)
+                            metavar='Folders',
+                            nargs="+",
+                            help="Names of the files and/or folders to upload to the remote project.",
+                            type=_paths_must_exists)
 
 
 def _add_folder_positional_arg(arg_parser):
@@ -103,12 +99,12 @@ def _add_folder_positional_arg(arg_parser):
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
     arg_parser.add_argument("folder",
-                           metavar='Folder',
-                           help="Name of the folder to download the project contents into. "
-                                "If not specified it will use the name of the project with spaces translated to '_'. "
-                                "This folder must be empty or not exist(will be created).",
-                           type=path_does_not_exist_or_is_empty,
-                           nargs='?')
+                            metavar='Folder',
+                            help="Name of the folder to download the project contents into. "
+                                 "If not specified it will use the name of the project with spaces translated to '_'. "
+                                 "This folder must be empty or not exist(will be created).",
+                            type=path_does_not_exist_or_is_empty,
+                            nargs='?')
 
 
 def _add_follow_symlinks_arg(arg_parser):
@@ -116,7 +112,7 @@ def _add_follow_symlinks_arg(arg_parser):
     Adds optional follow_symlinks parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
-    arg_parser.add_argument("--follow_symlinks",
+    arg_parser.add_argument("--follow-symlinks",
                             help="Follow symbolic links(experimental).",
                             action='store_true',
                             dest='follow_symlinks')
@@ -156,7 +152,7 @@ def _add_auth_role_arg(arg_parser, default_permissions):
     """
     help_text = "Specifies which project permissions to give to the user. Example: 'project_admin'. "
     help_text += "See command list_auth_roles for AuthRole values."
-    arg_parser.add_argument("--auth_role",
+    arg_parser.add_argument("--auth-role",
                             metavar='AuthRole',
                             type=to_unicode,
                             dest='auth_role',
@@ -169,7 +165,7 @@ def _add_copy_project_arg(arg_parser):
     Adds optional copy_project parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
-    arg_parser.add_argument("--skip_copy_project",
+    arg_parser.add_argument("--skip-copy",
                             help="Should we just send the deliver email and skip copying the project.",
                             action='store_true',
                             default=False,
@@ -241,6 +237,29 @@ def _add_dry_run(arg_parser, help_text):
                             dest='dry_run')
 
 
+def _skip_config_file_permission_check(arg_parser):
+    """
+    Adds optional follow_symlinks parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    """
+    arg_parser.add_argument("--allow-insecure-config-file",
+                            help="Do not check the config file ~/.ddsclient permissions.",
+                            action='store_true',
+                            dest='allow_insecure_config_file',
+                            default=False)
+
+
+def _add_message_file(arg_parser, help_text):
+    """
+    Add mesage file argument with help_text to arg_parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    :param help_text: str: help text for this argument
+    """
+    arg_parser.add_argument('--msg-file',
+                            type=argparse.FileType('r'),
+                            help=help_text)
+
+
 class CommandParser(object):
     """
     Root command line parser. Supports the following commands: upload and add_user.
@@ -249,6 +268,7 @@ class CommandParser(object):
     """
     def __init__(self):
         self.parser = argparse.ArgumentParser()
+        _skip_config_file_permission_check(self.parser)
         self.subparsers = self.parser.add_subparsers()
         self.upload_func = None
         self.add_user_func = None
@@ -269,12 +289,12 @@ class CommandParser(object):
 
     def register_add_user_command(self, add_user_func):
         """
-        Add the add_user command to the parser and call add_user_func(project_name, user_full_name, auth_role)
+        Add the add-user command to the parser and call add_user_func(project_name, user_full_name, auth_role)
         when chosen.
         :param add_user_func: func Called when this option is chosen: upload_func(project_name, user_full_name, auth_role).
         """
         description = "Gives user permission to access a remote project."
-        add_user_parser = self.subparsers.add_parser('add_user', description=description)
+        add_user_parser = self.subparsers.add_parser('add-user', description=description)
         add_project_name_arg(add_user_parser, help_text="Name of the project to add a user to.")
         user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
@@ -284,11 +304,11 @@ class CommandParser(object):
 
     def register_remove_user_command(self, remove_user_func):
         """
-        Add the remove_user command to the parser and call remove_user_func(project_name, user_full_name) when chosen.
+        Add the remove-user command to the parser and call remove_user_func(project_name, user_full_name) when chosen.
         :param remove_user_func: func Called when this option is chosen: remove_user_func(project_name, user_full_name).
         """
         description = "Removes user permission to access a remote project."
-        remove_user_parser = self.subparsers.add_parser('remove_user', description=description)
+        remove_user_parser = self.subparsers.add_parser('remove-user', description=description)
         add_project_name_arg(remove_user_parser, help_text="Name of the project to remove a user from.")
         user_or_email = remove_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
@@ -324,6 +344,8 @@ class CommandParser(object):
         add_email_arg(user_or_email)
         _add_auth_role_arg(share_parser, default_permissions='file_downloader')
         _add_resend_arg(share_parser, "Resend share")
+        _add_message_file(share_parser, "Filename containing a message to be sent with the share. "
+                                        "Pass - to read from stdin.")
         share_parser.set_defaults(func=share_func)
 
     def register_deliver_command(self, deliver_func):
@@ -344,6 +366,8 @@ class CommandParser(object):
         include_or_exclude = deliver_parser.add_mutually_exclusive_group(required=False)
         _add_include_arg(include_or_exclude)
         _add_exclude_arg(include_or_exclude)
+        _add_message_file(deliver_parser, "Filename containing a message to be sent with the delivery. "
+                                          "Pass - to read from stdin.")
         deliver_parser.set_defaults(func=deliver_func)
 
     def register_list_command(self, list_func):
@@ -373,7 +397,7 @@ class CommandParser(object):
         :param list_auth_roles_func: function: run when user choses this option.
         """
         description = "List authorization roles for use with add_user command."
-        list_auth_roles_parser = self.subparsers.add_parser('list_auth_roles', description=description)
+        list_auth_roles_parser = self.subparsers.add_parser('list-auth-roles', description=description)
         list_auth_roles_parser.set_defaults(func=list_auth_roles_func)
 
     def run_command(self, args):
@@ -386,4 +410,3 @@ class CommandParser(object):
             parsed_args.func(parsed_args)
         else:
             self.parser.print_help()
-

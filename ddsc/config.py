@@ -4,6 +4,8 @@ import re
 import math
 import yaml
 import multiprocessing
+from ddsc.core.util import verify_file_private
+
 try:
     from urllib.parse import urlparse
 except ImportError:
@@ -22,14 +24,20 @@ FILE_EXCLUDE_REGEX_DEFAULT = '^\.DS_Store$|^\.ddsclient$|^\.\_'
 MAX_DEFAULT_WORKERS = 8
 
 
-def create_config():
+def create_config(allow_insecure_config_file=False):
     """
     Create config based on /etc/ddsclient.conf and ~/.ddsclient.conf($DDSCLIENT_CONF)
+    :param allow_insecure_config_file: bool: when true we will not check ~/.ddsclient permissions.
     :return: Config with the configuration to use for DDSClient.
     """
     config = Config()
     config.add_properties(GLOBAL_CONFIG_FILENAME)
-    config.add_properties(os.environ.get(LOCAL_CONFIG_ENV, LOCAL_CONFIG_FILENAME))
+    user_config_filename = os.environ.get(LOCAL_CONFIG_ENV)
+    if not user_config_filename:
+        user_config_filename = LOCAL_CONFIG_FILENAME
+        if not allow_insecure_config_file:
+            verify_file_private(user_config_filename)
+    config.add_properties(user_config_filename)
     return config
 
 
@@ -142,7 +150,7 @@ class Config(object):
         :return: int number of workers. Specify None or 1 to disable parallel downloading
         """
         # Profiling download on different servers showed half the number of CPUs to be optimum for speed.
-        default_workers = int(math.ceil(default_num_workers()/2))
+        default_workers = int(math.ceil(default_num_workers() / 2))
         return self.values.get(Config.DOWNLOAD_WORKERS, default_workers)
 
     @property

@@ -1,10 +1,21 @@
 import sys
+import os
+import platform
+import stat
 
-TERMINAL_ENCODING_NOT_UTF_ERROR="""
+TERMINAL_ENCODING_NOT_UTF_ERROR = """
 ERROR: DukeDSClient requires UTF terminal encoding.
 
 Follow this guide for adjusting your terminal encoding:
   https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/UnicodeTerminalSetup.md
+
+"""
+
+CONFIG_FILE_PERMISSIONS_ERROR = """
+ERROR: Your config file ~/.ddsclient permissions are open and can allow other users to see your secret key.
+Please disable group and other permissions for your DukeDSClient configuration file.
+You may be able to fix this by running:
+chmod 600 ~/.ddsclient
 
 """
 
@@ -51,7 +62,7 @@ class ProgressPrinter(object):
         :param item: LocalFile, LocalFolder, or LocalContent(project) that is about to be sent.
         :param increment_amt: int amount to increase our count(how much progress have we made)
         """
-        percent_done = int(float(self.cnt)/float(self.total) * 100.0)
+        percent_done = int(float(self.cnt) / float(self.total) * 100.0)
         name = ''
         if KindType.is_project(item):
             name = 'project'
@@ -232,9 +243,31 @@ def wait_for_processes(processes, size, progress_queue, watcher, item):
 
 def verify_terminal_encoding(encoding):
     """
-    Raises ValueError with error message when terminal encoding is not Unicode(contains UTF).
+    Raises ValueError with error message when terminal encoding is not Unicode(contains UTF ignoring case).
     :param encoding: str: encoding we want to check
     """
     encoding = encoding or ''
-    if not ("UTF" in encoding):
+    if not ("UTF" in encoding.upper()):
         raise ValueError(TERMINAL_ENCODING_NOT_UTF_ERROR)
+
+
+def verify_file_private(filename):
+    """
+    Raises ValueError the file permissions allow group/other
+    On windows this never raises due to the implementation of stat.
+    """
+    if platform.system().upper() != 'WINDOWS':
+        filename = os.path.expanduser(filename)
+        if os.path.exists(filename):
+            file_stat = os.stat(filename)
+            if mode_allows_group_or_other(file_stat.st_mode):
+                raise ValueError(CONFIG_FILE_PERMISSIONS_ERROR)
+
+
+def mode_allows_group_or_other(st_mode):
+    """
+    Returns True if st_mode bitset has group or other permissions
+    :param st_mode: int: bit set from a file
+    :return: bool: true when group or other has some permissions
+    """
+    return (st_mode & stat.S_IRWXO or st_mode & stat.S_IRWXG) != 0

@@ -2,6 +2,7 @@ from unittest import TestCase
 import math
 import ddsc.config
 import multiprocessing
+from mock.mock import patch
 
 
 class TestConfig(TestCase):
@@ -17,14 +18,14 @@ class TestConfig(TestCase):
     def test_global_then_local(self):
         config = ddsc.config.Config()
         global_config = {
-            'url':'dataservice1.com',
+            'url': 'dataservice1.com',
             'user_key': 'abc',
             'agent_key': '123',
             'auth': 'secret',
             'upload_bytes_per_chunk': 1293892,
         }
         local_config = {
-            'url':'dataservice2.com',
+            'url': 'dataservice2.com',
             'user_key': 'cde',
             'agent_key': '456',
             'upload_workers': 45,
@@ -39,7 +40,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.upload_bytes_per_chunk, 1293892)
         num_upload_workers = min(multiprocessing.cpu_count(), ddsc.config.MAX_DEFAULT_WORKERS)
         self.assertEqual(config.upload_workers, num_upload_workers)
-        self.assertEqual(config.download_workers, int(math.ceil(num_upload_workers/2)))
+        self.assertEqual(config.download_workers, int(math.ceil(num_upload_workers / 2)))
 
         config.update_properties(local_config)
         self.assertEqual(config.url, 'dataservice2.com')
@@ -77,7 +78,6 @@ class TestConfig(TestCase):
         config.update_properties(config2)
         self.assertEqual(config.get_portal_url_base(), 'uatest.dataservice1.com')
 
-
         config3 = {
             'url': 'https://apidev.dataservice1.com/api/v1',
         }
@@ -105,3 +105,21 @@ class TestConfig(TestCase):
         ddsc.config.MAX_DEFAULT_WORKERS = 1
         self.assertEqual(1, ddsc.config.default_num_workers())
         ddsc.config.MAX_DEFAULT_WORKERS = orig_max_default_workers
+
+    @patch('ddsc.config.os')
+    @patch('ddsc.config.verify_file_private')
+    def test_create_config_no_env_set(self, mock_verify_file_private, mock_os):
+        mock_os.path.expanduser.return_value = '/never/gonna/happen.file'
+        mock_os.path.exists.return_value = False
+        mock_os.environ.get.return_value = None
+        ddsc.config.create_config()
+        mock_verify_file_private.assert_called()
+
+    @patch('ddsc.config.os')
+    @patch('ddsc.config.verify_file_private')
+    def test_create_config_with_env_set(self, mock_verify_file_private, mock_os):
+        mock_os.path.expanduser.return_value = '/never/gonna/happen.file'
+        mock_os.path.exists.return_value = False
+        mock_os.environ.get.return_value = "/shared/ddsclient.config"
+        ddsc.config.create_config()
+        mock_verify_file_private.assert_not_called()

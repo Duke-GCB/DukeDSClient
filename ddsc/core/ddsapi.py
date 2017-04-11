@@ -3,6 +3,7 @@ import json
 import requests
 import time
 from ddsc.config import LOCAL_CONFIG_FILENAME
+from ddsc.versioncheck import APP_NAME, get_internal_version_str
 
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
@@ -20,8 +21,16 @@ Try upgrading ddsclient: pip install --upgrade DukeDSClient
 """
 
 DEFAULT_RESULTS_PER_PAGE = 100
-
 requests_session = requests.Session()
+
+
+def get_user_agent_str():
+    """
+    Returns the user agent: DukeDSClient/<versigon>
+    :return: str: user agent value
+    """
+    return '{}/{}'.format(APP_NAME, get_internal_version_str())
+
 
 class ContentType(object):
     """
@@ -43,6 +52,7 @@ class DataServiceAuth(object):
         self.config = config
         self._auth = self.config.auth
         self._expires = None
+        self.user_agent_str = get_user_agent_str()
 
     def get_auth(self):
         """
@@ -63,6 +73,7 @@ class DataServiceAuth(object):
         # Intentionally doing this manually so we don't have a chicken and egg problem with DataServiceApi.
         headers = {
             'Content-Type': ContentType.json,
+            'User-Agent': self.user_agent_str,
         }
         data = {
             "agent_key": self.config.agent_key,
@@ -133,9 +144,10 @@ class DataServiceError(Exception):
             resp_json = {}
         if response.status_code == 500:
             if resp_json and not resp_json.get('reason'):
-                resp_json = {'reason':'Internal Server Error', 'suggestion':'Contact DDS support.'}
-        Exception.__init__(self,'Error {} on {} Reason:{} Suggestion:{}'.format(
-            response.status_code, url_suffix, resp_json.get('reason',resp_json.get('error','')), resp_json.get('suggestion','')
+                resp_json = {'reason': 'Internal Server Error', 'suggestion': 'Contact DDS support.'}
+        Exception.__init__(self, 'Error {} on {} Reason:{} Suggestion:{}'.format(
+            response.status_code, url_suffix, resp_json.get('reason', resp_json.get('error', '')),
+            resp_json.get('suggestion', '')
         ))
         self.response = resp_json
         self.url_suffix = url_suffix
@@ -158,6 +170,7 @@ class DataServiceApi(object):
         self.auth = auth
         self.base_url = url
         self.http = http
+        self.user_agent_str = get_user_agent_str()
 
     def _url_parts(self, url_suffix, data, content_type):
         """
@@ -173,6 +186,7 @@ class DataServiceApi(object):
             send_data = json.dumps(data)
         headers = {
             'Content-Type': content_type,
+            'User-Agent': self.user_agent_str,
         }
         if self.auth:
             headers['Authorization'] = self.auth.get_auth()
@@ -283,7 +297,7 @@ class DataServiceApi(object):
         if not allow_pagination and total_pages:
             raise ValueError(UNEXPECTED_PAGING_DATA_RECEIVED)
         if 200 <= resp.status_code < 300:
-           return resp
+            return resp
         raise DataServiceError(resp, url_suffix, data)
 
     def create_project(self, project_name, desc):
@@ -369,7 +383,7 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         data = {}
-        if not name_contains is None:
+        if name_contains is not None:
             data['name_contains'] = name_contains
         url_prefix = "/{}/{}/children".format(parent_name, parent_id)
         return self._get_collection(url_prefix, data, content_type=ContentType.form)
@@ -599,7 +613,7 @@ class DataServiceApi(object):
         :param context: str which roles do we want 'project' or 'system'
         :return: requests.Response containing the successful result
         """
-        return self._get_all_pages("/auth_roles", {"context": context}, content_type=ContentType.form)
+        return self._get_collection("/auth_roles", {"context": context}, content_type=ContentType.form)
 
     def get_project_transfers(self, project_id):
         """
@@ -607,7 +621,7 @@ class DataServiceApi(object):
         :param project_id: str uuid of the project
         :return: requests.Response containing the successful result
         """
-        return self._get_all_pages("/projects/" + project_id + "/transfers", {})
+        return self._get_collection("/projects/" + project_id + "/transfers", {})
 
     def create_project_transfer(self, project_id, to_user_ids):
         """
@@ -670,6 +684,88 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         return self._process_project_transfer('accept', transfer_id, status_comment)
+
+    def get_activities(self):
+        """
+        Send GET to /activities returning a list of all provenance activities
+        for the current user. Raises DataServiceError on error.
+        :return: requests.Response containing the successful result
+        """
+        return self._get_collection("/activities", {})
+
+    def create_activity(self, activity_name, desc=None, started_on=None, ended_on=None):
+        """
+        Send POST to /activities creating a new activity with the specified name and desc.
+        Raises DataServiceError on error.
+        :param activity_name: str name of the activity
+        :param desc: str description of the activity (optional)
+        :param started_on: str datetime when the activity started (optional)
+        :param ended_on: str datetime when the activity ended (optional)
+        :return: requests.Response containing the successful result
+        """
+        data = {
+            "name": activity_name,
+            "description": desc,
+            "started_on": started_on,
+            "ended_on": ended_on
+        }
+        return self._post("/activities", data)
+
+    def delete_activity(self, activity_id):
+        """
+        Send DELETE request to the url for this activity.
+        :param activity_id: str uuid of the activity
+        :return: requests.Response containing the successful result
+        """
+        return self._delete("/activities/" + activity_id, {})
+
+    def get_activity_by_id(self, activity_id):
+        """
+        Send GET request to /activities/{id} to get activity details
+        :param activity_id: str uuid of the activity
+        :return: requests.Response containing the successful result
+        """
+        return self._get_single_item('/activities/{}'.format(activity_id), {})
+
+    def update_activity(self, activity_id, activity_name, desc=None,
+                        started_on=None, ended_on=None):
+        """
+        Send PUT request to /activities/{activity_id} to update the activity metadata.
+        Raises ValueError if at least one field is not updated.
+        :param activity_id: str uuid of activity
+        :param activity_name: str new name of the activity
+        :param desc: str description of the activity (optional)
+        :param started_on: str date the updated activity began on (optional)
+        :param ended_on: str date the updated activity ended on (optional)
+        :return: requests.Response containing the successful result
+        """
+        put_data = {
+            "name": activity_name,
+            "description": desc,
+            "started_on": started_on,
+            "ended_on": ended_on
+        }
+        return self._put("/activities/" + activity_id, put_data)
+
+    def get_auth_providers(self):
+        """
+        List Authentication Providers Lists Authentication Providers
+        Returns an array of auth provider details
+        :return: requests.Response containing the successful result
+        """
+        return self._get_collection("/auth_providers", {})
+
+    def auth_provider_add_user(self, auth_provider_id, username):
+        """
+        Transform an institutional affiliates UID, such as a Duke NetID, to a DDS specific user identity;
+        can be used by clients prior to calling DDS APIs that require a DDS user in the request payload.
+        Returns user details. Can be safely called multiple times.
+        :param auth_provider_id: str: auth provider who supports user adding
+        :param username: str: netid we wish to register with DukeDS
+        :return: requests.Response containing the successful result
+        """
+        url = "/auth_providers/{}/affiliates/{}/dds_user/".format(auth_provider_id, username)
+        return self._post(url, {})
 
 
 class MultiJSONResponse(object):

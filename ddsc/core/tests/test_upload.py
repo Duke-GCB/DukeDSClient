@@ -18,7 +18,7 @@ class TestUploadCommand(TestCase):
     @patch("ddsc.core.upload.ProjectUpload")
     @patch("ddsc.core.upload.ProjectUploadDryRun")
     def test_two_files_to_upload(self, MockProjectUploadDryRun, MockProjectUpload, MockRemoteStore):
-        MockProjectUploadDryRun().upload_items = ['data.txt','data2.txt']
+        MockProjectUploadDryRun().upload_items = ['data.txt', 'data2.txt']
         project_upload = ProjectUpload(MagicMock(), "someProject", ["data"])
         dry_run_report = project_upload.dry_run_report()
         self.assertIn("Files/Folders that need to be uploaded:", dry_run_report)

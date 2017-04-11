@@ -1,8 +1,10 @@
 """ Runs the appropriate command for a user based on arguments. """
 from __future__ import print_function
+from builtins import input
 import sys
 import datetime
 import pipes
+import time
 from ddsc.core.d4s2 import D4S2Project, D4S2Error
 from ddsc.core.remotestore import RemoteStore, RemoteAuthRole
 from ddsc.core.upload import ProjectUpload
@@ -10,20 +12,19 @@ from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, repla
 from ddsc.core.download import ProjectDownload
 from ddsc.core.util import ProjectFilenameList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
+from ddsc.versioncheck import check_version, VersionException
+from ddsc.config import create_config
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
+TWO_SECONDS = 2
 
 
 class DDSClient(object):
     """
     Runs various commands based on arguments.
     """
-    def __init__(self, config):
-        """
-        Pass in the configuration for the data service.
-        :param config: ddsc.config.Config configuration object to be used with the DataServiceApi.
-        """
-        self.config = config
+    def __init__(self):
+        self.show_error_stack_trace = False
 
     def run_command(self, args):
         """
@@ -60,6 +61,16 @@ class DDSClient(object):
         """
         return lambda args: self._run_command(command_constructor, args)
 
+    def _check_pypi_version(self):
+        """
+        When the version is out of date or we have trouble retrieving it print a error to stderr and pause.
+        """
+        try:
+            check_version()
+        except VersionException as err:
+            print(str(err), file=sys.stderr)
+            time.sleep(TWO_SECONDS)
+
     def _run_command(self, command_constructor, args):
         """
         Run command_constructor and call run(args) on the resulting object
@@ -67,7 +78,10 @@ class DDSClient(object):
         :param args: object arguments for specific command created by CommandParser
         """
         verify_terminal_encoding(sys.stdout.encoding)
-        command = command_constructor(self.config)
+        self._check_pypi_version()
+        config = create_config(allow_insecure_config_file=args.allow_insecure_config_file)
+        self.show_error_stack_trace = config.debug_mode
+        command = command_constructor(config)
         command.run(args)
 
 
@@ -156,7 +170,7 @@ class AddUserCommand(object):
         username = args.username            # username of person to give permissions, will be None if email is specified
         auth_role = args.auth_role          # type of permission(project_admin)
         project = self.remote_store.fetch_remote_project(project_name, must_exist=True, include_children=False)
-        user = self.remote_store.lookup_user_by_email_or_username(email, username)
+        user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         self.remote_store.set_user_project_permission(project, user, auth_role)
         print(u'Gave user {} {} permissions for {}.'.format(user.full_name, auth_role, project_name))
 
@@ -181,7 +195,7 @@ class RemoveUserCommand(object):
         email = args.email                # email of person to remove permissions from (None if username specified)
         username = args.username          # username of person to remove permissions from (None if email is specified)
         project = self.remote_store.fetch_remote_project(project_name, must_exist=True, include_children=False)
-        user = self.remote_store.lookup_user_by_email_or_username(email, username)
+        user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         self.remote_store.revoke_user_project_permission(project, user)
         print(u'Removed permissions from user {} for project {}.'.format(user.full_name, project_name))
 
@@ -208,9 +222,12 @@ class ShareCommand(object):
         username = args.username            # username of person to send email to, will be None if email is specified
         force_send = args.resend            # is this a resend so we should force sending
         auth_role = args.auth_role          # authorization role(project permissions) to give to the user
-        to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
+        msg_file = args.msg_file            # message file who's contents will be sent with the share
+        message = read_argument_file_contents(msg_file)
+        print("Sharing project.")
+        to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         try:
-            dest_email = self.service.share(project_name, to_user, force_send, auth_role)
+            dest_email = self.service.share(project_name, to_user, force_send, auth_role, message)
             print("Share email message sent to " + dest_email)
         except D4S2Error as ex:
             if ex.warning:
@@ -243,13 +260,17 @@ class DeliverCommand(object):
         username = args.username            # username of person to deliver to, will be None if email is specified
         skip_copy_project = args.skip_copy_project  # should we skip the copy step
         force_send = args.resend            # is this a resend so we should force sending
+        msg_file = args.msg_file            # message file who's contents will be sent with the delivery
+        message = read_argument_file_contents(msg_file)
+        print("Delivering project.")
         new_project_name = None
         if not skip_copy_project:
             new_project_name = self.get_new_project_name(project_name)
-        to_user = self.remote_store.lookup_user_by_email_or_username(email, username)
+        to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
-            dest_email = self.service.deliver(project_name, new_project_name, to_user, force_send, path_filter)
+            dest_email = self.service.deliver(project_name, new_project_name, to_user, force_send, path_filter,
+                                              message)
             print("Delivery email message sent to " + dest_email)
         except D4S2Error as ex:
             if ex.warning:
@@ -362,9 +383,20 @@ def boolean_input_prompt(message):
     if sys.version_info >= (3, 0, 0):
         result = input(message)
     else:
-        result = raw_input(message)
+        result = input(message)
     result = result.upper()
     return result == "Y" or result == "YES" or result == "T" or result == "TRUE"
 
 
-
+def read_argument_file_contents(infile):
+    """
+    return the contents of a file or "" if infile is None.
+    If the infile is STDIN displays a message to tell user how to quit entering data.
+    :param infile: file handle to read from
+    :return: str: contents of the file
+    """
+    if infile:
+        if infile == sys.stdin:
+            print("Enter message and press CTRL-d when done:")
+        return infile.read()
+    return ""

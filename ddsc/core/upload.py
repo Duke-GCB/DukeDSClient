@@ -2,7 +2,6 @@ import datetime
 from ddsc.core.localstore import LocalProject
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.util import ProgressPrinter, ProjectWalker
-from ddsc.core.fileuploader import FileUploader
 from ddsc.core.projectuploader import UploadSettings, ProjectUploader, ProjectUploadDryRun
 
 

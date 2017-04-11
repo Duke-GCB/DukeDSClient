@@ -63,7 +63,7 @@ class TestProjectUploadDryRun(TestCase):
         parent_folder = MagicMock(kind=KindType.folder_str,
                                   path="/data/2017",
                                   children=[child_folder],
-                                  remote_id = None)
+                                  remote_id=None)
         local_project = MagicMock(kind=KindType.project_str, children=[parent_folder])
         upload_dry_run = ProjectUploadDryRun()
         upload_dry_run.run(local_project)
