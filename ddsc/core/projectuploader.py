@@ -368,6 +368,10 @@ def create_small_file(upload_context):
 
 
 class ProjectUploadDryRun(object):
+    """
+    Recursively visits children of the project passed to run.
+    Builds a list of the names of folders/files that need to be uploaded.
+    """
     def __init__(self):
         self.upload_items = []
 
@@ -375,9 +379,17 @@ class ProjectUploadDryRun(object):
         self.upload_items.append(name)
 
     def run(self, local_project):
-        self.visit_recur(local_project)
+        """
+        Appends file/folder paths to upload_items based on the contents of this project that need to be uploaded.
+        :param local_project: LocalProject: project we will build the list for
+        """
+        self._visit_recur(local_project)
 
-    def visit_recur(self, item):
+    def _visit_recur(self, item):
+        """
+        Recursively visits children of item.
+        :param item: object: project, folder or file we will add to upload_items if necessary.
+        """
         if item.kind == KindType.file_str:
             if item.need_to_send:
                 self.add_upload_item(item.path)
@@ -388,4 +400,4 @@ class ProjectUploadDryRun(object):
                 if not item.remote_id:
                     self.add_upload_item(item.path)
             for child in item.children:
-                self.visit_recur(child)
+                self._visit_recur(child)

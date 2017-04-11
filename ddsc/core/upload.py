@@ -60,6 +60,11 @@ class ProjectUpload(object):
         progress_printer.finished()
 
     def dry_run_report(self):
+        """
+        Returns text displaying the items that need to be uploaded or a message saying there are no files/folders
+        to upload.
+        :return: str: report text
+        """
         project_uploader = ProjectUploadDryRun()
         project_uploader.run(self.local_project)
         items = project_uploader.upload_items
