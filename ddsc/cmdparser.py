@@ -281,7 +281,8 @@ class CommandParser(object):
         """
         description = "Uploads local files and folders to a remote host."
         upload_parser = self.subparsers.add_parser('upload', description=description)
-        _add_dry_run(upload_parser, help_text="Instead of uploading display out a list of folders/files to be uploaded.")
+        _add_dry_run(upload_parser, help_text="Instead of uploading displays a list of folders/files that "
+                                              "need to be uploaded.")
         add_project_name_arg(upload_parser, help_text="Name of the project to upload files/folders to.")
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
