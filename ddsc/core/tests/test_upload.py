@@ -12,7 +12,7 @@ class TestUploadCommand(TestCase):
         MockProjectUploadDryRun().upload_items = []
         project_upload = ProjectUpload(MagicMock(), "someProject", ["data"])
         dry_run_report = project_upload.dry_run_report()
-        self.assertEqual("No changes found. Nothing needs to be uploaded.", dry_run_report)
+        self.assertIn("No changes found. Nothing needs to be uploaded.", dry_run_report)
 
     @patch("ddsc.core.upload.RemoteStore")
     @patch("ddsc.core.upload.ProjectUpload")
