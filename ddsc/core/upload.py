@@ -69,11 +69,12 @@ class ProjectUpload(object):
         project_uploader.run(self.local_project)
         items = project_uploader.upload_items
         if not items:
-            return "No changes found. Nothing needs to be uploaded."
+            return "\n\nNo changes found. Nothing needs to be uploaded.\n\n"
         else:
-            result = "Files/Folders that need to be uploaded:\n"
+            result = "\n\nFiles/Folders that need to be uploaded:\n"
             for item in items:
                 result += "{}\n".format(item)
+            result += "\n"
             return result
 
     def get_differences_summary(self):
