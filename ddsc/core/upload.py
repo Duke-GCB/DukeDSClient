@@ -2,7 +2,7 @@ import datetime
 from ddsc.core.localstore import LocalProject
 from ddsc.core.remotestore import RemoteStore
 from ddsc.core.util import ProgressPrinter, ProjectWalker
-from ddsc.core.projectuploader import UploadSettings, ProjectUploader
+from ddsc.core.projectuploader import UploadSettings, ProjectUploader, ProjectUploadDryRun
 
 
 class ProjectUpload(object):
@@ -58,6 +58,24 @@ class ProjectUpload(object):
         project_uploader = ProjectUploader(upload_settings)
         project_uploader.run(self.local_project)
         progress_printer.finished()
+
+    def dry_run_report(self):
+        """
+        Returns text displaying the items that need to be uploaded or a message saying there are no files/folders
+        to upload.
+        :return: str: report text
+        """
+        project_uploader = ProjectUploadDryRun()
+        project_uploader.run(self.local_project)
+        items = project_uploader.upload_items
+        if not items:
+            return "\n\nNo changes found. Nothing needs to be uploaded.\n\n"
+        else:
+            result = "\n\nFiles/Folders that need to be uploaded:\n"
+            for item in items:
+                result += "{}\n".format(item)
+            result += "\n"
+            return result
 
     def get_differences_summary(self):
         """

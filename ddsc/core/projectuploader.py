@@ -1,5 +1,5 @@
 import requests
-from ddsc.core.util import ProjectWalker
+from ddsc.core.util import ProjectWalker, KindType
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData
 from ddsc.core.parallel import TaskExecutor, TaskRunner
@@ -365,3 +365,39 @@ def create_small_file(upload_context):
     url_info = upload_operations.create_file_chunk_url(upload_id, chunk_num, chunk)
     upload_operations.send_file_external(url_info, chunk)
     return upload_operations.finish_upload(upload_id, hash_data, parent_data, remote_file_id)
+
+
+class ProjectUploadDryRun(object):
+    """
+    Recursively visits children of the project passed to run.
+    Builds a list of the names of folders/files that need to be uploaded.
+    """
+    def __init__(self):
+        self.upload_items = []
+
+    def add_upload_item(self, name):
+        self.upload_items.append(name)
+
+    def run(self, local_project):
+        """
+        Appends file/folder paths to upload_items based on the contents of this project that need to be uploaded.
+        :param local_project: LocalProject: project we will build the list for
+        """
+        self._visit_recur(local_project)
+
+    def _visit_recur(self, item):
+        """
+        Recursively visits children of item.
+        :param item: object: project, folder or file we will add to upload_items if necessary.
+        """
+        if item.kind == KindType.file_str:
+            if item.need_to_send:
+                self.add_upload_item(item.path)
+        else:
+            if item.kind == KindType.project_str:
+                pass
+            else:
+                if not item.remote_id:
+                    self.add_upload_item(item.path)
+            for child in item.children:
+                self._visit_recur(child)

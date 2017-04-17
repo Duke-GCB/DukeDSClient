@@ -107,15 +107,19 @@ class UploadCommand(object):
         project_name = args.project_name        # name of the remote project to create/upload to
         folders = args.folders                  # list of local files/folders to upload into the project
         follow_symlinks = args.follow_symlinks  # should we follow symlinks when traversing folders
+        dry_run = args.dry_run                  # do not upload anything, instead print out what you would upload
 
         project_upload = ProjectUpload(self.config, project_name, folders, follow_symlinks=follow_symlinks)
-        print(project_upload.get_differences_summary())
-        if project_upload.needs_to_upload():
-            project_upload.run()
-            print('\n')
-            print(project_upload.get_upload_report())
-            print('\n')
-        print(project_upload.get_url_msg())
+        if dry_run:
+            print(project_upload.dry_run_report())
+        else:
+            print(project_upload.get_differences_summary())
+            if project_upload.needs_to_upload():
+                project_upload.run()
+                print('\n')
+                print(project_upload.get_upload_report())
+                print('\n')
+            print(project_upload.get_url_msg())
 
 
 class DownloadCommand(object):

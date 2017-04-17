@@ -225,6 +225,18 @@ def _add_exclude_arg(arg_parser):
                             default=[])
 
 
+def _add_dry_run(arg_parser, help_text):
+    """
+    Adds optional --dry-run parameter to a parser. Stored as 'dry_run'.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    :param help_text: str label displayed in usage
+    """
+    arg_parser.add_argument("--dry-run",
+                            help=help_text,
+                            action='store_true',
+                            dest='dry_run')
+
+
 def _skip_config_file_permission_check(arg_parser):
     """
     Adds optional follow_symlinks parameter to a parser.
@@ -269,6 +281,8 @@ class CommandParser(object):
         """
         description = "Uploads local files and folders to a remote host."
         upload_parser = self.subparsers.add_parser('upload', description=description)
+        _add_dry_run(upload_parser, help_text="Instead of uploading displays a list of folders/files that "
+                                              "need to be uploaded.")
         add_project_name_arg(upload_parser, help_text="Name of the project to upload files/folders to.")
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
