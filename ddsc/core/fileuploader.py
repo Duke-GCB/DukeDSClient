@@ -7,6 +7,8 @@ from multiprocessing import Process, Queue
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.util import ProgressQueue, wait_for_processes
 from ddsc.core.localstore import HashData
+import traceback
+import sys
 
 
 class FileUploader(object):
@@ -234,7 +236,11 @@ def upload_async(data_service_auth_data, config, upload_id,
     data_service = DataServiceApi(auth, config.url)
     sender = ChunkSender(data_service, upload_id, filename, config.upload_bytes_per_chunk, index, num_chunks_to_send,
                          progress_queue)
-    return sender.send()
+    try:
+        sender.send()
+    except:
+        error_msg = "".join(traceback.format_exception(*sys.exc_info()))
+        progress_queue.error(error_msg)
 
 
 class ChunkSender(object):

@@ -1,5 +1,6 @@
 from unittest import TestCase
-from ddsc.core.fileuploader import ParallelChunkProcessor
+from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async
+from mock import MagicMock, Mock, patch
 
 
 class FakeConfig(object):
@@ -43,3 +44,21 @@ class TestParallelChunkProcessor(TestCase):
         for upload_workers, num_chunks, expected in values:
             result = ParallelChunkProcessor.make_work_parcels(upload_workers, num_chunks)
             self.assertEqual(expected, result)
+
+
+class TestUploadAsync(TestCase):
+    @patch('ddsc.core.fileuploader.ChunkSender')
+    def test_upload_async_sends_exception_to_progress_queue(self, mock_chunk_sender):
+        data_service_auth_data = MagicMock()
+        config = MagicMock()
+        upload_id = 123
+        filename = 'somefile.txt'
+        index = 0
+        num_chunks_to_send = 10
+        progress_queue = MagicMock()
+        mock_chunk_sender().send.side_effect = ValueError("Something Failed!")
+        upload_async(data_service_auth_data, config, upload_id, filename, index, num_chunks_to_send, progress_queue)
+        progress_queue.error.assert_called()
+        params = progress_queue.error.call_args
+        positional_args = params[0]
+        self.assertIn('Something Failed!', positional_args[0])
