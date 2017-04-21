@@ -1,6 +1,6 @@
 from unittest import TestCase
 from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async
-from mock import MagicMock, Mock, patch
+from mock import MagicMock, patch
 
 
 class FakeConfig(object):
