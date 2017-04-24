@@ -296,8 +296,7 @@ class ChunkSender(object):
 
     def send(self):
         """
-        For each chunk we need to send, create upload url and send bytes.
-        :return None when everything is ok otherwise returns a string error message.
+        For each chunk we need to send, create upload url and send bytes. Raises exception on error.
         """
         sent_chunks = 0
         chunk_num = self.index
@@ -309,7 +308,6 @@ class ChunkSender(object):
                 self.progress_queue.processed(1)
                 chunk_num += 1
                 sent_chunks += 1
-        return None
 
     def _send_chunk(self, chunk, chunk_num):
         """
