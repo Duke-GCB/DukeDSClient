@@ -1,6 +1,7 @@
 from unittest import TestCase
-from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async
-from mock import MagicMock, patch
+from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async, FileUploadOperations
+import requests
+from mock import MagicMock, Mock, patch
 
 
 class FakeConfig(object):
@@ -62,3 +63,60 @@ class TestUploadAsync(TestCase):
         params = progress_queue.error.call_args
         positional_args = params[0]
         self.assertIn('Something Failed!', positional_args[0])
+
+
+class TestFileUploadOperations(TestCase):
+    def test_send_file_external_works_first_time(self):
+        data_service = MagicMock()
+        data_service.send_external.side_effect = [Mock(status_code=201)]
+        fop = FileUploadOperations(data_service)
+        url_json = {
+            'http_verb': 'PUT',
+            'host': 'something.com',
+            'url': '/putdata',
+            'http_headers': [],
+        }
+        fop.send_file_external(url_json, chunk='DATADATADATA')
+        self.assertEqual(1, data_service.send_external.call_count)
+
+    def test_send_file_external_retry_put(self):
+        data_service = MagicMock()
+        data_service.send_external.side_effect = [requests.exceptions.ConnectionError, Mock(status_code=201)]
+        fop = FileUploadOperations(data_service)
+        url_json = {
+            'http_verb': 'PUT',
+            'host': 'something.com',
+            'url': '/putdata',
+            'http_headers': [],
+        }
+        fop.send_file_external(url_json, chunk='DATADATADATA')
+        self.assertEqual(2, data_service.send_external.call_count)
+
+    def test_send_file_external_retry_put_fail_twice(self):
+        data_service = MagicMock()
+        data_service.send_external.side_effect = [requests.exceptions.ConnectionError,
+                                                  requests.exceptions.ConnectionError]
+        fop = FileUploadOperations(data_service)
+        url_json = {
+            'http_verb': 'PUT',
+            'host': 'something.com',
+            'url': '/putdata',
+            'http_headers': [],
+        }
+        with self.assertRaises(requests.exceptions.ConnectionError):
+            fop.send_file_external(url_json, chunk='DATADATADATA')
+        self.assertEqual(2, data_service.send_external.call_count)
+
+    def test_send_file_external_no_retry_post(self):
+        data_service = MagicMock()
+        data_service.send_external.side_effect = [requests.exceptions.ConnectionError]
+        fop = FileUploadOperations(data_service)
+        url_json = {
+            'http_verb': 'POST',
+            'host': 'something.com',
+            'url': '/putdata',
+            'http_headers': [],
+        }
+        with self.assertRaises(requests.exceptions.ConnectionError):
+            fop.send_file_external(url_json, chunk='DATADATADATA')
+        self.assertEqual(1, data_service.send_external.call_count)
