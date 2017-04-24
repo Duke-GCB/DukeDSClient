@@ -92,10 +92,10 @@ class TestFileUploadOperations(TestCase):
         fop.send_file_external(url_json, chunk='DATADATADATA')
         self.assertEqual(2, data_service.send_external.call_count)
 
-    def test_send_file_external_retry_put_fail_twice(self):
+    def test_send_file_external_retry_put_fail_after_3_times(self):
         data_service = MagicMock()
-        data_service.send_external.side_effect = [requests.exceptions.ConnectionError,
-                                                  requests.exceptions.ConnectionError]
+        connection_err = requests.exceptions.ConnectionError
+        data_service.send_external.side_effect = [connection_err, connection_err, connection_err, connection_err]
         fop = FileUploadOperations(data_service)
         url_json = {
             'http_verb': 'PUT',
@@ -105,7 +105,21 @@ class TestFileUploadOperations(TestCase):
         }
         with self.assertRaises(requests.exceptions.ConnectionError):
             fop.send_file_external(url_json, chunk='DATADATADATA')
-        self.assertEqual(2, data_service.send_external.call_count)
+        self.assertEqual(3, data_service.send_external.call_count)
+
+    def test_send_file_external_succeeds_3rd_time(self):
+        data_service = MagicMock()
+        connection_err = requests.exceptions.ConnectionError
+        data_service.send_external.side_effect = [connection_err, connection_err, Mock(status_code=201)]
+        fop = FileUploadOperations(data_service)
+        url_json = {
+            'http_verb': 'PUT',
+            'host': 'something.com',
+            'url': '/putdata',
+            'http_headers': [],
+        }
+        fop.send_file_external(url_json, chunk='DATADATADATA')
+        self.assertEqual(3, data_service.send_external.call_count)
 
     def test_send_file_external_no_retry_post(self):
         data_service = MagicMock()

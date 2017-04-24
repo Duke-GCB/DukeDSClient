@@ -12,6 +12,7 @@ from ddsc.core.localstore import HashData
 import traceback
 import sys
 
+SEND_EXTERNAL_PUT_RETRY_TIMES = 3
 SEND_EXTERNAL_RETRY_SECONDS = 0.5
 
 
@@ -130,17 +131,22 @@ class FileUploadOperations(object):
 
     def _send_file_external_with_retry(self, http_verb, host, url, http_headers, chunk):
         """
-        Send chunk to host, url using http_verb. If the http_verb is PUT and a connection error occurs
-        retry once after waiting.
+        Send chunk to host, url using http_verb. If http_verb is PUT and a connection error occurs
+        retry a few times. Pauses between retries. Raises if unsuccessful.
         """
-        try:
-            return self.data_service.send_external(http_verb, host, url, http_headers, chunk)
-        except requests.exceptions.ConnectionError:
-            if http_verb == 'PUT':
-                time.sleep(SEND_EXTERNAL_RETRY_SECONDS)
+        count = 0
+        retry_times = 1
+        if http_verb == 'PUT':
+            retry_times = SEND_EXTERNAL_PUT_RETRY_TIMES
+        while True:
+            try:
                 return self.data_service.send_external(http_verb, host, url, http_headers, chunk)
-            else:
-                raise
+            except requests.exceptions.ConnectionError:
+                count += 1
+                if count < retry_times:
+                    time.sleep(SEND_EXTERNAL_RETRY_SECONDS)
+                else:
+                    raise
 
     def finish_upload(self, upload_id, hash_data, parent_data, remote_file_id):
         """
