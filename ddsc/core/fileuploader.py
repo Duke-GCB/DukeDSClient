@@ -3,12 +3,16 @@ Objects to upload a number of chunks from a file to a remote store as part of an
 """
 
 import math
+import time
+import requests
 from multiprocessing import Process, Queue
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.util import ProgressQueue, wait_for_processes
 from ddsc.core.localstore import HashData
 import traceback
 import sys
+
+SEND_EXTERNAL_RETRY_SECONDS = 0.5
 
 
 class FileUploader(object):
@@ -120,9 +124,23 @@ class FileUploadOperations(object):
         host = url_json['host']
         url = url_json['url']
         http_headers = url_json['http_headers']
-        resp = self.data_service.send_external(http_verb, host, url, http_headers, chunk)
+        resp = self._send_file_external_with_retry(http_verb, host, url, http_headers, chunk)
         if resp.status_code != 200 and resp.status_code != 201:
             raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code))
+
+    def _send_file_external_with_retry(self, http_verb, host, url, http_headers, chunk):
+        """
+        Send chunk to host, url using http_verb. If the http_verb is PUT and a connection error occurs
+        retry once after waiting.
+        """
+        try:
+            return self.data_service.send_external(http_verb, host, url, http_headers, chunk)
+        except requests.exceptions.ConnectionError:
+            if http_verb == 'PUT':
+                time.sleep(SEND_EXTERNAL_RETRY_SECONDS)
+                return self.data_service.send_external(http_verb, host, url, http_headers, chunk)
+            else:
+                raise
 
     def finish_upload(self, upload_id, hash_data, parent_data, remote_file_id):
         """
