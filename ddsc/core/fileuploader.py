@@ -3,10 +3,17 @@ Objects to upload a number of chunks from a file to a remote store as part of an
 """
 
 import math
+import time
+import requests
 from multiprocessing import Process, Queue
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.util import ProgressQueue, wait_for_processes
 from ddsc.core.localstore import HashData
+import traceback
+import sys
+
+SEND_EXTERNAL_PUT_RETRY_TIMES = 3
+SEND_EXTERNAL_RETRY_SECONDS = 0.5
 
 
 class FileUploader(object):
@@ -118,9 +125,28 @@ class FileUploadOperations(object):
         host = url_json['host']
         url = url_json['url']
         http_headers = url_json['http_headers']
-        resp = self.data_service.send_external(http_verb, host, url, http_headers, chunk)
+        resp = self._send_file_external_with_retry(http_verb, host, url, http_headers, chunk)
         if resp.status_code != 200 and resp.status_code != 201:
             raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code))
+
+    def _send_file_external_with_retry(self, http_verb, host, url, http_headers, chunk):
+        """
+        Send chunk to host, url using http_verb. If http_verb is PUT and a connection error occurs
+        retry a few times. Pauses between retries. Raises if unsuccessful.
+        """
+        count = 0
+        retry_times = 1
+        if http_verb == 'PUT':
+            retry_times = SEND_EXTERNAL_PUT_RETRY_TIMES
+        while True:
+            try:
+                return self.data_service.send_external(http_verb, host, url, http_headers, chunk)
+            except requests.exceptions.ConnectionError:
+                count += 1
+                if count < retry_times:
+                    time.sleep(SEND_EXTERNAL_RETRY_SECONDS)
+                else:
+                    raise
 
     def finish_upload(self, upload_id, hash_data, parent_data, remote_file_id):
         """
@@ -234,7 +260,11 @@ def upload_async(data_service_auth_data, config, upload_id,
     data_service = DataServiceApi(auth, config.url)
     sender = ChunkSender(data_service, upload_id, filename, config.upload_bytes_per_chunk, index, num_chunks_to_send,
                          progress_queue)
-    return sender.send()
+    try:
+        sender.send()
+    except:
+        error_msg = "".join(traceback.format_exception(*sys.exc_info()))
+        progress_queue.error(error_msg)
 
 
 class ChunkSender(object):
@@ -266,8 +296,7 @@ class ChunkSender(object):
 
     def send(self):
         """
-        For each chunk we need to send, create upload url and send bytes.
-        :return None when everything is ok otherwise returns a string error message.
+        For each chunk we need to send, create upload url and send bytes. Raises exception on error.
         """
         sent_chunks = 0
         chunk_num = self.index
@@ -279,7 +308,6 @@ class ChunkSender(object):
                 self.progress_queue.processed(1)
                 chunk_num += 1
                 sent_chunks += 1
-        return None
 
     def _send_chunk(self, chunk, chunk_num):
         """
