@@ -231,7 +231,14 @@ class LocalFile(object):
         self.remote_id = remote_id
 
     def count_chunks(self, bytes_per_chunk):
-        return math.ceil(float(self.size) / float(bytes_per_chunk))
+        """
+        Based on the size of the file determine how many chunks we will need to upload.
+        For empty files 1 chunk is returned (DukeDS requires an empty chunk for empty files).
+        :param bytes_per_chunk: int: how many bytes should chunks to spglit the file into
+        :return: int: number of chunks that will need to be sent
+        """
+        chunks = math.ceil(float(self.size) / float(bytes_per_chunk))
+        return max(chunks, 1)
 
     def __str__(self):
         return 'file:{}'.format(self.name)
