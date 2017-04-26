@@ -79,12 +79,13 @@ class FileUploadOperations(object):
     3) upload part of file
     4) complete upload then create new file or update existing file
     """
-    def __init__(self, data_service):
+    def __init__(self, data_service, after_upload_func=None):
         """
         Setup with specified data service we will communicate with.
         :param data_service: DataServiceApi data service we are uploading the file to.
         """
         self.data_service = data_service
+        self.after_upload_func = after_upload_func
 
     def create_upload(self, project_id, path_data, hash_data):
         """
@@ -127,7 +128,7 @@ class FileUploadOperations(object):
         http_headers = url_json['http_headers']
         resp = self._send_file_external_with_retry(http_verb, host, url, http_headers, chunk)
         if resp.status_code != 200 and resp.status_code != 201:
-            raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code))
+            raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code) + host + url)
 
     def _send_file_external_with_retry(self, http_verb, host, url, http_headers, chunk):
         """
@@ -159,11 +160,22 @@ class FileUploadOperations(object):
         """
         self.data_service.complete_upload(upload_id, hash_data.value, hash_data.alg)
         if remote_file_id:
-            self.data_service.update_file(remote_file_id, upload_id)
-            return remote_file_id
+            result = self.data_service.update_file(remote_file_id, upload_id)
+            return self._after_upload(result)
         else:
             result = self.data_service.create_file(parent_data.kind, parent_data.id, upload_id)
-            return result.json()['id']
+            return self._after_upload(result)
+
+    def _after_upload(self, result):
+        """
+        Called after finishing upload to return resulting file id and optionally call self.after_upload_func
+        :param result: response from PUT/POST file
+        :return: str: uuid of this file
+        """
+        result_json = result.json()
+        if self.after_upload_func:
+            self.after_upload_func(self.data_service, result_json)
+        return result_json['id']
 
 
 class ParallelChunkProcessor(object):

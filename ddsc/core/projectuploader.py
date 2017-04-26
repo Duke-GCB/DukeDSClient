@@ -360,12 +360,19 @@ def create_small_file(upload_context):
     hash_data = path_data.get_hash()
 
     # Talk to data service uploading chunk and creating the file.
-    upload_operations = FileUploadOperations(data_service)
+    upload_operations = FileUploadOperations(data_service, after_upload_func=my_after_upload_func)
     upload_id = upload_operations.create_upload(upload_context.project_id, path_data, hash_data)
     url_info = upload_operations.create_file_chunk_url(upload_id, chunk_num, chunk)
     upload_operations.send_file_external(url_info, chunk)
     return upload_operations.finish_upload(upload_id, hash_data, parent_data, remote_file_id)
 
+
+def my_after_upload_func(data_service, result):
+    current_version = result['current_version']
+    current_version_id = current_version['id']
+    print ""
+    print "GOT", current_version_id
+    print ""
 
 class ProjectUploadDryRun(object):
     """

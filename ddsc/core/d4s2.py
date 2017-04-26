@@ -251,7 +251,8 @@ class D4S2Project(object):
         self.remove_user_permission(project, to_user)
         if new_project_name:
             project = self._copy_project(project_name, new_project_name, path_filter)
-        return self._share_project(D4S2Api.DELIVER_DESTINATION, project, to_user, force_send, user_message=user_message)
+        #return self._share_project(D4S2Api.DELIVER_DESTINATION, project, to_user, force_send, user_message=user_message)
+        return "HEY"
 
     def remove_user_permission(self, project, user):
         """
@@ -294,6 +295,7 @@ class D4S2Project(object):
         remote_project = self.remote_store.fetch_remote_project(new_project_name)
         if remote_project:
             raise ValueError("A project with name '{}' already exists.".format(new_project_name))
+        copy_activity_id = self._create_copy_activity(project_name, new_project_name)
         self._download_project(project_name, temp_directory, path_filter)
         self._upload_project(new_project_name, temp_directory)
         shutil.rmtree(temp_directory)
@@ -320,3 +322,10 @@ class D4S2Project(object):
         items_to_send = [os.path.join(temp_directory, item) for item in os.listdir(os.path.abspath(temp_directory))]
         project_upload = ProjectUpload(self.config, project_name, items_to_send)
         project_upload.run()
+
+    def _create_copy_activity(self, project_name, new_project_name):
+        data_service = self.remote_store.data_service
+        activity_name = "DukeDSClient copying {}".format(project_name)
+        desc = "Copying {} to project {}".format(project_name, new_project_name)
+        result = data_service.create_activity(activity_name, desc)
+        return result.json()['id']
