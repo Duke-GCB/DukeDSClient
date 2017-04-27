@@ -727,13 +727,13 @@ class DataServiceApi(object):
         """
         return self._get_single_item('/activities/{}'.format(activity_id), {})
 
-    def update_activity(self, activity_id, activity_name, desc=None,
+    def update_activity(self, activity_id, activity_name=None, desc=None,
                         started_on=None, ended_on=None):
         """
         Send PUT request to /activities/{activity_id} to update the activity metadata.
         Raises ValueError if at least one field is not updated.
         :param activity_id: str uuid of activity
-        :param activity_name: str new name of the activity
+        :param activity_name: str new name of the activity (optional)
         :param desc: str description of the activity (optional)
         :param started_on: str date the updated activity began on (optional)
         :param ended_on: str date the updated activity ended on (optional)

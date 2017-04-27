@@ -36,7 +36,7 @@ class FileUploader(object):
         """
         self.config = config
         self.data_service = data_service
-        self.upload_operations = FileUploadOperations(self.data_service)
+        self.upload_operations = FileUploadOperations(self.data_service, file_upload_post_processor)
         self.local_file = local_file
         self.upload_id = None
         self.watcher = watcher

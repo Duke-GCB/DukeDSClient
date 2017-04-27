@@ -2,6 +2,8 @@
 
 import json
 import os
+import datetime
+import pytz
 import shutil
 import tempfile
 import requests
@@ -292,32 +294,34 @@ class D4S2Project(object):
         :return: RemoteProject new project we copied data to
         """
         temp_directory = tempfile.mkdtemp()
+        data_service = self.remote_store.data_service
         remote_project = self.remote_store.fetch_remote_project(new_project_name)
         if remote_project:
             raise ValueError("A project with name '{}' already exists.".format(new_project_name))
-        copy_activity_id = self._create_copy_activity(project_name, new_project_name)
-        self._download_project(copy_activity_id, project_name, temp_directory, path_filter)
-        self._upload_project(copy_activity_id, new_project_name, temp_directory)
+        activity = CopyActivity(data_service, project_name, new_project_name)
+        self._download_project(activity, project_name, temp_directory, path_filter)
+        self._upload_project(activity, new_project_name, temp_directory)
+        activity.finished(data_service)
         shutil.rmtree(temp_directory)
         return self.remote_store.fetch_remote_project(new_project_name, must_exist=True)
 
-    def _download_project(self, copy_activity_id, project_name, temp_directory, path_filter):
+    def _download_project(self, activity, project_name, temp_directory, path_filter):
         """
         Download the project with project_name to temp_directory.
-        :param copy_activity_id: str: uid of the copy activity are uploading in
+        :param activity: CopyActivity: info about the copy activity are downloading for
         :param project_name: str name of the pre-existing project
         :param temp_directory: str path to directory we can download into
         :param path_filter: PathFilter: filters what files are shared
         """
         self.print_func("Downloading a copy of '{}'.".format(project_name))
         downloader = ProjectDownload(self.remote_store, project_name, temp_directory, path_filter,
-                                     file_download_pre_processor=DownloadedFileUsedByActivity(copy_activity_id))
+                                     file_download_pre_processor=DownloadedFileUsedByActivity(activity))
         downloader.run()
 
-    def _upload_project(self, copy_activity_id, project_name, temp_directory):
+    def _upload_project(self, activity, project_name, temp_directory):
         """
         Upload the contents of temp_directory into project_name
-        :param copy_activity_id: str: uid of the copy activity are uploading in
+        :param activity: CopyActivity: info about the copy activity are uploading for
         :param project_name: str project name we will upload files to
         :param temp_directory: str path to directory who's files we will upload
         """
@@ -325,32 +329,48 @@ class D4S2Project(object):
         items_to_send = [os.path.join(temp_directory, item) for item in os.listdir(os.path.abspath(temp_directory))]
 
         project_upload = ProjectUpload(self.config, project_name, items_to_send,
-                                       file_upload_post_processor=UploadedFileGeneratedByActivity(copy_activity_id))
+                                       file_upload_post_processor=UploadedFileRelations(activity))
         project_upload.run()
 
-    def _create_copy_activity(self, project_name, new_project_name):
+
+class CopyActivity(object):
+    def __init__(self, data_service, project_name, new_project_name):
         """
         Create an activity for our copy operation so users can trace back where the copied files came from.
+        :param data_service: DataServiceApi: service used to create the activity
         :param project_name: str project name we will download files from
         :param new_project_name: str project name we will upload files into
-        :return: str: uuid of the activity
         """
-        data_service = self.remote_store.data_service
-        activity_name = "DukeDSClient copying project: {}".format(project_name)
-        desc = "Copying {} to project {}".format(project_name, new_project_name)
-        result = data_service.create_activity(activity_name, desc)
-        return result.json()['id']
+        self.name = "DukeDSClient copying project: {}".format(project_name)
+        self.desc = "Copying {} to project {}".format(project_name, new_project_name)
+        self.started = self._current_timestamp_str()
+        result = data_service.create_activity(self.name, self.desc, started_on=self.started)
+        self.id = result.json()['id']
+        self.remote_path_to_file_version_id = {}
+
+    def finished(self, data_service):
+        """
+        Mark the activity as finished
+        :param data_service: DataServiceApi: service used to update the activity
+        """
+        data_service.update_activity(self.id, self.name, self.desc,
+                                     started_on=self.started,
+                                     ended_on=self._current_timestamp_str())
+
+    @staticmethod
+    def _current_timestamp_str():
+        return datetime.datetime.now(pytz.utc).isoformat()
 
 
 class DownloadedFileUsedByActivity(object):
     """
     Contains run method that will be called via project download file pre-processor.
     """
-    def __init__(self, activity_id):
+    def __init__(self, activity):
         """
-        :param activity_id: str: uuid of the activity we will add a relationship to
+        :param activity: CopyActivity: info about the activity associated with the files we are downloading
         """
-        self.activity_id = activity_id
+        self.activity = activity
 
     def run(self, data_service, remote_file):
         """
@@ -358,20 +378,22 @@ class DownloadedFileUsedByActivity(object):
         :param data_service: DataServiceApi: service used to attach relationship
         :param remote_file: RemoteFile: contains current version of a file we will attach
         """
+        remote_path = remote_file.remote_path
         file_version_id = remote_file.file_version_id
-        data_service.create_activity_relation(self.activity_id, KindType.file_str, file_version_id,
+        data_service.create_activity_relation(self.activity.id, KindType.file_str, file_version_id,
                                               ActivityRelationTypes.USED)
+        self.activity.remote_path_to_file_version_id[remote_path] = remote_file.file_version_id
 
 
-class UploadedFileGeneratedByActivity(object):
+class UploadedFileRelations(object):
     """
     Contains run method that will be called via project upload file post-processor.
     """
-    def __init__(self, activity_id):
+    def __init__(self, activity):
         """
-        :param activity_id: str: uuid of the activity we will add a relationship to
+        :param activity: CopyActivity: info about the activity associated with the files we are uploading
         """
-        self.activity_id = activity_id
+        self.activity = activity
 
     def run(self, data_service, file_details):
         """
@@ -380,5 +402,15 @@ class UploadedFileGeneratedByActivity(object):
         :param file_details: dict: response from DukeDS file endpoint containing current_version id
         """
         file_version_id = file_details['current_version']['id']
-        data_service.create_activity_relation(self.activity_id, KindType.file_str, file_version_id,
+        data_service.create_activity_relation(self.activity.id, KindType.file_str, file_version_id,
                                               ActivityRelationTypes.WAS_GENERATED_BY)
+        used_entity_id = self.lookup_used_entity_id(file_details)
+        data_service.create_was_derived_from_relation(used_entity_id, KindType.file_str,
+                                                      file_version_id, KindType.file_str)
+
+    def lookup_used_entity_id(self, file_details):
+        name_parts = [ancestor['name'] for ancestor in file_details['ancestors']
+                      if ancestor['kind'] == KindType.folder_str]
+        name_parts.append(file_details['name'])
+        remote_path = os.sep.join(name_parts)
+        return self.activity.remote_path_to_file_version_id[remote_path]
