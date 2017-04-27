@@ -364,6 +364,7 @@ class RemoteFile(object):
         :param parent_remote_path: remote_path path to this file's parent
         """
         self.id = json_data['id']
+        self.file_version_id = json_data['current_version']['id']
         self.kind = json_data['kind']
         self.name = json_data['name']
         self.path = self.name  # for compatibility with ProgressPrinter

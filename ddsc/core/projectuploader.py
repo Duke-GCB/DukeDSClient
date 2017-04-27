@@ -11,18 +11,20 @@ class UploadSettings(object):
     """
     Settings used to upload a project
     """
-    def __init__(self, config, data_service, watcher, project_name):
+    def __init__(self, config, data_service, watcher, project_name, file_upload_post_processor):
         """
         :param config: ddsc.config.Config user configuration settings from YAML file/environment
         :param data_service: DataServiceApi: where we will upload to
         :param watcher: ProgressPrinter we notify of our progress
         :param project_name: str: name of the project so we can create it if necessary
+        :param file_upload_post_processor: object: has run(data_service, file_response) method to run after download
         """
         self.config = config
         self.data_service = data_service
         self.watcher = watcher
         self.project_name = project_name
         self.project_id = None
+        self.file_upload_post_processor = file_upload_post_processor
 
     def get_data_service_auth_data(self):
         """
@@ -59,6 +61,7 @@ class UploadContext(object):
         self.config = settings.config
         self.project_name = settings.project_name
         self.project_id = settings.project_id
+        self.file_upload_post_processor = settings.file_upload_post_processor
         self.params = params
 
     def make_data_service(self):
@@ -138,7 +141,7 @@ class ProjectUploader(object):
         :param parent: LocalFolder/LocalProject: parent of the file
         """
         file_content_sender = FileUploader(self.settings.config, self.settings.data_service, local_file,
-                                           self.settings.watcher)
+                                           self.settings.watcher, self.settings.file_upload_post_processor)
         remote_id = file_content_sender.upload(self.settings.project_id, parent.kind, parent.remote_id)
         local_file.set_remote_id_after_send(remote_id)
 
@@ -312,12 +315,13 @@ class CreateSmallFileCommand(object):
      4) completing the upload
      5) creating or updating file version
     """
-    def __init__(self, settings, local_file, parent):
+    def __init__(self, settings, local_file, parent, file_upload_post_processor=None):
         """
         Setup passing in all necessary data to create file and update external state.
         :param settings: UploadSettings: contains data_service connection info
         :param local_file: object: information about the file we will upload
         :param parent: object: parent of the file (folder or project)
+        :param file_upload_post_processor: object: has run(data_service, file_response) method to run after download
         """
         self.settings = settings
         self.local_file = local_file
@@ -353,6 +357,7 @@ def create_small_file(upload_context):
     """
     data_service = upload_context.make_data_service()
     parent_data, path_data, remote_file_id = upload_context.params
+    file_upload_post_processor = upload_context.file_upload_post_processor
 
     # The small file will fit into one chunk so read into memory and hash it.
     chunk_num = 1
@@ -360,19 +365,12 @@ def create_small_file(upload_context):
     hash_data = path_data.get_hash()
 
     # Talk to data service uploading chunk and creating the file.
-    upload_operations = FileUploadOperations(data_service, after_upload_func=my_after_upload_func)
+    upload_operations = FileUploadOperations(data_service, file_upload_post_processor=file_upload_post_processor)
     upload_id = upload_operations.create_upload(upload_context.project_id, path_data, hash_data)
     url_info = upload_operations.create_file_chunk_url(upload_id, chunk_num, chunk)
     upload_operations.send_file_external(url_info, chunk)
     return upload_operations.finish_upload(upload_id, hash_data, parent_data, remote_file_id)
 
-
-def my_after_upload_func(data_service, result):
-    current_version = result['current_version']
-    current_version_id = current_version['id']
-    print ""
-    print "GOT", current_version_id
-    print ""
 
 class ProjectUploadDryRun(object):
     """

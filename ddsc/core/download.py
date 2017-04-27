@@ -8,18 +8,20 @@ class ProjectDownload(object):
     """
     Creates local version of remote content.
     """
-    def __init__(self, remote_store, project_name, dest_directory, path_filter):
+    def __init__(self, remote_store, project_name, dest_directory, path_filter, file_download_pre_processor=None):
         """
         Setup for downloading a remote project.
         :param remote_store: RemoteStore: which remote store to download the project from
         :param project_name: str: name of the project to download
         :param dest_directory: str: path to where we will save the project contents
         :param path_filter: PathFilter: determines which files will be downloaded
+        :param file_download_pre_processor: object: has run(data_service, RemoteFile) method to run before downloading
         """
         self.remote_store = remote_store
         self.project_name = project_name
         self.dest_directory = dest_directory
         self.path_filter = path_filter
+        self.file_download_pre_processor = file_download_pre_processor
         self.watcher = None
 
     def run(self):
@@ -79,6 +81,8 @@ class ProjectDownload(object):
         :param item: RemoteFile file we will download
         :param parent: RemoteProject/RemoteFolder parent of item
         """
+        if self.file_download_pre_processor:
+            self.file_download_pre_processor.run(self.remote_store.data_service, item)
         path = os.path.join(self.dest_directory, item.remote_path)
         url_json = self.remote_store.data_service.get_file_url(item.id).json()
         downloader = FileDownloader(self.remote_store.config, item, url_json, path, self.watcher)

@@ -18,7 +18,7 @@ class FakeDataServiceAuth(object):
 class TestUploadContext(TestCase):
     def test_can_pickle(self):
         """Make sure we can pickle context since it must be passed to another process."""
-        settings = UploadSettings(None, FakeDataServiceApi(), None, None)
+        settings = UploadSettings(None, FakeDataServiceApi(), None, None, None)
         params = ('one', 'two', 'three')
         context = UploadContext(settings, params)
         pickle.dumps(context)

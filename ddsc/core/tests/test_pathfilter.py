@@ -16,7 +16,7 @@ class TestPathFilteredProject(TestCase):
             "kind": "dds-project",
             "name": "mouse",
             "description": "Mouse RNA Data",
-            "is_deleted": False
+            "is_deleted": False,
         }
         folder1_fields = {
             "id": "12346",
@@ -35,8 +35,11 @@ class TestPathFilteredProject(TestCase):
             "kind": "dds-file",
             "name": "rg45.txt",
             "is_deleted": False,
-            "upload": {
-                "size": 100
+            "current_version": {
+                "id": "54321",
+                "upload": {
+                    "size": 100
+                },
             }
         }
         file2_fields = {
@@ -44,8 +47,11 @@ class TestPathFilteredProject(TestCase):
             "kind": "dds-file",
             "name": "results.doc",
             "is_deleted": False,
-            "upload": {
-                "size": 100
+            "current_version": {
+                "id": "54322",
+                "upload": {
+                    "size": 100
+                },
             }
         }
         file3_fields = {
@@ -53,8 +59,11 @@ class TestPathFilteredProject(TestCase):
             "kind": "dds-file",
             "name": "results.csv",
             "is_deleted": False,
-            "upload": {
-                "size": 100
+            "current_version": {
+                "id": "54323",
+                "upload": {
+                    "size": 100
+                },
             }
         }
 

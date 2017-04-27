@@ -25,13 +25,14 @@ class FileUploader(object):
     3) Sends the complete message to finalize the 'upload'
     4) Sends create_file message to remote store with the 'upload' id
     """
-    def __init__(self, config, data_service, local_file, watcher):
+    def __init__(self, config, data_service, local_file, watcher, file_upload_post_processor=None):
         """
         Setup for sending to remote store.
         :param config: ddsc.config.Config user configuration settings from YAML file/environment
         :param data_service: DataServiceApi data service we are sending the content to.
         :param local_file: LocalFile file we are sending to remote store
         :param watcher: ProgressPrinter we notify of our progress
+        :param file_upload_post_processor: object: has run(data_service, file_response) method to run after download
         """
         self.config = config
         self.data_service = data_service
@@ -79,13 +80,14 @@ class FileUploadOperations(object):
     3) upload part of file
     4) complete upload then create new file or update existing file
     """
-    def __init__(self, data_service, after_upload_func=None):
+    def __init__(self, data_service, file_upload_post_processor=None):
         """
         Setup with specified data service we will communicate with.
         :param data_service: DataServiceApi data service we are uploading the file to.
+        :param file_upload_post_processor: object: has run(data_service, file_response) method to run after download
         """
         self.data_service = data_service
-        self.after_upload_func = after_upload_func
+        self.file_upload_post_processor = file_upload_post_processor
 
     def create_upload(self, project_id, path_data, hash_data):
         """
@@ -173,8 +175,8 @@ class FileUploadOperations(object):
         :return: str: uuid of this file
         """
         result_json = result.json()
-        if self.after_upload_func:
-            self.after_upload_func(self.data_service, result_json)
+        if self.file_upload_post_processor:
+            self.file_upload_post_processor.run(self.data_service, result_json)
         return result_json['id']
 
 
