@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from ddsc.core.upload import ProjectUpload
+from ddsc.core.upload import ProjectUpload, LocalOnlyCounter
+from ddsc.core.localstore import LocalFile
 from mock import MagicMock, patch
 
 
@@ -24,3 +25,19 @@ class TestUploadCommand(TestCase):
         self.assertIn("Files/Folders that need to be uploaded:", dry_run_report)
         self.assertIn("data.txt", dry_run_report)
         self.assertIn("data2.txt", dry_run_report)
+
+
+class TestLocalOnlyCounter(TestCase):
+    @patch('ddsc.core.localstore.os')
+    @patch('ddsc.core.localstore.PathData')
+    def test_total_items(self, mock_path_data, mock_os):
+        counter = LocalOnlyCounter(bytes_per_chunk=100)
+        self.assertEqual(0, counter.total_items())
+        f = LocalFile('fakefile.txt')
+        f.size = 0
+        counter.visit_file(f, None)
+        self.assertEqual(1, counter.total_items())
+        f = LocalFile('fakefile2.txt')
+        f.size = 200
+        counter.visit_file(f, None)
+        self.assertEqual(3, counter.total_items())

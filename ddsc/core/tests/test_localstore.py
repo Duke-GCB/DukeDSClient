@@ -1,9 +1,9 @@
 import shutil
 import tarfile
 from unittest import TestCase
-
 from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, FileFilter
 from ddsc.config import FILE_EXCLUDE_REGEX_DEFAULT
+from mock import patch
 
 INCLUDE_ALL = ''
 
@@ -159,3 +159,20 @@ class TestFileFilter(TestCase):
         # exclude bad filenames
         for bad_filename in bad_files:
             self.assertEqual(include_file(bad_filename), False)
+
+
+class TestLocalFile(TestCase):
+    @patch('ddsc.core.localstore.os')
+    @patch('ddsc.core.localstore.PathData')
+    def test_count_chunks_values(self, mock_path_data, mock_os):
+        values = [
+            # file_size, bytes_per_chunk, expected
+            (200, 10, 20),
+            (200, 150, 2),
+            (3, 150, 1),
+            (0, 10, 1),  # Empty files must send 1 empty chunk to DukeDS
+        ]
+        f = LocalFile('fakefile.txt')
+        for file_size, bytes_per_chunk, expected in values:
+            f.size = file_size
+            self.assertEqual(expected, f.count_chunks(bytes_per_chunk))
