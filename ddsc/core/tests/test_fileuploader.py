@@ -134,3 +134,23 @@ class TestFileUploadOperations(TestCase):
         with self.assertRaises(requests.exceptions.ConnectionError):
             fop.send_file_external(url_json, chunk='DATADATADATA')
         self.assertEqual(1, data_service.send_external.call_count)
+
+    def test_finish_upload_post_processor_off(self):
+        data_service = MagicMock()
+        fop = FileUploadOperations(data_service)
+        fop.finish_upload(upload_id="123",
+                          hash_data=MagicMock(),
+                          parent_data=MagicMock(),
+                          remote_file_id="456")
+        data_service.complete_upload.assert_called()
+
+    def test_finish_upload_post_processor_on_no_remote_id(self):
+        file_upload_post_processor = MagicMock()
+        data_service = MagicMock()
+        fop = FileUploadOperations(data_service, file_upload_post_processor)
+        fop.finish_upload(upload_id="123",
+                          hash_data=MagicMock(),
+                          parent_data=MagicMock(),
+                          remote_file_id=None)
+        data_service.complete_upload.assert_called()
+        file_upload_post_processor.run.assert_called()
