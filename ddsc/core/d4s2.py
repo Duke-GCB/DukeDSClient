@@ -9,7 +9,7 @@ import tempfile
 import requests
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.download import ProjectDownload
-from ddsc.core.ddsapi import DataServiceAuth, ActivityRelationTypes
+from ddsc.core.ddsapi import DataServiceAuth
 from ddsc.core.util import KindType
 
 UNAUTHORIZED_MESSAGE = """
@@ -294,14 +294,13 @@ class D4S2Project(object):
         :return: RemoteProject new project we copied data to
         """
         temp_directory = tempfile.mkdtemp()
-        data_service = self.remote_store.data_service
         remote_project = self.remote_store.fetch_remote_project(new_project_name)
         if remote_project:
             raise ValueError("A project with name '{}' already exists.".format(new_project_name))
-        activity = CopyActivity(data_service, project_name, new_project_name)
+        activity = CopyActivity(self.remote_store.data_service, project_name, new_project_name)
         self._download_project(activity, project_name, temp_directory, path_filter)
         self._upload_project(activity, new_project_name, temp_directory)
-        activity.finished(data_service)
+        activity.finished()
         shutil.rmtree(temp_directory)
         return self.remote_store.fetch_remote_project(new_project_name, must_exist=True)
 
@@ -315,7 +314,7 @@ class D4S2Project(object):
         """
         self.print_func("Downloading a copy of '{}'.".format(project_name))
         downloader = ProjectDownload(self.remote_store, project_name, temp_directory, path_filter,
-                                     file_download_pre_processor=DownloadedFileUsedByActivity(activity))
+                                     file_download_pre_processor=DownloadedFileRelations(activity))
         downloader.run()
 
     def _upload_project(self, activity, project_name, temp_directory):
@@ -341,6 +340,7 @@ class CopyActivity(object):
         :param project_name: str project name we will download files from
         :param new_project_name: str project name we will upload files into
         """
+        self.data_service = data_service
         self.name = "DukeDSClient copying project: {}".format(project_name)
         self.desc = "Copying {} to project {}".format(project_name, new_project_name)
         self.started = self._current_timestamp_str()
@@ -348,21 +348,20 @@ class CopyActivity(object):
         self.id = result.json()['id']
         self.remote_path_to_file_version_id = {}
 
-    def finished(self, data_service):
+    def finished(self):
         """
         Mark the activity as finished
-        :param data_service: DataServiceApi: service used to update the activity
         """
-        data_service.update_activity(self.id, self.name, self.desc,
-                                     started_on=self.started,
-                                     ended_on=self._current_timestamp_str())
+        self.data_service.update_activity(self.id, self.name, self.desc,
+                                          started_on=self.started,
+                                          ended_on=self._current_timestamp_str())
 
     @staticmethod
     def _current_timestamp_str():
         return datetime.datetime.now(pytz.utc).isoformat()
 
 
-class DownloadedFileUsedByActivity(object):
+class DownloadedFileRelations(object):
     """
     Contains run method that will be called via project download file pre-processor.
     """
@@ -380,9 +379,8 @@ class DownloadedFileUsedByActivity(object):
         """
         remote_path = remote_file.remote_path
         file_version_id = remote_file.file_version_id
-        data_service.create_activity_relation(self.activity.id, KindType.file_str, file_version_id,
-                                              ActivityRelationTypes.USED)
-        self.activity.remote_path_to_file_version_id[remote_path] = remote_file.file_version_id
+        data_service.create_used_relation(self.activity.id, KindType.file_str, file_version_id)
+        self.activity.remote_path_to_file_version_id[remote_path] = file_version_id
 
 
 class UploadedFileRelations(object):
@@ -402,13 +400,18 @@ class UploadedFileRelations(object):
         :param file_details: dict: response from DukeDS file endpoint containing current_version id
         """
         file_version_id = file_details['current_version']['id']
-        data_service.create_activity_relation(self.activity.id, KindType.file_str, file_version_id,
-                                              ActivityRelationTypes.WAS_GENERATED_BY)
-        used_entity_id = self.lookup_used_entity_id(file_details)
+        data_service.create_was_generated_by_relation(self.activity.id, KindType.file_str, file_version_id)
+        used_entity_id = self._lookup_used_entity_id(file_details)
         data_service.create_was_derived_from_relation(used_entity_id, KindType.file_str,
                                                       file_version_id, KindType.file_str)
 
-    def lookup_used_entity_id(self, file_details):
+    def _lookup_used_entity_id(self, file_details):
+        """
+        Return the file_version_id associated with the path from file_details.
+        The file_version_id is looked up from a dictionary in the activity.
+        :param file_details: dict: DukeDS file response
+        :return: str: file_version_id uuid
+        """
         name_parts = [ancestor['name'] for ancestor in file_details['ancestors']
                       if ancestor['kind'] == KindType.folder_str]
         name_parts.append(file_details['name'])
