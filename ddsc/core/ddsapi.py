@@ -773,7 +773,7 @@ class DataServiceApi(object):
         :param entity_id: str: uuid of the entity
         :return: requests.Response containing the successful result
         """
-        return self.create_activity_relation(activity_id, entity_kind, entity_id, ActivityRelationTypes.USED)
+        return self._create_activity_relation(activity_id, entity_kind, entity_id, ActivityRelationTypes.USED)
 
     def create_was_generated_by_relation(self, activity_id, entity_kind, entity_id):
         """
@@ -783,7 +783,7 @@ class DataServiceApi(object):
         :param entity_id: str: uuid of the entity
         :return: requests.Response containing the successful result
         """
-        return self.create_activity_relation(activity_id, entity_kind, entity_id, ActivityRelationTypes.WAS_GENERATED_BY)
+        return self._create_activity_relation(activity_id, entity_kind, entity_id, ActivityRelationTypes.WAS_GENERATED_BY)
 
     def create_was_invalidated_by_relation(self, activity_id, entity_kind, entity_id):
         """
@@ -793,9 +793,9 @@ class DataServiceApi(object):
         :param entity_id: str: uuid of the entity
         :return: requests.Response containing the successful result
         """
-        return self.create_activity_relation(activity_id, entity_kind, entity_id, ActivityRelationTypes.WAS_INVALIDATED_BY)
+        return self._create_activity_relation(activity_id, entity_kind, entity_id, ActivityRelationTypes.WAS_INVALIDATED_BY)
 
-    def create_activity_relation(self, activity_id, entity_kind, entity_id, relation_type):
+    def _create_activity_relation(self, activity_id, entity_kind, entity_id, relation_type):
         data = {
             "activity": {
                 "id": activity_id
