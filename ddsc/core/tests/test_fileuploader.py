@@ -107,6 +107,7 @@ class TestFileUploadOperations(TestCase):
         with self.assertRaises(requests.exceptions.ConnectionError):
             fop.send_file_external(url_json, chunk='DATADATADATA')
         self.assertEqual(5, data_service.send_external.call_count)
+        self.assertEqual(4, data_service.recreate_requests_session.call_count)
 
     def test_send_file_external_succeeds_3rd_time(self):
         data_service = MagicMock()
@@ -121,6 +122,8 @@ class TestFileUploadOperations(TestCase):
         }
         fop.send_file_external(url_json, chunk='DATADATADATA')
         self.assertEqual(3, data_service.send_external.call_count)
+        self.assertEqual(2, data_service.recreate_requests_session.call_count)
+
 
     def test_send_file_external_no_retry_post(self):
         data_service = MagicMock()
