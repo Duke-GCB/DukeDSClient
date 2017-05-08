@@ -124,7 +124,6 @@ class TestFileUploadOperations(TestCase):
         self.assertEqual(3, data_service.send_external.call_count)
         self.assertEqual(2, data_service.recreate_requests_session.call_count)
 
-
     def test_send_file_external_no_retry_post(self):
         data_service = MagicMock()
         data_service.send_external.side_effect = [requests.exceptions.ConnectionError]
