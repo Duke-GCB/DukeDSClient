@@ -4,8 +4,6 @@ from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 
-requests_session = requests.Session()
-
 
 class UploadSettings(object):
     """
@@ -41,7 +39,7 @@ class UploadSettings(object):
         """
         auth = DataServiceAuth(config)
         auth.set_auth_data(data_service_auth_data)
-        return DataServiceApi(auth, config.url, requests_session)
+        return DataServiceApi(auth, config.url)
 
 
 class UploadContext(object):

@@ -12,8 +12,8 @@ from ddsc.core.localstore import HashData
 import traceback
 import sys
 
-SEND_EXTERNAL_PUT_RETRY_TIMES = 3
-SEND_EXTERNAL_RETRY_SECONDS = 0.5
+SEND_EXTERNAL_PUT_RETRY_TIMES = 5
+SEND_EXTERNAL_RETRY_SECONDS = 1
 
 
 class FileUploader(object):
@@ -145,6 +145,7 @@ class FileUploadOperations(object):
                 count += 1
                 if count < retry_times:
                     time.sleep(SEND_EXTERNAL_RETRY_SECONDS)
+                    self.data_service.recreate_requests_session()
                 else:
                     raise
 
