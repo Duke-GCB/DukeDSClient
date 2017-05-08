@@ -92,7 +92,8 @@ class TestFileUploadOperations(TestCase):
         fop.send_file_external(url_json, chunk='DATADATADATA')
         self.assertEqual(2, data_service.send_external.call_count)
 
-    def test_send_file_external_retry_put_fail_after_5_times(self):
+    @patch('ddsc.core.fileuploader.time')
+    def test_send_file_external_retry_put_fail_after_5_times(self, mock_time):
         data_service = MagicMock()
         connection_err = requests.exceptions.ConnectionError
         data_service.send_external.side_effect = [connection_err, connection_err, connection_err, connection_err,
@@ -109,7 +110,8 @@ class TestFileUploadOperations(TestCase):
         self.assertEqual(5, data_service.send_external.call_count)
         self.assertEqual(4, data_service.recreate_requests_session.call_count)
 
-    def test_send_file_external_succeeds_3rd_time(self):
+    @patch('ddsc.core.fileuploader.time')
+    def test_send_file_external_succeeds_3rd_time(self, mock_time):
         data_service = MagicMock()
         connection_err = requests.exceptions.ConnectionError
         data_service.send_external.side_effect = [connection_err, connection_err, Mock(status_code=201)]
