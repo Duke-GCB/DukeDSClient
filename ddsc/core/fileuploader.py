@@ -144,10 +144,21 @@ class FileUploadOperations(object):
             except requests.exceptions.ConnectionError:
                 count += 1
                 if count < retry_times:
+                    if count == 1:  # Only show a warning the first time we fail to send a chunk
+                        self._show_retry_warning(host)
                     time.sleep(SEND_EXTERNAL_RETRY_SECONDS)
                     self.data_service.recreate_requests_session()
                 else:
                     raise
+
+    @staticmethod
+    def _show_retry_warning(host):
+        """
+        Displays a message on stderr that we lost connection to a host and will retry.
+        :param host: str: name of the host we are trying to communicate with
+        """
+        sys.stderr.write("\nConnection to {} failed. Retrying.\n".format(host))
+        sys.stderr.flush()
 
     def finish_upload(self, upload_id, hash_data, parent_data, remote_file_id):
         """
