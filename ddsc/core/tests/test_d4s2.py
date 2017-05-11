@@ -78,7 +78,7 @@ class TestCopyActivity(TestCase):
         data_service.create_activity.assert_called()
         args, kwargs = data_service.create_activity.call_args
         self.assertEqual("DukeDSClient copying project: mouse", args[0])
-        self.assertEqual("Copying mouse to project mouse_copy", args[1])
+        self.assertIn("Copying mouse to project mouse_copy", args[1])
         self.assertIsNotNone(kwargs['started_on'])
 
         # finished method should update and fill in the ended_on date
@@ -87,7 +87,7 @@ class TestCopyActivity(TestCase):
         args, kwargs = data_service.update_activity.call_args
         self.assertEqual('1', args[0])
         self.assertEqual("DukeDSClient copying project: mouse", args[1])
-        self.assertEqual("Copying mouse to project mouse_copy", args[2])
+        self.assertIn("Copying mouse to project mouse_copy", args[2])
         self.assertIsNotNone(kwargs['started_on'])
         self.assertIsNotNone(kwargs['ended_on'])
 
