@@ -61,7 +61,6 @@ class UploadContext(object):
         self.config = settings.config
         self.project_name = settings.project_name
         self.project_id = settings.project_id
-        self.file_upload_post_processor = settings.file_upload_post_processor
         self.params = params
 
     def make_data_service(self):
@@ -192,7 +191,8 @@ class SmallItemUploadTaskBuilder(object):
                 msg = "Programmer Error: Trying to upload large file as small item size:{} name:{}"
                 raise ValueError(msg.format(item.size, item.name))
             else:
-                command = CreateSmallFileCommand(self.settings, item, parent)
+                command = CreateSmallFileCommand(self.settings, item, parent,
+                                                 self.settings.file_upload_post_processor)
                 self.task_runner_add(parent, item, command)
 
     def task_runner_add(self, parent, item, command):
@@ -327,6 +327,7 @@ class CreateSmallFileCommand(object):
         self.local_file = local_file
         self.parent = parent
         self.func = create_small_file
+        self.file_upload_post_processor = file_upload_post_processor
 
     def before_run(self, parent_task_result):
         pass
@@ -340,11 +341,14 @@ class CreateSmallFileCommand(object):
         params = parent_data, path_data, self.local_file.remote_id
         return UploadContext(self.settings, params)
 
-    def after_run(self, remote_file_id):
+    def after_run(self, remote_file_data):
         """
         Save uuid of file to our LocalFile
-        :param remote_file_id: uuid of the file we just created/updated.
+        :param remote_file_data: dict: DukeDS file data
         """
+        if self.file_upload_post_processor:
+            self.file_upload_post_processor.run(self.settings.data_service, remote_file_data)
+        remote_file_id = remote_file_data['id']
         self.settings.watcher.transferring_item(self.local_file)
         self.local_file.set_remote_id_after_send(remote_file_id)
 
@@ -354,10 +358,10 @@ def create_small_file(upload_context):
     Function run by CreateSmallFileCommand to create the file.
     Runs in a background process.
     :param upload_context: UploadContext: contains data service setup and file details.
+    :return dict: DukeDS file data
     """
     data_service = upload_context.make_data_service()
     parent_data, path_data, remote_file_id = upload_context.params
-    file_upload_post_processor = upload_context.file_upload_post_processor
 
     # The small file will fit into one chunk so read into memory and hash it.
     chunk_num = 1
@@ -365,7 +369,7 @@ def create_small_file(upload_context):
     hash_data = path_data.get_hash()
 
     # Talk to data service uploading chunk and creating the file.
-    upload_operations = FileUploadOperations(data_service, file_upload_post_processor=file_upload_post_processor)
+    upload_operations = FileUploadOperations(data_service)
     upload_id = upload_operations.create_upload(upload_context.project_id, path_data, hash_data)
     url_info = upload_operations.create_file_chunk_url(upload_id, chunk_num, chunk)
     upload_operations.send_file_external(url_info, chunk)

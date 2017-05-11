@@ -11,6 +11,7 @@ from ddsc.core.upload import ProjectUpload
 from ddsc.core.download import ProjectDownload
 from ddsc.core.ddsapi import DataServiceAuth
 from ddsc.core.util import KindType
+from ddsc.versioncheck import get_internal_version_str
 
 UNAUTHORIZED_MESSAGE = """
 ERROR: Your account does not have authorization for D4S2 (the deliver/share service).
@@ -342,7 +343,8 @@ class CopyActivity(object):
         """
         self.data_service = data_service
         self.name = "DukeDSClient copying project: {}".format(project_name)
-        self.desc = "Copying {} to project {}".format(project_name, new_project_name)
+        self.desc = "Copying {} to project {} using DukeDSClient{}".format(project_name, new_project_name,
+                                                                           get_internal_version_str())
         self.started = self._current_timestamp_str()
         result = data_service.create_activity(self.name, self.desc, started_on=self.started)
         self.id = result.json()['id']

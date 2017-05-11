@@ -36,7 +36,8 @@ class FileUploader(object):
         """
         self.config = config
         self.data_service = data_service
-        self.upload_operations = FileUploadOperations(self.data_service, file_upload_post_processor)
+        self.upload_operations = FileUploadOperations(self.data_service)
+        self.file_upload_post_processor = file_upload_post_processor
         self.local_file = local_file
         self.upload_id = None
         self.watcher = watcher
@@ -54,7 +55,11 @@ class FileUploader(object):
         self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data)
         ParallelChunkProcessor(self).run()
         parent_data = ParentData(parent_kind, parent_id)
-        return self.upload_operations.finish_upload(self.upload_id, hash_data, parent_data, self.local_file.remote_id)
+        remote_file_data = self.upload_operations.finish_upload(self.upload_id, hash_data, parent_data,
+                                                                self.local_file.remote_id)
+        if self.file_upload_post_processor:
+            self.file_upload_post_processor.run(self.data_service, remote_file_data)
+        return remote_file_data['id']
 
 
 class ParentData(object):
@@ -80,14 +85,12 @@ class FileUploadOperations(object):
     3) upload part of file
     4) complete upload then create new file or update existing file
     """
-    def __init__(self, data_service, file_upload_post_processor=None):
+    def __init__(self, data_service):
         """
         Setup with specified data service we will communicate with.
         :param data_service: DataServiceApi data service we are uploading the file to.
-        :param file_upload_post_processor: object: has run(data_service, file_response) method to run after download
         """
         self.data_service = data_service
-        self.file_upload_post_processor = file_upload_post_processor
 
     def create_upload(self, project_id, path_data, hash_data):
         """
@@ -158,26 +161,15 @@ class FileUploadOperations(object):
         :param hash_data: HashData: hash info about the file
         :param parent_data: ParentData: info about the parent of this file
         :param remote_file_id: str: uuid of this file if it already exists or None if it is a new file
-        :return: str: uuid of this file
+        :return: dict: DukeDS details about this file
         """
         self.data_service.complete_upload(upload_id, hash_data.value, hash_data.alg)
         if remote_file_id:
             result = self.data_service.update_file(remote_file_id, upload_id)
-            return self._after_upload(result)
+            return result.json()
         else:
             result = self.data_service.create_file(parent_data.kind, parent_data.id, upload_id)
-            return self._after_upload(result)
-
-    def _after_upload(self, result):
-        """
-        Called after finishing upload to return resulting file id and optionally call self.after_upload_func
-        :param result: response from PUT/POST file
-        :return: str: uuid of this file
-        """
-        result_json = result.json()
-        if self.file_upload_post_processor:
-            self.file_upload_post_processor.run(self.data_service, result_json)
-        return result_json['id']
+            return result.json()
 
 
 class ParallelChunkProcessor(object):
