@@ -23,20 +23,20 @@ python3 setup.py -q test
 export PROJ="python$PROJECT_PREFIX"
 echo "test upload $PROJ"
 python -m ddsc upload -p $PROJ ddsc/
-python -m ddsc add_user -p $PROJ --email $USER_EMAIL
+python -m ddsc add-user -p $PROJ --email $USER_EMAIL
 
 echo "test download $PROJ"
-rm -rf /tmp/$PROJ
 # test filename conversion
 python -m ddsc download -p $PROJ
 echo "differences:"
 diff --brief -r ddsc/ $PROJ/ddsc/
+rm -rf $PROJ
 
 export PROJ2="python3$PROJECT_PREFIX"
 echo "test upload $PROJ2"
 python3 -m ddsc upload -p $PROJ2 ddsc/
-python3 -m ddsc add_user -p $PROJ2 --user $USERNAME
-python3 -m ddsc remove_user -p $PROJ2 --user $USERNAME
+python3 -m ddsc add-user -p $PROJ2 --user $USERNAME
+python3 -m ddsc remove-user -p $PROJ2 --user $USERNAME
 
 echo "test download $PROJ2"
 rm -rf /tmp/$PROJ2
