@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 from unittest import TestCase
+import requests
 from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, ContentType, UNEXPECTED_PAGING_DATA_RECEIVED
 from mock import MagicMock
 
@@ -268,3 +269,8 @@ class TestDataServiceApi(TestCase):
         resp = api.get_project_transfers(project_id='4521')
         self.assertEqual(1, len(resp.json()['results']))
         self.assertEqual("1234", resp.json()['results'][0]['id'])
+
+    def test_constructor_creates_session_when_passed_none(self):
+        api = DataServiceApi(auth=None, url="something.com/v1/", http=None)
+        self.assertIsNotNone(api.http)
+        self.assertEqual(type(api.http), requests.sessions.Session)

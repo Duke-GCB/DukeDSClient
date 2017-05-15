@@ -21,7 +21,6 @@ Try upgrading ddsclient: pip install --upgrade DukeDSClient
 """
 
 DEFAULT_RESULTS_PER_PAGE = 100
-requests_session = requests.Session()
 
 
 def get_user_agent_str():
@@ -160,17 +159,25 @@ class DataServiceApi(object):
     Sends json messages and receives responses back from Duke Data Service api.
     See https://github.com/Duke-Translational-Bioinformatics/duke-data-service.
     """
-    def __init__(self, auth, url, http=requests):
+    def __init__(self, auth, url, http=None):
         """
         Setup for REST api.
         :param auth: str auth token to be send via Authorization header
         :param url: str root url of the data service
-        :param http: object requests style http object to do get/post/put
+        :param http: object requests style http object to do get/post/put (defaults to new requests Session)
         """
         self.auth = auth
         self.base_url = url
         self.http = http
+        if not self.http:
+            self.recreate_requests_session()
         self.user_agent_str = get_user_agent_str()
+
+    def recreate_requests_session(self):
+        """
+        Recreate our requests session ( for example in response to connection failures)
+        """
+        self.http = requests.Session()
 
     def _url_parts(self, url_suffix, data, content_type):
         """
@@ -489,9 +496,9 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         if http_verb == 'PUT':
-            return requests_session.put(host + url, data=chunk, headers=http_headers)
+            return self.http.put(host + url, data=chunk, headers=http_headers)
         elif http_verb == 'POST':
-            return requests_session.post(host + url, data=chunk, headers=http_headers)
+            return self.http.post(host + url, data=chunk, headers=http_headers)
         else:
             raise ValueError("Unsupported http_verb:" + http_verb)
 
@@ -505,7 +512,7 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         if http_verb == 'GET':
-            return requests_session.get(host + url, headers=http_headers, stream=True)
+            return self.http.get(host + url, headers=http_headers, stream=True)
         else:
             raise ValueError("Unsupported http_verb:" + http_verb)
 
