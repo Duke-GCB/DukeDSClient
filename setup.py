@@ -12,6 +12,7 @@ setup(name='DukeDSClient',
         install_requires=[
           'requests',
           'PyYAML',
+          'pytz',
           'future',
           'six',
         ],

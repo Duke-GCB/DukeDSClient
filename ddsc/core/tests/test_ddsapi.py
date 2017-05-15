@@ -270,6 +270,78 @@ class TestDataServiceApi(TestCase):
         self.assertEqual(1, len(resp.json()['results']))
         self.assertEqual("1234", resp.json()['results'][0]['id'])
 
+    def test_relations_methods(self):
+        api = DataServiceApi(auth=None, url="base/v1/", http=MagicMock())
+        api._get_collection = MagicMock()
+        api._get_single_item = MagicMock()
+        api._post = MagicMock()
+        api._delete = MagicMock()
+
+        # This endpoint is a little strange with using object_kind and relation types as magic values
+        api.get_relations('dds-file', '123')
+        api._get_collection.assert_called_with('/relations/dds-file/123', {})
+        api.get_relation('124')
+        api._get_single_item.assert_called_with('/relations/124/', {})
+
+        api.create_used_relation('125', 'dds-file', '456')
+        payload = {
+            'entity': {
+                'kind': 'dds-file',
+                'id': '456'
+            }, 'activity': {
+                'id': '125'
+            }
+        }
+        api._post.assert_called_with('/relations/used', payload)
+
+        api.create_was_generated_by_relation('126', 'dds-file', '457')
+        payload = {
+            'entity': {
+                'kind': 'dds-file',
+                'id': '457'
+            }, 'activity': {
+                'id': '126'
+            }
+        }
+        api._post.assert_called_with('/relations/was_generated_by', payload)
+
+        api.create_was_generated_by_relation('126', 'dds-file', '457')
+        payload = {
+            'entity': {
+                'kind': 'dds-file',
+                'id': '457'
+            }, 'activity': {
+                'id': '126'
+            }
+        }
+        api._post.assert_called_with('/relations/was_generated_by', payload)
+
+        api.create_was_invalidated_by_relation('127', 'dds-file', '458')
+        payload = {
+            'entity': {
+                'kind': 'dds-file',
+                'id': '458'
+            }, 'activity': {
+                'id': '127'
+            }
+        }
+        api._post.assert_called_with('/relations/was_invalidated_by', payload)
+
+        api.create_was_derived_from_relation('128', 'dds-file', '129', 'dds-file')
+        payload = {
+            'generated_entity': {
+                'kind': 'dds-file',
+                'id': '129'
+            }, 'used_entity': {
+                'kind': 'dds-file',
+                'id': '128'
+            }
+        }
+        api._post.assert_called_with('/relations/was_derived_from', payload)
+
+        api.delete_relation('130')
+        api._delete.assert_called_with('/relations/130/', {})
+
     def test_constructor_creates_session_when_passed_none(self):
         api = DataServiceApi(auth=None, url="something.com/v1/", http=None)
         self.assertIsNotNone(api.http)

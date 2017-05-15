@@ -121,6 +121,7 @@ class TestProjectFolderFile(TestCase):
               },
               "is_deleted": false,
               "current_version": {
+                  "id": "1234",
                   "upload": {
                     "id": "fbdaf8bd-949f-427e-9601-18e8a71b30db",
                     "size": 1874572,
@@ -172,6 +173,19 @@ class TestProjectFolderFile(TestCase):
                 "kind": "dds-folder",
                 "id": "cf99a8f1-aebd-4640-8854-f34d03b7511e"
               },
+              "current_version": {
+                 "id": "1235",
+                 "upload": {
+                   "id": "fbdaf8bd-949f-427e-9601-18e8a71b30db",
+                   "size": 1874572,
+                   "hash": null,
+                   "storage_provider": {
+                     "id": "90b31bfd-dabe-4d4b-a040-0ac448ede0ad",
+                     "name": "duke_swift",
+                     "description": "Duke OIT Swift Service"
+                    }
+                 }
+              },
               "name": "bigWigToWig",
               "audit": {
                 "created_on": "2016-02-19T16:38:56.229Z",
@@ -186,16 +200,6 @@ class TestProjectFolderFile(TestCase):
                 "deleted_by": null
               },
               "is_deleted": false,
-              "upload": {
-                "id": "fbdaf8bd-949f-427e-9601-18e8a71b30db",
-                "size": 1874572,
-                "hash": null,
-                "storage_provider": {
-                  "id": "90b31bfd-dabe-4d4b-a040-0ac448ede0ad",
-                  "name": "duke_swift",
-                  "description": "Duke OIT Swift Service"
-                }
-              },
               "project": {
                 "id": "bc6d2ac6-4a52-4421-b6ef-89b96731e843"
               },
@@ -421,10 +425,12 @@ class TestRemoteProjectChildren(TestCase):
         sample_data = [
             {'kind': 'dds-file',
              'parent': {'kind': 'dds-folder', 'id': folder_id},
-
+             'current_version': {
+                 'id': '1235',
+                 'upload': {'size': 10, 'hash': {'algorithm': 'md5', 'value': '3664d6f3812dbb0d80302ef990b96b51'}},
+             },
              'is_deleted': False,
              'name': 'data.txt',
-             'upload': {'size': 10, 'hash': {'algorithm': 'md5', 'value': '3664d6f3812dbb0d80302ef990b96b51'}},
              'id': file_id},
             {'kind': 'dds-folder',
              'parent': {'kind': 'dds-project', 'id': project_id},
@@ -462,31 +468,40 @@ class TestRemoteProjectChildren(TestCase):
                         'kind': 'dds-file',
                         'name': 'three',
                         'is_deleted': False,
-                        'upload':
-                            {'id': '6002c346-d952-4140-8255-a28978e9a1af',
-                             'size': 10,
-                             'hash':
-                                {'algorithm': 'md5',
-                                 'value': 'b9dea26997ca089d9f20e372c50565e8'}},
+                        'current_version': {
+                            'id': '1235',
+                            'upload':
+                                {'id': '6002c346-d952-4140-8255-a28978e9a1af',
+                                 'size': 10,
+                                 'hash':
+                                     {'algorithm': 'md5',
+                                      'value': 'b9dea26997ca089d9f20e372c50565e8'}},
+                        },
                         'parent': {'id': project_id, 'kind': 'dds-project'}},
                        {'id': file2_id,
                         'kind': 'dds-file',
                         'name': 'two',
                         'is_deleted': False,
-                        'upload':
-                            {'id': 'e710c232-14b2-4cdc-be29-9c9b4c811834',
-                             'size': 10,
-                             'hash':
-                                 {'algorithm': 'md5', 'value': '99003d4d61ca0f5367e5d88a24db7812'}},
+                        'current_version': {
+                            'id': '1236',
+                            'upload':
+                                {'id': 'e710c232-14b2-4cdc-be29-9c9b4c811834',
+                                 'size': 10,
+                                 'hash':
+                                     {'algorithm': 'md5', 'value': '99003d4d61ca0f5367e5d88a24db7812'}},
+                        },
                         'parent': {'id': project_id, 'kind': 'dds-project'}},
                        {'id': file3_id,
                         'kind': 'dds-file',
                         'name': 'one',
                         'is_deleted': False,
-                        'upload':
-                            {'id': 'ecd507c4-8f04-404d-acef-0ced912e4cdf',
-                             'size': 10,
-                             'hash': None},
+                        'current_version': {
+                            'id': '1236',
+                            'upload':
+                                {'id': 'ecd507c4-8f04-404d-acef-0ced912e4cdf',
+                                 'size': 10,
+                                 'hash': None},
+                        },
                         'parent': {'id': project_id, 'kind': 'dds-project'}}]
 
         remote_children = RemoteProjectChildren(project_id, sample_data)

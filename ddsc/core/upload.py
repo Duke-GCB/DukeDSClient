@@ -9,13 +9,14 @@ class ProjectUpload(object):
     """
     Allows uploading a local project to a remote duke-data-service.
     """
-    def __init__(self, config, project_name, folders, follow_symlinks=False):
+    def __init__(self, config, project_name, folders, follow_symlinks=False, file_upload_post_processor=None):
         """
         Setup for uploading folders dictionary of paths to project_name using config.
         :param config: Config configuration for performing the upload(url, keys, etc)
         :param project_name: str name of the project we will upload files to
         :param folders: [str] list of paths of files/folders to upload to the project
         :param follow_symlinks: bool if true we will traverse symbolic linked directories
+        :param file_upload_post_processor: object: has run(data_service, file_response) method to run after uploading
         """
         self.config = config
         self.remote_store = RemoteStore(config)
@@ -24,6 +25,7 @@ class ProjectUpload(object):
         self.local_project = ProjectUpload._load_local_project(folders, follow_symlinks, config.file_exclude_regex)
         self.local_project.update_remote_ids(self.remote_project)
         self.different_items = self._count_differences()
+        self.file_upload_post_processor = file_upload_post_processor
 
     @staticmethod
     def _load_local_project(folders, follow_symlinks, file_exclude_regex):
@@ -54,7 +56,7 @@ class ProjectUpload(object):
         """
         progress_printer = ProgressPrinter(self.different_items.total_items(), msg_verb='sending')
         upload_settings = UploadSettings(self.config, self.remote_store.data_service, progress_printer,
-                                         self.project_name)
+                                         self.project_name, self.file_upload_post_processor)
         project_uploader = ProjectUploader(upload_settings)
         project_uploader.run(self.local_project)
         progress_printer.finished()

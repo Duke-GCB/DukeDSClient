@@ -8,18 +8,20 @@ class UploadSettings(object):
     """
     Settings used to upload a project
     """
-    def __init__(self, config, data_service, watcher, project_name):
+    def __init__(self, config, data_service, watcher, project_name, file_upload_post_processor):
         """
         :param config: ddsc.config.Config user configuration settings from YAML file/environment
         :param data_service: DataServiceApi: where we will upload to
         :param watcher: ProgressPrinter we notify of our progress
         :param project_name: str: name of the project so we can create it if necessary
+        :param file_upload_post_processor: object: has run(data_service, file_response) method to run after download
         """
         self.config = config
         self.data_service = data_service
         self.watcher = watcher
         self.project_name = project_name
         self.project_id = None
+        self.file_upload_post_processor = file_upload_post_processor
 
     def get_data_service_auth_data(self):
         """
@@ -135,7 +137,7 @@ class ProjectUploader(object):
         :param parent: LocalFolder/LocalProject: parent of the file
         """
         file_content_sender = FileUploader(self.settings.config, self.settings.data_service, local_file,
-                                           self.settings.watcher)
+                                           self.settings.watcher, self.settings.file_upload_post_processor)
         remote_id = file_content_sender.upload(self.settings.project_id, parent.kind, parent.remote_id)
         local_file.set_remote_id_after_send(remote_id)
 
@@ -186,7 +188,8 @@ class SmallItemUploadTaskBuilder(object):
                 msg = "Programmer Error: Trying to upload large file as small item size:{} name:{}"
                 raise ValueError(msg.format(item.size, item.name))
             else:
-                command = CreateSmallFileCommand(self.settings, item, parent)
+                command = CreateSmallFileCommand(self.settings, item, parent,
+                                                 self.settings.file_upload_post_processor)
                 self.task_runner_add(parent, item, command)
 
     def task_runner_add(self, parent, item, command):
@@ -309,17 +312,19 @@ class CreateSmallFileCommand(object):
      4) completing the upload
      5) creating or updating file version
     """
-    def __init__(self, settings, local_file, parent):
+    def __init__(self, settings, local_file, parent, file_upload_post_processor=None):
         """
         Setup passing in all necessary data to create file and update external state.
         :param settings: UploadSettings: contains data_service connection info
         :param local_file: object: information about the file we will upload
         :param parent: object: parent of the file (folder or project)
+        :param file_upload_post_processor: object: has run(data_service, file_response) method to run after download
         """
         self.settings = settings
         self.local_file = local_file
         self.parent = parent
         self.func = create_small_file
+        self.file_upload_post_processor = file_upload_post_processor
 
     def before_run(self, parent_task_result):
         pass
@@ -333,11 +338,14 @@ class CreateSmallFileCommand(object):
         params = parent_data, path_data, self.local_file.remote_id
         return UploadContext(self.settings, params)
 
-    def after_run(self, remote_file_id):
+    def after_run(self, remote_file_data):
         """
         Save uuid of file to our LocalFile
-        :param remote_file_id: uuid of the file we just created/updated.
+        :param remote_file_data: dict: DukeDS file data
         """
+        if self.file_upload_post_processor:
+            self.file_upload_post_processor.run(self.settings.data_service, remote_file_data)
+        remote_file_id = remote_file_data['id']
         self.settings.watcher.transferring_item(self.local_file)
         self.local_file.set_remote_id_after_send(remote_file_id)
 
@@ -347,6 +355,7 @@ def create_small_file(upload_context):
     Function run by CreateSmallFileCommand to create the file.
     Runs in a background process.
     :param upload_context: UploadContext: contains data service setup and file details.
+    :return dict: DukeDS file data
     """
     data_service = upload_context.make_data_service()
     parent_data, path_data, remote_file_id = upload_context.params
