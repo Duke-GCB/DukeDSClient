@@ -343,7 +343,7 @@ class DeleteCommand(object):
         :param args Namespace arguments parsed from the command line
         """
         project_name = args.project_name
-        project = self.remote_store.fetch_remote_project(project_name, must_exist=False)
+        project = self.remote_store.fetch_remote_project(project_name, must_exist=False, include_children=False)
         if not project:
             raise ValueError("No project named '{}' found.\n".format(project_name))
         else:
