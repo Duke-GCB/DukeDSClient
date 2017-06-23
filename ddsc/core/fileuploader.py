@@ -105,8 +105,10 @@ class FileUploadOperations(object):
         name = path_data.name()
         mime_type = path_data.mime_type()
         size = path_data.size()
-        func = lambda: self.data_service.create_upload(project_id, name, mime_type, size, hash_data.value,
-                                                       hash_data.alg)
+
+        def func():
+            self.data_service.create_upload(project_id, name, mime_type, size, hash_data.value, hash_data.alg)
+
         monitor = ResourceNotConsistentMonitor(os.path.basename(name))
         resp = retry_until_resource_is_consistent(func, monitor)
         return resp.json()['id']
