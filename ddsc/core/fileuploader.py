@@ -109,7 +109,7 @@ class FileUploadOperations(object):
         def func():
             return self.data_service.create_upload(project_id, name, mime_type, size, hash_data.value, hash_data.alg)
 
-        monitor = ResourceNotConsistentMonitor(os.path.basename(name))
+        monitor = ResourceNotConsistentMonitor('{} storage'.format(os.path.basename(name)))
         resp = retry_until_resource_is_consistent(func, monitor)
         return resp.json()['id']
 
@@ -355,10 +355,10 @@ class ResourceNotConsistentMonitor(object):
         self.description = description
 
     def started_waiting(self):
-        print("\nWaiting for {} to become ready.\n".format(self.description))
+        print("Waiting for {} to become ready.".format(self.description))
 
     def done_waiting(self):
-        print("\nResource {} is now ready.\n".format(self.description))
+        print("{} is now ready.".format(self.description))
 
 
 def retry_until_resource_is_consistent(func, monitor):
