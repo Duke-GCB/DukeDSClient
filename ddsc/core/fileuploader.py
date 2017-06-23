@@ -1,12 +1,13 @@
 """
 Objects to upload a number of chunks from a file to a remote store as part of an upload.
 """
-
+from __future__ import print_function
 import math
 import time
 import requests
+import os
 from multiprocessing import Process, Queue
-from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
+from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi, DSResourceNotConsistentError
 from ddsc.core.util import ProgressQueue, wait_for_processes
 from ddsc.core.localstore import HashData
 import traceback
@@ -14,6 +15,7 @@ import sys
 
 SEND_EXTERNAL_PUT_RETRY_TIMES = 5
 SEND_EXTERNAL_RETRY_SECONDS = 1
+RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 
 
 class FileUploader(object):
@@ -52,7 +54,7 @@ class FileUploader(object):
         """
         path_data = self.local_file.get_path_data()
         hash_data = path_data.get_hash()
-        self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data)
+        self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data, self.watcher)
         ParallelChunkProcessor(self).run()
         parent_data = ParentData(parent_kind, parent_id)
         remote_file_data = self.upload_operations.finish_upload(self.upload_id, hash_data, parent_data,
@@ -103,7 +105,10 @@ class FileUploadOperations(object):
         name = path_data.name()
         mime_type = path_data.mime_type()
         size = path_data.size()
-        resp = self.data_service.create_upload(project_id, name, mime_type, size, hash_data.value, hash_data.alg)
+        func = lambda: self.data_service.create_upload(project_id, name, mime_type, size, hash_data.value,
+                                                       hash_data.alg)
+        monitor = ResourceNotConsistentMonitor(os.path.basename(name))
+        resp = retry_until_resource_is_consistent(func, monitor)
         return resp.json()['id']
 
     def create_file_chunk_url(self, upload_id, chunk_num, chunk):
@@ -335,3 +340,42 @@ class ChunkSender(object):
         """
         url_info = self.upload_operations.create_file_chunk_url(self.upload_id, chunk_num, chunk)
         self.upload_operations.send_file_external(url_info, chunk)
+
+
+class ResourceNotConsistentMonitor(object):
+    """
+    Prints messages to stdout when we start waiting and finish.
+    """
+    def __init__(self, description):
+        """
+        :param description: description of the resource we are waiting for
+        """
+        self.description = description
+
+    def started_waiting(self):
+        print("\nWaiting for {} to become ready.\n".format(self.description))
+
+    def done_waiting(self):
+        print("\nResource {} is now ready.\n".format(self.description))
+
+
+def retry_until_resource_is_consistent(func, monitor):
+    """
+    Runs func, if func raises DSResourceNotConsistentError will retry func indefinitely.
+    Notifies monitor if we have to wait(only happens if DukeDS API raises DSResourceNotConsistentError.
+    :param func: func(): function to run
+    :param monitor: object: has start_waiting() and done_waiting() methods when waiting for non-consistent resource
+    :return: whatever func returns
+    """
+    waiting = False
+    while True:
+        try:
+            resp = func()
+            if waiting:
+                monitor.done_waiting()
+            return resp
+        except DSResourceNotConsistentError:
+            if not waiting:
+                monitor.started_waiting()
+                waiting = True
+            time.sleep(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)
