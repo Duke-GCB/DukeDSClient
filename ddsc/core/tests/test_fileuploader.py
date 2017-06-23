@@ -1,7 +1,9 @@
 from unittest import TestCase
-from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async, FileUploadOperations
+from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async, FileUploadOperations, \
+    RESOURCE_NOT_CONSISTENT_RETRY_SECONDS
+from ddsc.core.ddsapi import DSResourceNotConsistentError, DataServiceError
 import requests
-from mock import MagicMock, Mock, patch
+from mock import MagicMock, Mock, patch, call
 
 
 class FakeConfig(object):
@@ -148,3 +150,53 @@ class TestFileUploadOperations(TestCase):
                           parent_data=MagicMock(),
                           remote_file_id="456")
         data_service.complete_upload.assert_called()
+
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_create_upload_with_one_pause(self, mock_sleep):
+        data_service = MagicMock()
+        response = Mock()
+        response.json.return_value = {'id': '123'}
+        data_service.create_upload.side_effect = [
+            DSResourceNotConsistentError(MagicMock(), MagicMock(), MagicMock()),
+            response
+        ]
+        fop = FileUploadOperations(data_service)
+        path_data = MagicMock()
+        path_data.name.return_value = '/tmp/data.dat'
+        upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
+        self.assertEqual(upload_id, '123')
+        mock_sleep.assert_called_with(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)
+
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_create_upload_with_two_pauses(self, mock_sleep):
+        data_service = MagicMock()
+        response = Mock()
+        response.json.return_value = {'id': '124'}
+        data_service.create_upload.side_effect = [
+            DSResourceNotConsistentError(MagicMock(), MagicMock(), MagicMock()),
+            DSResourceNotConsistentError(MagicMock(), MagicMock(), MagicMock()),
+            response
+        ]
+        fop = FileUploadOperations(data_service)
+        path_data = MagicMock()
+        path_data.name.return_value = '/tmp/data.dat'
+        upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
+        self.assertEqual(upload_id, '124')
+        mock_sleep.assert_has_calls([
+            call(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS),
+            call(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)])
+
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_create_upload_with_one_pause_then_failure(self, mock_sleep):
+        data_service = MagicMock()
+        response = Mock()
+        response.json.return_value = {'id': '123'}
+        data_service.create_upload.side_effect = [
+            DSResourceNotConsistentError(MagicMock(), MagicMock(), MagicMock()),
+            DataServiceError(MagicMock(), MagicMock(), MagicMock())
+        ]
+        path_data = MagicMock()
+        path_data.name.return_value = '/tmp/data.dat'
+        fop = FileUploadOperations(data_service)
+        with self.assertRaises(DataServiceError):
+            fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
