@@ -107,7 +107,7 @@ class FileUploadOperations(object):
         size = path_data.size()
 
         def func():
-            self.data_service.create_upload(project_id, name, mime_type, size, hash_data.value, hash_data.alg)
+            return self.data_service.create_upload(project_id, name, mime_type, size, hash_data.value, hash_data.alg)
 
         monitor = ResourceNotConsistentMonitor(os.path.basename(name))
         resp = retry_until_resource_is_consistent(func, monitor)
