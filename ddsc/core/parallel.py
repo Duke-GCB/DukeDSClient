@@ -6,7 +6,8 @@ Each Command contains a function pointer to a global function to be run in the b
 setup/cleanup methods that will be run in the foreground.
 """
 
-from multiprocessing import Pool
+import multiprocessing
+import queue
 from collections import deque
 import traceback
 import sys
@@ -37,12 +38,12 @@ class Task(object):
         """
         self.command.before_run(parent_task_result)
 
-    def create_context(self):
+    def create_context(self, message_queue):
         """
         Run serially before the run method.
         :return object: context object passing state to the thread
         """
-        return self.command.create_context()
+        return self.command.create_context(message_queue, self.id)
 
     def after_run(self, results):
         """
@@ -50,6 +51,13 @@ class Task(object):
         :param results: object: results from run method.
         """
         return self.command.after_run(results)
+
+    def on_message(self, data):
+        """
+        Call on_message on our command passing data
+        :param data: object: parameter passed to the on_message member of this task's command
+        """
+        self.command.on_message(data)
 
 
 class WaitingTaskList(object):
@@ -151,11 +159,12 @@ class TaskExecutor(object):
         Setup to run tasks in background limiting to tasks_at_once processes.
         :param tasks_at_once: int: number of tasks we can run at once
         """
-        self.pool = Pool()
+        self.pool = multiprocessing.Pool()
         self.tasks = deque()
         self.task_id_to_task = {}
         self.pending_results = []
         self.tasks_at_once = tasks_at_once
+        self.message_queue = multiprocessing.Manager().Queue()
 
     def add_task(self, task, parent_task_result):
         """
@@ -190,6 +199,7 @@ class TaskExecutor(object):
             if self.is_done():
                 break
             self.start_tasks()
+            self.read_message_queue()
             finished_tasks_and_results = self.get_finished_results()
         return finished_tasks_and_results
 
@@ -208,9 +218,18 @@ class TaskExecutor(object):
         :param parent_result: object: result from our parent task
         """
         task.before_run(parent_result)
-        context = task.create_context()
+        context = task.create_context(self.message_queue)
         pending_result = self.pool.apply_async(execute_task_async, (task.func, task.id, context))
         self.pending_results.append(pending_result)
+
+    def read_message_queue(self):
+        try:
+            message = self.message_queue.get_nowait()
+            task_id, data = message
+            task = self.task_id_to_task[task_id]
+            task.on_message(data)
+        except queue.Empty:
+            pass
 
     def get_finished_results(self):
         """

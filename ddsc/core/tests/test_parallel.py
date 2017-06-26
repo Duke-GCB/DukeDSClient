@@ -40,6 +40,17 @@ class TestWaitingTaskList(TestCase):
         self.assertEqual([1, 2, 3], none_task_ids)
 
 
+class AddCommandContext(object):
+    def __init__(self, values, message_data, message_queue, task_id):
+        self.values = values
+        self.message_data = message_data
+        self.message_queue = message_queue
+        self.task_id = task_id
+
+    def send_message(self, data):
+        self.message_queue.put((self.task_id, data))
+
+
 class AddCommand(object):
     """
     Simple task that adds two numbers together returning the result.
@@ -50,27 +61,32 @@ class AddCommand(object):
         self.parent_task_result = None
         self.result = None
         self.func = add_func
+        self.send_message = None
+        self.on_message_data = None
 
     def before_run(self, parent_task_result):
         self.parent_task_result = parent_task_result
 
-    def create_context(self):
-        return self.values
-
-    def run(self, context):
-        return context[0] + context[1]
+    def create_context(self, message_queue, task_id):
+        return AddCommandContext(self.values, self.send_message, message_queue, task_id)
 
     def after_run(self, results):
         self.result = results
+
+    def on_message(self, data):
+        self.on_message_data = data
 
 
 def add_func(context):
     """
     Function run by AddCommand
-    :param context: tuple of values passed in
+    :param context
     :return: sum of values
     """
-    v1, v2 = context
+    values = context.values
+    if context.message_data:
+        context.send_message(context.message_data)
+    v1, v2 = values
     return v1 + v2
 
 
@@ -86,6 +102,7 @@ class TestTaskRunner(TestCase):
         runner.run()
         self.assertEqual(add_command.parent_task_result, None)
         self.assertEqual(add_command.result, 40)
+        self.assertEqual(add_command.send_message, None)
 
     def test_two_adds_in_order(self):
         add_command = AddCommand(10, 30)
@@ -112,3 +129,20 @@ class TestTaskRunner(TestCase):
         self.assertEqual(add_command.result, 40)
         self.assertEqual(add_command2.parent_task_result, None)
         self.assertEqual(add_command2.result, 5)
+
+    def test_command_with_message(self):
+        add_command = AddCommand(10, 30)
+        add_command.send_message = 'ok'
+        add_command2 = AddCommand(4, 1)
+        add_command2.send_message = 'waiting'
+        executor = TaskExecutor(10)
+        runner = TaskRunner(executor)
+        runner.add(None, add_command,)
+        runner.add(None, add_command2)
+        runner.run()
+        self.assertEqual(add_command.parent_task_result, None)
+        self.assertEqual(add_command.result, 40)
+        self.assertEqual(add_command2.parent_task_result, None)
+        self.assertEqual(add_command2.result, 5)
+        self.assertEqual(add_command.on_message_data, 'ok')
+        self.assertEqual(add_command2.on_message_data, 'waiting')
