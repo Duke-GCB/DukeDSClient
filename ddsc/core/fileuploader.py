@@ -5,7 +5,6 @@ from __future__ import print_function
 import math
 import time
 import requests
-import os
 from multiprocessing import Process, Queue
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi, DSResourceNotConsistentError
 from ddsc.core.util import ProgressQueue, wait_for_processes
@@ -38,7 +37,7 @@ class FileUploader(object):
         """
         self.config = config
         self.data_service = data_service
-        self.upload_operations = FileUploadOperations(self.data_service)
+        self.upload_operations = FileUploadOperations(self.data_service, ProjectStatusMonitor(watcher))
         self.file_upload_post_processor = file_upload_post_processor
         self.local_file = local_file
         self.upload_id = None
@@ -54,7 +53,7 @@ class FileUploader(object):
         """
         path_data = self.local_file.get_path_data()
         hash_data = path_data.get_hash()
-        self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data, self.watcher)
+        self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data)
         ParallelChunkProcessor(self).run()
         parent_data = ParentData(parent_kind, parent_id)
         remote_file_data = self.upload_operations.finish_upload(self.upload_id, hash_data, parent_data,
@@ -87,12 +86,15 @@ class FileUploadOperations(object):
     3) upload part of file
     4) complete upload then create new file or update existing file
     """
-    def __init__(self, data_service):
+    def __init__(self, data_service, waiting_monitor):
         """
         Setup with specified data service we will communicate with.
         :param data_service: DataServiceApi data service we are uploading the file to.
+        :param waiting_monitor: object with started_waiting() and done_waiting() methods called when waiting for
+        project to become ready to upload file chunks
         """
         self.data_service = data_service
+        self.waiting_monitor = waiting_monitor
 
     def create_upload(self, project_id, path_data, hash_data):
         """
@@ -109,8 +111,7 @@ class FileUploadOperations(object):
         def func():
             return self.data_service.create_upload(project_id, name, mime_type, size, hash_data.value, hash_data.alg)
 
-        monitor = ResourceNotConsistentMonitor('{} storage'.format(os.path.basename(name)))
-        resp = retry_until_resource_is_consistent(func, monitor)
+        resp = retry_until_resource_is_consistent(func, self.waiting_monitor)
         return resp.json()['id']
 
     def create_file_chunk_url(self, upload_id, chunk_num, chunk):
@@ -311,7 +312,7 @@ class ChunkSender(object):
         :param progress_queue: ProgressQueue queue we will send updates or errors to.
         """
         self.data_service = data_service
-        self.upload_operations = FileUploadOperations(self.data_service)
+        self.upload_operations = FileUploadOperations(self.data_service, None)
         self.upload_id = upload_id
         self.filename = filename
         self.chunk_size = chunk_size
@@ -344,23 +345,6 @@ class ChunkSender(object):
         self.upload_operations.send_file_external(url_info, chunk)
 
 
-class ResourceNotConsistentMonitor(object):
-    """
-    Prints messages to stdout when we start waiting and finish.
-    """
-    def __init__(self, description):
-        """
-        :param description: description of the resource we are waiting for
-        """
-        self.description = description
-
-    def started_waiting(self):
-        print("Waiting for {} to become ready.".format(self.description))
-
-    def done_waiting(self):
-        print("{} is now ready.".format(self.description))
-
-
 def retry_until_resource_is_consistent(func, monitor):
     """
     Runs func, if func raises DSResourceNotConsistentError will retry func indefinitely.
@@ -373,11 +357,34 @@ def retry_until_resource_is_consistent(func, monitor):
     while True:
         try:
             resp = func()
-            if waiting:
+            if waiting and monitor:
                 monitor.done_waiting()
             return resp
         except DSResourceNotConsistentError:
-            if not waiting:
+            if not waiting and monitor:
                 monitor.started_waiting()
                 waiting = True
             time.sleep(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)
+
+
+class ProjectStatusMonitor(object):
+    """
+    Displays messages to user while we are waiting for a project that isn't ready for file uploading.
+    De-bounces messages so we don't spam the user.
+    """
+    def __init__(self, watcher):
+        """
+        :param watcher: object with show_warning(str) method
+        """
+        self.watcher = watcher
+        self.waiting = False
+
+    def started_waiting(self):
+        if not self.waiting:
+            self.watcher.start_waiting("Waiting for project to become ready for uploading.")
+            self.waiting = True
+
+    def done_waiting(self):
+        if self.waiting:
+            self.watcher.done_waiting()
+            self.waiting = False

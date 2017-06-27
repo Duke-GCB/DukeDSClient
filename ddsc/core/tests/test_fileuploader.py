@@ -1,6 +1,6 @@
 from unittest import TestCase
 from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async, FileUploadOperations, \
-    RESOURCE_NOT_CONSISTENT_RETRY_SECONDS
+    RESOURCE_NOT_CONSISTENT_RETRY_SECONDS, ProjectStatusMonitor
 from ddsc.core.ddsapi import DSResourceNotConsistentError, DataServiceError
 import requests
 from mock import MagicMock, Mock, patch, call
@@ -71,7 +71,7 @@ class TestFileUploadOperations(TestCase):
     def test_send_file_external_works_first_time(self):
         data_service = MagicMock()
         data_service.send_external.side_effect = [Mock(status_code=201)]
-        fop = FileUploadOperations(data_service)
+        fop = FileUploadOperations(data_service, MagicMock())
         url_json = {
             'http_verb': 'PUT',
             'host': 'something.com',
@@ -84,7 +84,7 @@ class TestFileUploadOperations(TestCase):
     def test_send_file_external_retry_put(self):
         data_service = MagicMock()
         data_service.send_external.side_effect = [requests.exceptions.ConnectionError, Mock(status_code=201)]
-        fop = FileUploadOperations(data_service)
+        fop = FileUploadOperations(data_service, MagicMock())
         url_json = {
             'http_verb': 'PUT',
             'host': 'something.com',
@@ -100,7 +100,7 @@ class TestFileUploadOperations(TestCase):
         connection_err = requests.exceptions.ConnectionError
         data_service.send_external.side_effect = [connection_err, connection_err, connection_err, connection_err,
                                                   connection_err, connection_err]
-        fop = FileUploadOperations(data_service)
+        fop = FileUploadOperations(data_service, MagicMock())
         url_json = {
             'http_verb': 'PUT',
             'host': 'something.com',
@@ -117,7 +117,7 @@ class TestFileUploadOperations(TestCase):
         data_service = MagicMock()
         connection_err = requests.exceptions.ConnectionError
         data_service.send_external.side_effect = [connection_err, connection_err, Mock(status_code=201)]
-        fop = FileUploadOperations(data_service)
+        fop = FileUploadOperations(data_service, MagicMock())
         url_json = {
             'http_verb': 'PUT',
             'host': 'something.com',
@@ -131,7 +131,7 @@ class TestFileUploadOperations(TestCase):
     def test_send_file_external_no_retry_post(self):
         data_service = MagicMock()
         data_service.send_external.side_effect = [requests.exceptions.ConnectionError]
-        fop = FileUploadOperations(data_service)
+        fop = FileUploadOperations(data_service, MagicMock())
         url_json = {
             'http_verb': 'POST',
             'host': 'something.com',
@@ -144,7 +144,7 @@ class TestFileUploadOperations(TestCase):
 
     def test_finish_upload(self):
         data_service = MagicMock()
-        fop = FileUploadOperations(data_service)
+        fop = FileUploadOperations(data_service, MagicMock())
         fop.finish_upload(upload_id="123",
                           hash_data=MagicMock(),
                           parent_data=MagicMock(),
@@ -160,7 +160,7 @@ class TestFileUploadOperations(TestCase):
             DSResourceNotConsistentError(MagicMock(), MagicMock(), MagicMock()),
             response
         ]
-        fop = FileUploadOperations(data_service)
+        fop = FileUploadOperations(data_service, MagicMock())
         path_data = MagicMock()
         path_data.name.return_value = '/tmp/data.dat'
         upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
@@ -177,7 +177,7 @@ class TestFileUploadOperations(TestCase):
             DSResourceNotConsistentError(MagicMock(), MagicMock(), MagicMock()),
             response
         ]
-        fop = FileUploadOperations(data_service)
+        fop = FileUploadOperations(data_service, MagicMock())
         path_data = MagicMock()
         path_data.name.return_value = '/tmp/data.dat'
         upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
@@ -197,6 +197,35 @@ class TestFileUploadOperations(TestCase):
         ]
         path_data = MagicMock()
         path_data.name.return_value = '/tmp/data.dat'
-        fop = FileUploadOperations(data_service)
+        fop = FileUploadOperations(data_service, MagicMock())
         with self.assertRaises(DataServiceError):
             fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
+
+
+class TestProjectStatusMonitor(TestCase):
+    def test_started_waiting_debounces(self):
+        watcher = MagicMock()
+        monitor = ProjectStatusMonitor(watcher)
+        monitor.started_waiting()
+        self.assertEqual(1, watcher.start_waiting.call_count)
+        watcher.start_waiting.assert_has_calls([
+            call('Waiting for project to become ready for uploading.')
+        ])
+        monitor.started_waiting()
+        monitor.started_waiting()
+        self.assertEqual(1, watcher.start_waiting.call_count)
+        watcher.start_waiting.assert_has_calls([
+            call('Waiting for project to become ready for uploading.')
+        ])
+
+    def test_done_waiting(self):
+        watcher = MagicMock()
+        monitor = ProjectStatusMonitor(watcher)
+        monitor.started_waiting()
+        monitor.done_waiting()
+        self.assertEqual(1, watcher.start_waiting.call_count)
+        watcher.start_waiting.assert_has_calls([
+            call('Waiting for project to become ready for uploading.'),
+        ])
+        self.assertEqual(1, watcher.done_waiting.call_count)
+

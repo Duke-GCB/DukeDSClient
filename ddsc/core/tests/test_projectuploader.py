@@ -1,5 +1,6 @@
 from unittest import TestCase
 import pickle
+import multiprocessing
 from ddsc.core.projectuploader import UploadSettings, UploadContext, ProjectUploadDryRun
 from ddsc.core.util import KindType
 from mock import MagicMock
@@ -20,7 +21,7 @@ class TestUploadContext(TestCase):
         """Make sure we can pickle context since it must be passed to another process."""
         settings = UploadSettings(None, FakeDataServiceApi(), None, None, None)
         params = ('one', 'two', 'three')
-        context = UploadContext(settings, params)
+        context = UploadContext(settings, params, multiprocessing.Manager().Queue(), 12)
         pickle.dumps(context)
 
 
