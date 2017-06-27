@@ -350,3 +350,37 @@ class TestDataServiceApi(TestCase):
         api = DataServiceApi(auth=None, url="something.com/v1/", http=None)
         self.assertIsNotNone(api.http)
         self.assertEqual(type(api.http), requests.sessions.Session)
+
+    def test_get_projects(self):
+        page1 = {
+            "results": [
+                {
+                    "id": "1234"
+                }
+            ]
+        }
+        page2 = {
+            "results": [
+                {
+                    "id": "1235"
+                }
+            ]
+        }
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=page1, num_pages=2),
+            fake_response_with_pages(status_code=200, json_return_value=page2, num_pages=2),
+        ]
+        api = DataServiceApi(auth=None, url="something.com/v1", http=mock_requests)
+        resp = api.get_projects()
+        self.assertEqual(2, len(resp.json()['results']))
+        self.assertEqual("1234", resp.json()['results'][0]['id'])
+        self.assertEqual("1235", resp.json()['results'][1]['id'])
+        self.assertEqual(2, mock_requests.get.call_count)
+        first_call_second_arg = mock_requests.get.call_args_list[0][1]
+        self.assertEqual('application/x-www-form-urlencoded', first_call_second_arg['headers']['Content-Type'])
+        self.assertEqual(100, first_call_second_arg['params']['per_page'])
+        self.assertEqual(1, first_call_second_arg['params']['page'])
+        second_call_second_arg = mock_requests.get.call_args_list[0][1]
+        self.assertEqual(100, second_call_second_arg['params']['per_page'])
+        self.assertEqual(1, second_call_second_arg['params']['page'])
