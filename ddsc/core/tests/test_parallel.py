@@ -1,5 +1,7 @@
 from unittest import TestCase
+import queue
 from ddsc.core.parallel import WaitingTaskList, Task, TaskRunner, TaskExecutor
+from mock import patch, Mock
 
 
 def no_op():
@@ -62,7 +64,7 @@ class AddCommand(object):
         self.result = None
         self.func = add_func
         self.send_message = None
-        self.on_message_data = None
+        self.on_message_data = []
 
     def before_run(self, parent_task_result):
         self.parent_task_result = parent_task_result
@@ -74,7 +76,7 @@ class AddCommand(object):
         self.result = results
 
     def on_message(self, data):
-        self.on_message_data = data
+        self.on_message_data.append(data)
 
 
 def add_func(context):
@@ -144,5 +146,69 @@ class TestTaskRunner(TestCase):
         self.assertEqual(add_command.result, 40)
         self.assertEqual(add_command2.parent_task_result, None)
         self.assertEqual(add_command2.result, 5)
-        self.assertEqual(add_command.on_message_data, 'ok')
-        self.assertEqual(add_command2.on_message_data, 'waiting')
+        self.assertEqual(add_command.on_message_data, ['ok'])
+        self.assertEqual(add_command2.on_message_data, ['waiting'])
+
+
+class TestTaskExecutor(TestCase):
+    @patch('ddsc.core.parallel.multiprocessing')
+    def test_wait_for_tasks_with_multiple_messages(self, mock_multiprocessing):
+        # Setup so we will go the the wait_for_tasks loop once and
+        # the process_all_messages_in_queue inside the loop receives all the messages
+        message_queue = Mock()
+        message_queue.get_nowait.side_effect = [
+            (1, "TEST"),
+            (1, "TEST2"),
+            queue.Empty,
+            queue.Empty
+        ]
+        mock_multiprocessing.Manager.return_value.Queue.return_value = message_queue
+        mock_pool = Mock()
+        mock_pending_result = Mock()
+        mock_pending_result.get.return_value = (1, 40)
+        mock_pool.apply_async.side_effect = [
+            mock_pending_result
+        ]
+        mock_multiprocessing.Pool.return_value = mock_pool
+
+        add_command = AddCommand(10, 30)
+        # Force messages to come in before the task exits
+        # so we test 'wait_for_tasks' and not '
+        add_command.send_message = 'testing'
+
+        executor = TaskExecutor(2)
+        executor.add_task(Task(1, None, add_command), None)
+        executor.wait_for_tasks()
+        self.assertEqual(40, add_command.result)
+        self.assertEqual(add_command.on_message_data, ['TEST', 'TEST2'])
+
+    @patch('ddsc.core.parallel.multiprocessing')
+    def test_get_finished_results_with_multiple_messages(self, mock_multiprocessing):
+        # Setup so we will go the the wait_for_tasks loop once and
+        # get_finished_results will receive all the messages
+        message_queue = Mock()
+        message_queue.get_nowait.side_effect = [
+            queue.Empty,
+            (1, "TEST"),
+            (1, "TEST2"),
+            queue.Empty
+        ]
+        mock_multiprocessing.Manager.return_value.Queue.return_value = message_queue
+        mock_pool = Mock()
+        mock_pending_result = Mock()
+        mock_pending_result.get.return_value = (1, 40)
+        mock_pool.apply_async.side_effect = [
+            mock_pending_result
+        ]
+        mock_multiprocessing.Pool.return_value = mock_pool
+
+        add_command = AddCommand(10, 30)
+        # Force messages to come in before the task exits
+        # so we test 'wait_for_tasks' and not '
+        add_command.send_message = 'testing'
+
+        executor = TaskExecutor(2)
+        executor.add_task(Task(1, None, add_command), None)
+        executor.wait_for_tasks()
+        self.assertEqual(40, add_command.result)
+        self.assertEqual(add_command.on_message_data, ['TEST', 'TEST2'])

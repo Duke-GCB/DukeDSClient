@@ -199,7 +199,7 @@ class TaskExecutor(object):
             if self.is_done():
                 break
             self.start_tasks()
-            self.read_message_queue()
+            self.process_all_messages_in_queue()
             finished_tasks_and_results = self.get_finished_results()
         return finished_tasks_and_results
 
@@ -222,14 +222,27 @@ class TaskExecutor(object):
         pending_result = self.pool.apply_async(execute_task_async, (task.func, task.id, context))
         self.pending_results.append(pending_result)
 
-    def read_message_queue(self):
+    def process_all_messages_in_queue(self):
+        """
+        Process all messages in the queue coming from tasks.
+        """
+        keep_checking = True
+        while keep_checking:
+            keep_checking = self.process_single_message_from_queue()
+
+    def process_single_message_from_queue(self):
+        """
+        Tries to read a single message from the queue and let the associated task process it.
+        :return: bool: True if we processed a message, otherwise False
+        """
         try:
             message = self.message_queue.get_nowait()
             task_id, data = message
             task = self.task_id_to_task[task_id]
             task.on_message(data)
+            return True
         except queue.Empty:
-            pass
+            return False
 
     def get_finished_results(self):
         """
@@ -242,6 +255,8 @@ class TaskExecutor(object):
                 ret = pending_result.get()
                 task_id, result = ret
                 task = self.task_id_to_task[task_id]
+                # process any pending messages for this task (will also process other tasks messages)
+                self.process_all_messages_in_queue()
                 task.after_run(result)
                 task_and_results.append((task, result))
                 self.pending_results.remove(pending_result)
