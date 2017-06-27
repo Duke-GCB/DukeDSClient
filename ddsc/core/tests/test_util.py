@@ -96,14 +96,14 @@ class TestProgressPrinter(TestCase):
         progress_printer = ProgressPrinter(total=10, msg_verb='sending')
 
         # pretend we just created a project
-        mock_project = Mock(kind=KindType.project_str,path='')
+        mock_project = Mock(kind=KindType.project_str, path='')
         progress_printer.transferring_item(item=mock_project, increment_amt=1)
         mock_progress_bar.return_value.update.assert_called_with(10, 'sending project')
         mock_progress_bar.return_value.show.assert_called()
         mock_progress_bar.reset_mock()
 
         # pretend we just created a folder
-        mock_project = Mock(kind=KindType.folder_str,path='/data')
+        mock_project = Mock(kind=KindType.folder_str, path='/data')
         progress_printer.transferring_item(item=mock_project, increment_amt=2)
         mock_progress_bar.return_value.update.assert_called_with(30, 'sending data')
         mock_progress_bar.return_value.show.assert_called()
@@ -123,7 +123,7 @@ class TestProgressPrinter(TestCase):
         mock_progress_bar.reset_mock()
 
         # pretend we uploaded a file
-        mock_project = Mock(kind=KindType.file_str,path='/data/log.txt')
+        mock_project = Mock(kind=KindType.file_str, path='/data/log.txt')
         progress_printer.transferring_item(item=mock_project, increment_amt=2)
         mock_progress_bar.return_value.update.assert_called_with(50, 'sending log.txt')
         mock_progress_bar.return_value.show.assert_called()

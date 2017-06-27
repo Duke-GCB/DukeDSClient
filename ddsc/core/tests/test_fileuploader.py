@@ -228,4 +228,3 @@ class TestProjectStatusMonitor(TestCase):
             call('Waiting for project to become ready for uploading.'),
         ])
         self.assertEqual(1, watcher.done_waiting.call_count)
-
