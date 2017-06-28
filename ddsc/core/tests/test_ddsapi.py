@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 import requests
-from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, ContentType, UNEXPECTED_PAGING_DATA_RECEIVED, \
+from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, UNEXPECTED_PAGING_DATA_RECEIVED, \
     DataServiceError, DSResourceNotConsistentError
 from mock import MagicMock, Mock
 

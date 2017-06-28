@@ -209,13 +209,13 @@ class TestProjectStatusMonitor(TestCase):
         monitor.started_waiting()
         self.assertEqual(1, watcher.start_waiting.call_count)
         watcher.start_waiting.assert_has_calls([
-            call('Waiting for project to become ready for uploading.')
+            call('Waiting for project to become ready for uploading')
         ])
         monitor.started_waiting()
         monitor.started_waiting()
         self.assertEqual(1, watcher.start_waiting.call_count)
         watcher.start_waiting.assert_has_calls([
-            call('Waiting for project to become ready for uploading.')
+            call('Waiting for project to become ready for uploading')
         ])
 
     def test_done_waiting(self):
@@ -225,6 +225,6 @@ class TestProjectStatusMonitor(TestCase):
         monitor.done_waiting()
         self.assertEqual(1, watcher.start_waiting.call_count)
         watcher.start_waiting.assert_has_calls([
-            call('Waiting for project to become ready for uploading.'),
+            call('Waiting for project to become ready for uploading'),
         ])
         self.assertEqual(1, watcher.done_waiting.call_count)

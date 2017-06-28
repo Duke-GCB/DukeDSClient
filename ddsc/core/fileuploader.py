@@ -381,7 +381,7 @@ class ProjectStatusMonitor(object):
 
     def started_waiting(self):
         if not self.waiting:
-            self.watcher.start_waiting("Waiting for project to become ready for uploading.")
+            self.watcher.start_waiting("Waiting for project to become ready for uploading")
             self.waiting = True
 
     def done_waiting(self):

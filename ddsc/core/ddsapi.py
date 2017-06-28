@@ -144,7 +144,7 @@ class DataServiceError(Exception):
         if response.status_code == 500:
             if resp_json and not resp_json.get('reason'):
                 resp_json = {'reason': 'Internal Server Error', 'suggestion': 'Contact DDS support.'}
-        Exception.__init__(self, '\nError {} on {}\nReason:{}\nSuggestion:{}\n'.format(
+        Exception.__init__(self, 'Error {} on {}\nReason:{}\nSuggestion:{}'.format(
             response.status_code, url_suffix, resp_json.get('reason', resp_json.get('error', '')),
             resp_json.get('suggestion', '')
         ))
