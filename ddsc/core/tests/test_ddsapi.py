@@ -56,7 +56,7 @@ class TestDataServiceApi(TestCase):
                                      json_return_value={"results": [1, 2, 3]},
                                      num_pages=1)]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
-        response = api._get_collection(url_suffix="users", data={}, content_type=ContentType.json)
+        response = api._get_collection(url_suffix="users", data={})
         self.assertEqual([1, 2, 3], response.json()["results"])
         call_args_list = mock_requests.get.call_args_list
         self.assertEqual(1, len(call_args_list))
@@ -65,9 +65,10 @@ class TestDataServiceApi(TestCase):
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/users', first_param)
         dict_param = call_args[1]
-        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertEqual('application/x-www-form-urlencoded', dict_param['headers']['Content-Type'])
         self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
-        self.assertIn('"per_page": 100', dict_param['params'])
+        self.assertEqual(100, dict_param['params']['per_page'])
+        self.assertEqual(1, dict_param['params']['page'])
 
     def test_get_collection_two_pages(self):
         mock_requests = MagicMock()
@@ -80,7 +81,7 @@ class TestDataServiceApi(TestCase):
                                      num_pages=2)
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
-        response = api._get_collection(url_suffix="projects", data={}, content_type=ContentType.json)
+        response = api._get_collection(url_suffix="projects", data={})
         self.assertEqual([1, 2, 3, 4, 5], response.json()["results"])
         call_args_list = mock_requests.get.call_args_list
         self.assertEqual(2, len(call_args_list))
@@ -89,18 +90,19 @@ class TestDataServiceApi(TestCase):
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/projects', first_param)
         dict_param = call_args[1]
-        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertEqual('application/x-www-form-urlencoded', dict_param['headers']['Content-Type'])
         self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
-        self.assertIn('"per_page": 100', dict_param['params'])
+        self.assertEqual(100, dict_param['params']['per_page'])
+        self.assertEqual(1, dict_param['params']['page'])
         # Check second request
         call_args = call_args_list[1]
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/projects', first_param)
         dict_param = call_args[1]
-        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertEqual('application/x-www-form-urlencoded', dict_param['headers']['Content-Type'])
         self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
-        self.assertIn('"per_page": 100', dict_param['params'])
-        self.assertIn('"page": 2', dict_param['params'])
+        self.assertEqual(100, dict_param['params']['per_page'])
+        self.assertEqual(2, dict_param['params']['page'])
 
     def test_get_collection_three_pages(self):
         mock_requests = MagicMock()
@@ -116,7 +118,7 @@ class TestDataServiceApi(TestCase):
                                      num_pages=3)
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
-        response = api._get_collection(url_suffix="uploads", data={}, content_type=ContentType.json)
+        response = api._get_collection(url_suffix="uploads", data={})
         self.assertEqual([1, 2, 3, 4, 5, 6, 7], response.json()["results"])
         call_args_list = mock_requests.get.call_args_list
         self.assertEqual(3, len(call_args_list))
@@ -125,27 +127,29 @@ class TestDataServiceApi(TestCase):
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/uploads', first_param)
         dict_param = call_args[1]
-        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertEqual('application/x-www-form-urlencoded', dict_param['headers']['Content-Type'])
         self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
-        self.assertIn('"per_page": 100', dict_param['params'])
+        self.assertEqual(100, dict_param['params']['per_page'])
+        self.assertEqual(1, dict_param['params']['page'])
         # Check second request
         call_args = call_args_list[1]
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/uploads', first_param)
         dict_param = call_args[1]
-        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertEqual('application/x-www-form-urlencoded', dict_param['headers']['Content-Type'])
         self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
-        self.assertIn('"per_page": 100', dict_param['params'])
-        self.assertIn('"page": 2', dict_param['params'])
+        self.assertEqual(100, dict_param['params']['per_page'])
+        self.assertEqual(2, dict_param['params']['page'])
+
         # Check third request
         call_args = call_args_list[2]
         first_param = call_args[0][0]
         self.assertEqual('something.com/v1/uploads', first_param)
         dict_param = call_args[1]
-        self.assertEqual('application/json', dict_param['headers']['Content-Type'])
+        self.assertEqual('application/x-www-form-urlencoded', dict_param['headers']['Content-Type'])
         self.assertIn("DukeDSClient/", dict_param['headers']['User-Agent'])
-        self.assertIn('"per_page": 100', dict_param['params'])
-        self.assertIn('"page": 3', dict_param['params'])
+        self.assertEqual(100, dict_param['params']['per_page'])
+        self.assertEqual(3, dict_param['params']['page'])
 
     def test_put_raises_error_on_paging_response(self):
         mock_requests = MagicMock()
@@ -193,7 +197,7 @@ class TestDataServiceApi(TestCase):
             fake_response_with_pages(status_code=200, json_return_value={"ok": True}, num_pages=3)
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
-        resp = api._get_single_page(url_suffix='stuff', data={}, content_type=ContentType.json, page_num=1)
+        resp = api._get_single_page(url_suffix='stuff', data={}, page_num=1)
         self.assertEqual(True, resp.json()['ok'])
 
     def test_get_auth_providers(self):
@@ -383,3 +387,37 @@ class TestDataServiceApi(TestCase):
         data = None
         with self.assertRaises(DSResourceNotConsistentError):
             DataServiceApi._check_err(resp, url_suffix, data, allow_pagination=False)
+
+    def test_get_projects(self):
+        page1 = {
+            "results": [
+                {
+                    "id": "1234"
+                }
+            ]
+        }
+        page2 = {
+            "results": [
+                {
+                    "id": "1235"
+                }
+            ]
+        }
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=page1, num_pages=2),
+            fake_response_with_pages(status_code=200, json_return_value=page2, num_pages=2),
+        ]
+        api = DataServiceApi(auth=None, url="something.com/v1", http=mock_requests)
+        resp = api.get_projects()
+        self.assertEqual(2, len(resp.json()['results']))
+        self.assertEqual("1234", resp.json()['results'][0]['id'])
+        self.assertEqual("1235", resp.json()['results'][1]['id'])
+        self.assertEqual(2, mock_requests.get.call_count)
+        first_call_second_arg = mock_requests.get.call_args_list[0][1]
+        self.assertEqual('application/x-www-form-urlencoded', first_call_second_arg['headers']['Content-Type'])
+        self.assertEqual(100, first_call_second_arg['params']['per_page'])
+        self.assertEqual(1, first_call_second_arg['params']['page'])
+        second_call_second_arg = mock_requests.get.call_args_list[0][1]
+        self.assertEqual(100, second_call_second_arg['params']['per_page'])
+        self.assertEqual(1, second_call_second_arg['params']['page'])

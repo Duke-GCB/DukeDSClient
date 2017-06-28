@@ -247,41 +247,40 @@ class DataServiceApi(object):
         resp = self.http.get(url, headers=headers, params=data_str)
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
-    def _get_single_page(self, url_suffix, data, content_type, page_num):
+    def _get_single_page(self, url_suffix, data, page_num):
         """
         Send GET request to API at url_suffix with post_data adding page and per_page parameters to
         retrieve a single page. Always requests with per_page=DEFAULT_RESULTS_PER_PAGE.
         :param url_suffix: str URL path we are sending a GET to
         :param data: object data we are sending
-        :param content_type: str from ContentType that determines how we format the data
         :param page_num: int: page number to fetch
         :return: requests.Response containing the result
         """
         data_with_per_page = dict(data)
         data_with_per_page['page'] = page_num
         data_with_per_page['per_page'] = DEFAULT_RESULTS_PER_PAGE
-        (url, data_str, headers) = self._url_parts(url_suffix, data_with_per_page, content_type=content_type)
+        (url, data_str, headers) = self._url_parts(url_suffix, data_with_per_page,
+                                                   content_type=ContentType.form)
         resp = self.http.get(url, headers=headers, params=data_str)
         return self._check_err(resp, url_suffix, data, allow_pagination=True)
 
-    def _get_collection(self, url_suffix, data, content_type=ContentType.json):
+    def _get_collection(self, url_suffix, data):
         """
         Performs GET for all pages based on x-total-pages in first response headers.
         Merges the json() 'results' arrays.
         If x-total-pages is missing or 1 just returns the response without fetching multiple pages.
         :param url_suffix: str URL path we are sending a GET to
         :param data: object data we are sending
-        :param content_type: str from ContentType that determines how we format the data
         :return: requests.Response containing the result
         """
-        response = self._get_single_page(url_suffix, data, content_type, page_num=1)
+        response = self._get_single_page(url_suffix, data, page_num=1)
         total_pages_str = response.headers.get('x-total-pages')
         if total_pages_str:
             total_pages = int(total_pages_str)
             if total_pages > 1:
                 multi_response = MultiJSONResponse(base_response=response, merge_array_field_name="results")
                 for page in range(2, total_pages + 1):
-                    additional_response = self._get_single_page(url_suffix, data, content_type, page_num=page)
+                    additional_response = self._get_single_page(url_suffix, data, page_num=page)
                     multi_response.add_response(additional_response)
                 return multi_response
         return response
@@ -405,7 +404,7 @@ class DataServiceApi(object):
         if name_contains is not None:
             data['name_contains'] = name_contains
         url_prefix = "/{}/{}/children".format(parent_name, parent_id)
-        return self._get_collection(url_prefix, data, content_type=ContentType.form)
+        return self._get_collection(url_prefix, data)
 
     def create_upload(self, project_id, filename, content_type, size,
                       hash_value, hash_alg):
@@ -537,7 +536,7 @@ class DataServiceApi(object):
         data = {
             "full_name_contains": full_name,
         }
-        return self._get_collection('/users', data, content_type=ContentType.form)
+        return self._get_collection('/users', data)
 
     def get_all_users(self):
         """
@@ -545,7 +544,7 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         data = {}
-        return self._get_collection('/users', data, content_type=ContentType.form)
+        return self._get_collection('/users', data)
 
     def get_user_by_id(self, id):
         """
@@ -632,7 +631,7 @@ class DataServiceApi(object):
         :param context: str which roles do we want 'project' or 'system'
         :return: requests.Response containing the successful result
         """
-        return self._get_collection("/auth_roles", {"context": context}, content_type=ContentType.form)
+        return self._get_collection("/auth_roles", {"context": context})
 
     def get_project_transfers(self, project_id):
         """
