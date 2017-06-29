@@ -144,7 +144,7 @@ class DataServiceError(Exception):
         if response.status_code == 500:
             if resp_json and not resp_json.get('reason'):
                 resp_json = {'reason': 'Internal Server Error', 'suggestion': 'Contact DDS support.'}
-        Exception.__init__(self, 'Error {} on {} Reason:{} Suggestion:{}'.format(
+        Exception.__init__(self, 'Error {} on {}\nReason:{}\nSuggestion:{}'.format(
             response.status_code, url_suffix, resp_json.get('reason', resp_json.get('error', '')),
             resp_json.get('suggestion', '')
         ))
@@ -152,6 +152,15 @@ class DataServiceError(Exception):
         self.url_suffix = url_suffix
         self.request_data = request_data
         self.status_code = response.status_code
+
+
+class DSResourceNotConsistentError(DataServiceError):
+    """
+    Exception thrown when a DukeDS resource is not in a consistent state.
+    The resource may become consistent at some future point in time so users can retry.
+    """
+    def __init__(self, response, url_suffix, request_data):
+        super(self.__class__, self).__init__(response, url_suffix, request_data)
 
 
 class DataServiceApi(object):
@@ -304,6 +313,9 @@ class DataServiceApi(object):
             raise ValueError(UNEXPECTED_PAGING_DATA_RECEIVED)
         if 200 <= resp.status_code < 300:
             return resp
+        if resp.status_code == 404:
+            if resp.json().get("code") == "resource_not_consistent":
+                raise DSResourceNotConsistentError(resp, url_suffix, data)
         raise DataServiceError(resp, url_suffix, data)
 
     def create_project(self, project_name, desc):

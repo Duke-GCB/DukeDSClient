@@ -1,6 +1,6 @@
 from ddsc.core.util import ProjectWalker, KindType
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
-from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData
+from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData, ProjectStatusMonitor
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 
 
@@ -22,6 +22,7 @@ class UploadSettings(object):
         self.project_name = project_name
         self.project_id = None
         self.file_upload_post_processor = file_upload_post_processor
+        self.project_status_monitor = ProjectStatusMonitor(watcher)
 
     def get_data_service_auth_data(self):
         """
@@ -48,17 +49,21 @@ class UploadContext(object):
     Values passed to a background worker.
     Contains UploadSettings and parameters specific to the function to be run.
     """
-    def __init__(self, settings, params):
+    def __init__(self, settings, params, message_queue, task_id):
         """
         Setup context so it can be passed.
         :param settings: UploadSettings: project level info
         :param params: tuple: values specific to the function being run
+        :param message_queue: Queue: queue background process can send messages to us on
+        :param task_id: int: id of this command's task so message will be routed correctly
         """
         self.data_service_auth_data = settings.get_data_service_auth_data()
         self.config = settings.config
         self.project_name = settings.project_name
         self.project_id = settings.project_id
         self.params = params
+        self.message_queue = message_queue
+        self.task_id = task_id
 
     def make_data_service(self):
         """
@@ -66,6 +71,25 @@ class UploadContext(object):
         :return: DataServiceApi
         """
         return UploadSettings.rebuild_data_service(self.config, self.data_service_auth_data)
+
+    def send_message(self, data):
+        """
+        Sends a message to the command's on_message(data) method.
+        :param data: object: data sent to on_message
+        """
+        self.message_queue.put((self.task_id, data))
+
+    def started_waiting(self):
+        """
+        Called when we start waiting for project to be ready for file uploads.
+        """
+        self.send_message(True)
+
+    def done_waiting(self):
+        """
+        Called when project isready for file uploads (after waiting).
+        """
+        self.send_message(False)
 
 
 class ProjectUploader(object):
@@ -226,11 +250,13 @@ class CreateProjectCommand(object):
         """
         self.settings.watcher.transferring_item(self.local_project)
 
-    def create_context(self):
+    def create_context(self, message_queue, task_id):
         """
         Create data needed by upload_project_run(DukeDS connection info).
+        :param message_queue: Queue: queue background process can send messages to us on
+        :param task_id: int: id of this command's task so message will be routed correctly
         """
-        return UploadContext(self.settings, ())
+        return UploadContext(self.settings, (), message_queue, task_id)
 
     def after_run(self, result_id):
         """
@@ -275,12 +301,14 @@ class CreateFolderCommand(object):
         """
         self.settings.watcher.transferring_item(self.remote_folder)
 
-    def create_context(self):
+    def create_context(self, message_queue, task_id):
         """
         Create values to be used by upload_folder_run function.
+        :param message_queue: Queue: queue background process can send messages to us on
+        :param task_id: int: id of this command's task so message will be routed correctly
         """
         params = (self.remote_folder.name, self.parent.kind, self.parent.remote_id)
-        return UploadContext(self.settings, params)
+        return UploadContext(self.settings, params, message_queue, task_id)
 
     def after_run(self, result_id):
         """
@@ -329,14 +357,16 @@ class CreateSmallFileCommand(object):
     def before_run(self, parent_task_result):
         pass
 
-    def create_context(self):
+    def create_context(self, message_queue, task_id):
         """
         Create values to be used by create_small_file function.
-        """
+        :param message_queue: Queue: queue background process can send messages to us on
+        :param task_id: int: id of this command's task so message will be routed correctly
+       """
         parent_data = ParentData(self.parent.kind, self.parent.remote_id)
         path_data = self.local_file.get_path_data()
         params = parent_data, path_data, self.local_file.remote_id
-        return UploadContext(self.settings, params)
+        return UploadContext(self.settings, params, message_queue, task_id)
 
     def after_run(self, remote_file_data):
         """
@@ -348,6 +378,17 @@ class CreateSmallFileCommand(object):
         remote_file_id = remote_file_data['id']
         self.settings.watcher.transferring_item(self.local_file)
         self.local_file.set_remote_id_after_send(remote_file_id)
+
+    def on_message(self, started_waiting):
+        """
+        Receives started_waiting boolean from create_small_file method and notifies project_status_monitor in settings.
+        :param started_waiting: boolean: True when we start waiting, False when done
+        """
+        project_status_monitor = self.settings.project_status_monitor
+        if started_waiting:
+            project_status_monitor.started_waiting()
+        else:
+            project_status_monitor.done_waiting()
 
 
 def create_small_file(upload_context):
@@ -366,7 +407,7 @@ def create_small_file(upload_context):
     hash_data = path_data.get_hash()
 
     # Talk to data service uploading chunk and creating the file.
-    upload_operations = FileUploadOperations(data_service)
+    upload_operations = FileUploadOperations(data_service, upload_context)
     upload_id = upload_operations.create_upload(upload_context.project_id, path_data, hash_data)
     url_info = upload_operations.create_file_chunk_url(upload_id, chunk_num, chunk)
     upload_operations.send_file_external(url_info, chunk)

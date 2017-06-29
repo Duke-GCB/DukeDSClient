@@ -1,8 +1,9 @@
 from __future__ import absolute_import
 from unittest import TestCase
 import requests
-from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, UNEXPECTED_PAGING_DATA_RECEIVED
-from mock import MagicMock
+from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, UNEXPECTED_PAGING_DATA_RECEIVED, \
+    DataServiceError, DSResourceNotConsistentError
+from mock import MagicMock, Mock
 
 
 def fake_response_with_pages(status_code, json_return_value, num_pages=1):
@@ -350,6 +351,42 @@ class TestDataServiceApi(TestCase):
         api = DataServiceApi(auth=None, url="something.com/v1/", http=None)
         self.assertIsNotNone(api.http)
         self.assertEqual(type(api.http), requests.sessions.Session)
+
+    def test_check_err_with_good_response(self):
+        resp = Mock(headers={}, status_code=202)
+        url_suffix = ""
+        data = None
+        DataServiceApi._check_err(resp, url_suffix, data, allow_pagination=False)
+
+    def test_check_err_with_500(self):
+        resp = Mock(headers={}, status_code=500)
+        url_suffix = ""
+        data = None
+        with self.assertRaises(DataServiceError):
+            DataServiceApi._check_err(resp, url_suffix, data, allow_pagination=False)
+
+    def test_check_err_with_400(self):
+        resp = Mock(headers={}, status_code=400)
+        url_suffix = ""
+        data = None
+        with self.assertRaises(DataServiceError):
+            DataServiceApi._check_err(resp, url_suffix, data, allow_pagination=False)
+
+    def test_check_err_with_404(self):
+        resp = Mock(headers={}, status_code=404)
+        resp.json.return_value = {"code": "not_found"}
+        url_suffix = ""
+        data = None
+        with self.assertRaises(DataServiceError):
+            DataServiceApi._check_err(resp, url_suffix, data, allow_pagination=False)
+
+    def test_check_err_with_404_with_flag(self):
+        resp = Mock(headers={}, status_code=404)
+        resp.json.return_value = {"code": "resource_not_consistent"}
+        url_suffix = ""
+        data = None
+        with self.assertRaises(DSResourceNotConsistentError):
+            DataServiceApi._check_err(resp, url_suffix, data, allow_pagination=False)
 
     def test_get_projects(self):
         page1 = {

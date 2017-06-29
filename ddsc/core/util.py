@@ -55,6 +55,7 @@ class ProgressPrinter(object):
         self.cnt = 0
         self.max_width = 0
         self.msg_verb = msg_verb
+        self.progress_bar = ProgressBar()
 
     def transferring_item(self, item, increment_amt=1):
         """
@@ -62,25 +63,21 @@ class ProgressPrinter(object):
         :param item: LocalFile, LocalFolder, or LocalContent(project) that is about to be sent.
         :param increment_amt: int amount to increase our count(how much progress have we made)
         """
-        percent_done = int(float(self.cnt) / float(self.total) * 100.0)
-        name = ''
-        if KindType.is_project(item):
-            name = 'project'
-        else:
-            name = item.path
-        # left justify message so we cover up the previous one
-        message = u'\rProgress: {}% - {} {}'.format(percent_done, self.msg_verb, name)
-        self.max_width = max(len(message), self.max_width)
-        sys.stdout.write(message.ljust(self.max_width))
-        sys.stdout.flush()
         self.cnt += increment_amt
+        percent_done = int(float(self.cnt) / float(self.total) * 100.0)
+        if KindType.is_project(item):
+            details = 'project'
+        else:
+            details = os.path.basename(item.path)
+        self.progress_bar.update(percent_done, '{} {}'.format(self.msg_verb, details))
+        self.progress_bar.show()
 
     def finished(self):
         """
         Must be called to print final progress label.
         """
-        sys.stdout.write('\rDone: 100%'.ljust(self.max_width) + '\n')
-        sys.stdout.flush()
+        self.progress_bar.set_state(ProgressBar.STATE_DONE)
+        self.progress_bar.show()
 
     def show_warning(self, message):
         """
@@ -88,6 +85,64 @@ class ProgressPrinter(object):
         :param message: str: Message to display
         """
         print(message)
+
+    def start_waiting(self, wait_msg):
+        """
+        Show waiting progress bar until done_waiting is called
+        :param wait_msg: str: message describing what we are waiting for
+        """
+        self.progress_bar.wait_msg = wait_msg
+        self.progress_bar.set_state(ProgressBar.STATE_WAITING)
+        self.progress_bar.show()
+
+    def done_waiting(self):
+        """
+        Show running progress bar
+        """
+        self.progress_bar.set_state(ProgressBar.STATE_RUNNING)
+        self.progress_bar.show()
+
+
+class ProgressBar(object):
+    STATE_RUNNING = 'running'
+    STATE_WAITING = 'waiting'
+    STATE_DONE = 'done'
+
+    def __init__(self):
+        self.max_width = 0
+        self.percent_done = 0
+        self.current_item_details = ''
+        self.line = ''
+        self.state = self.STATE_RUNNING
+        self.wait_msg = 'Waiting'
+
+    def update(self, percent_done, details):
+        self.percent_done = percent_done
+        self.current_item_details = details
+
+    def set_state(self, state):
+        self.state = state
+
+    def _get_line(self):
+        if self.state == self.STATE_DONE:
+            return 'Done: 100%'
+        details = self.current_item_details
+        if self.state == self.STATE_WAITING:
+            details = self.wait_msg
+        return 'Progress: {}% - {}'.format(self.percent_done, details)
+
+    def show(self):
+        line = self._get_line()
+        sys.stdout.write(self.format_line(line))
+        sys.stdout.flush()
+        self.max_width = max(len(line), self.max_width)
+
+    def format_line(self, line):
+        justified_line = line.ljust(self.max_width)
+        formatted_line = '\r{}'.format(justified_line)
+        if self.state == self.STATE_DONE:
+            formatted_line += '\n'
+        return formatted_line
 
 
 class ProjectWalker(object):

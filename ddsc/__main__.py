@@ -13,7 +13,8 @@ def main(args=None):
         if client.show_error_stack_trace:
             raise
         else:
-            sys.stderr.write(str(ex))
+            error_message = '\n{}\n'.format(str(ex))
+            sys.stderr.write(error_message)
             sys.exit(2)
 
 
