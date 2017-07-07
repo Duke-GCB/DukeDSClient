@@ -123,3 +123,15 @@ class TestConfig(TestCase):
         mock_os.environ.get.return_value = "/shared/ddsclient.config"
         ddsc.config.create_config()
         mock_verify_file_private.assert_not_called()
+
+    @patch('ddsc.config.os')
+    def test_get_user_config_filename(self, mock_os):
+        # Pretend there is no LOCAL_CONFIG_ENV set
+        mock_os.environ.get.return_value = None
+        self.assertEqual(ddsc.config.LOCAL_CONFIG_FILENAME, ddsc.config.get_user_config_filename())
+        mock_os.environ.get.assert_called_with(ddsc.config.LOCAL_CONFIG_ENV)
+        mock_os.environ.get.reset_mock()
+        # Pretend LOCAL_CONFIG_ENV is set to /tmp/special.ddsclient.conf
+        mock_os.environ.get.return_value = '/tmp/special.ddsclient.conf'
+        self.assertEqual('/tmp/special.ddsclient.conf', ddsc.config.get_user_config_filename())
+        mock_os.environ.get.assert_called_with(ddsc.config.LOCAL_CONFIG_ENV)
