@@ -461,11 +461,11 @@ class TestDataServiceAuth(TestCase):
         config = Mock(url='', user_key='', agent_key='abc')
         mock_requests.post.return_value = Mock(status_code=500, text='service down')
         auth = DataServiceAuth(config)
-        with self.assertRaises(AuthTokenCreationError) as raised_exception:
+        with self.assertRaises(AuthTokenCreationError) as err:
             auth.claim_new_token()
-        error_msg = str(raised_exception.exception)
-        self.assertIn('500', error_msg)
-        self.assertIn('service down', error_msg)
+        error_message = str(err.exception)
+        self.assertIn('500', error_message)
+        self.assertIn('service down', error_message)
 
 
 class TestMissingInitialSetupError(TestCase):
@@ -474,9 +474,10 @@ class TestMissingInitialSetupError(TestCase):
         mock_get_user_config_filename.return_value = '/tmp/ddsc.config'
         with self.assertRaises(MissingInitialSetupError) as err:
             raise MissingInitialSetupError()
-        self.assertIn('Missing initial setup', err.exception.message)
-        self.assertIn('/tmp/ddsc.config', err.exception.message)
-        self.assertIn(SETUP_GUIDE_URL, err.exception.message)
+        error_message = str(err.exception)
+        self.assertIn('Missing initial setup', error_message)
+        self.assertIn('/tmp/ddsc.config', error_message)
+        self.assertIn(SETUP_GUIDE_URL, error_message)
 
 
 class TestSoftwareAgentNotFoundError(TestCase):
@@ -485,15 +486,17 @@ class TestSoftwareAgentNotFoundError(TestCase):
         mock_get_user_config_filename.return_value = '/tmp/ddsc_other.config'
         with self.assertRaises(SoftwareAgentNotFoundError) as err:
             raise SoftwareAgentNotFoundError()
-        self.assertIn('Your software agent was not found', err.exception.message)
-        self.assertIn('/tmp/ddsc_other.config', err.exception.message)
+        error_message = str(err.exception)
+        self.assertIn('Your software agent was not found', error_message)
+        self.assertIn('/tmp/ddsc_other.config', error_message)
 
 
 class TestUnexpectedPagingReceivedError(TestCase):
     def test_constructor(self):
         with self.assertRaises(UnexpectedPagingReceivedError) as err:
             raise UnexpectedPagingReceivedError()
-        self.assertIn('Received unexpected paging data', err.exception.message)
+        error_message = str(err.exception)
+        self.assertIn('Received unexpected paging data', error_message)
 
 
 class TestAuthTokenCreationError(TestCase):
@@ -501,6 +504,7 @@ class TestAuthTokenCreationError(TestCase):
         request = Mock(status_code=400, text='Bad data')
         with self.assertRaises(AuthTokenCreationError) as err:
             raise AuthTokenCreationError(request)
-        self.assertIn('Failed to create auth token', err.exception.message)
-        self.assertIn('400', err.exception.message)
-        self.assertIn('Bad data', err.exception.message)
+        error_message = str(err.exception)
+        self.assertIn('Failed to create auth token', error_message)
+        self.assertIn('400', error_message)
+        self.assertIn('Bad data', error_message)
