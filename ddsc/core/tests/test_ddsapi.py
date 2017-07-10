@@ -1,9 +1,10 @@
 from __future__ import absolute_import
 from unittest import TestCase
 import requests
-from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, UNEXPECTED_PAGING_DATA_RECEIVED, \
-    DataServiceError, DSResourceNotConsistentError
-from mock import MagicMock, Mock
+from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth, SETUP_GUIDE_URL
+from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
+    UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError
+from mock import MagicMock, Mock, patch
 
 
 def fake_response_with_pages(status_code, json_return_value, num_pages=1):
@@ -157,9 +158,8 @@ class TestDataServiceApi(TestCase):
             fake_response_with_pages(status_code=200, json_return_value={}, num_pages=3)
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
-        with self.assertRaises(ValueError) as er:
+        with self.assertRaises(UnexpectedPagingReceivedError):
             api._put(url_suffix='stuff', data={})
-        self.assertEqual(UNEXPECTED_PAGING_DATA_RECEIVED, str(er.exception))
 
     def test_post_raises_error_on_paging_response(self):
         mock_requests = MagicMock()
@@ -167,9 +167,8 @@ class TestDataServiceApi(TestCase):
             fake_response_with_pages(status_code=200, json_return_value={}, num_pages=3)
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
-        with self.assertRaises(ValueError) as er:
+        with self.assertRaises(UnexpectedPagingReceivedError):
             api._post(url_suffix='stuff', data={})
-        self.assertEqual(UNEXPECTED_PAGING_DATA_RECEIVED, str(er.exception))
 
     def test_delete_raises_error_on_paging_response(self):
         mock_requests = MagicMock()
@@ -177,9 +176,8 @@ class TestDataServiceApi(TestCase):
             fake_response_with_pages(status_code=200, json_return_value={}, num_pages=3)
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
-        with self.assertRaises(ValueError) as er:
+        with self.assertRaises(UnexpectedPagingReceivedError):
             api._delete(url_suffix='stuff', data={})
-        self.assertEqual(UNEXPECTED_PAGING_DATA_RECEIVED, str(er.exception))
 
     def test_get_single_item_raises_error_on_paging_response(self):
         mock_requests = MagicMock()
@@ -187,9 +185,8 @@ class TestDataServiceApi(TestCase):
             fake_response_with_pages(status_code=200, json_return_value={}, num_pages=3)
         ]
         api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
-        with self.assertRaises(ValueError) as er:
+        with self.assertRaises(UnexpectedPagingReceivedError):
             api._get_single_item(url_suffix='stuff', data={})
-        self.assertEqual(UNEXPECTED_PAGING_DATA_RECEIVED, str(er.exception))
 
     def test_get_single_page_works_on_paging_response(self):
         mock_requests = MagicMock()
@@ -421,3 +418,93 @@ class TestDataServiceApi(TestCase):
         second_call_second_arg = mock_requests.get.call_args_list[0][1]
         self.assertEqual(100, second_call_second_arg['params']['per_page'])
         self.assertEqual(1, second_call_second_arg['params']['page'])
+
+
+class TestDataServiceAuth(TestCase):
+    @patch('ddsc.core.ddsapi.get_user_agent_str')
+    @patch('ddsc.core.ddsapi.requests')
+    def test_claim_new_token(self, mock_requests, mock_get_user_agent_str):
+        mock_get_user_agent_str.return_value = ''
+        payload = {
+            'api_token': 'abc',
+            'expires_on': '123'
+        }
+        response = Mock(status_code=201)
+        response.json.return_value = payload
+        mock_requests.post.return_value = response
+        config = Mock(url='', user_key='', agent_key='')
+        auth = DataServiceAuth(config)
+        auth.claim_new_token()
+        self.assertEqual(auth.get_auth_data(), ('abc', '123'))
+
+    @patch('ddsc.core.ddsapi.get_user_agent_str')
+    @patch('ddsc.core.ddsapi.requests')
+    def test_claim_new_token_missing_setup(self, mock_requests, mock_get_user_agent_str):
+        config = Mock(url='', user_key='', agent_key='')
+        mock_requests.post.return_value = Mock(status_code=404)
+        auth = DataServiceAuth(config)
+        with self.assertRaises(MissingInitialSetupError):
+            auth.claim_new_token()
+
+    @patch('ddsc.core.ddsapi.get_user_agent_str')
+    @patch('ddsc.core.ddsapi.requests')
+    def test_claim_new_token_missing_agent(self, mock_requests, mock_get_user_agent_str):
+        config = Mock(url='', user_key='', agent_key='abc')
+        mock_requests.post.return_value = Mock(status_code=404)
+        auth = DataServiceAuth(config)
+        with self.assertRaises(SoftwareAgentNotFoundError):
+            auth.claim_new_token()
+
+    @patch('ddsc.core.ddsapi.get_user_agent_str')
+    @patch('ddsc.core.ddsapi.requests')
+    def test_claim_new_token_error(self, mock_requests, mock_get_user_agent_str):
+        config = Mock(url='', user_key='', agent_key='abc')
+        mock_requests.post.return_value = Mock(status_code=500, text='service down')
+        auth = DataServiceAuth(config)
+        with self.assertRaises(AuthTokenCreationError) as err:
+            auth.claim_new_token()
+        error_message = str(err.exception)
+        self.assertIn('500', error_message)
+        self.assertIn('service down', error_message)
+
+
+class TestMissingInitialSetupError(TestCase):
+    @patch('ddsc.core.ddsapi.get_user_config_filename')
+    def test_constructor(self, mock_get_user_config_filename):
+        mock_get_user_config_filename.return_value = '/tmp/ddsc.config'
+        with self.assertRaises(MissingInitialSetupError) as err:
+            raise MissingInitialSetupError()
+        error_message = str(err.exception)
+        self.assertIn('Missing initial setup', error_message)
+        self.assertIn('/tmp/ddsc.config', error_message)
+        self.assertIn(SETUP_GUIDE_URL, error_message)
+
+
+class TestSoftwareAgentNotFoundError(TestCase):
+    @patch('ddsc.core.ddsapi.get_user_config_filename')
+    def test_constructor(self, mock_get_user_config_filename):
+        mock_get_user_config_filename.return_value = '/tmp/ddsc_other.config'
+        with self.assertRaises(SoftwareAgentNotFoundError) as err:
+            raise SoftwareAgentNotFoundError()
+        error_message = str(err.exception)
+        self.assertIn('Your software agent was not found', error_message)
+        self.assertIn('/tmp/ddsc_other.config', error_message)
+
+
+class TestUnexpectedPagingReceivedError(TestCase):
+    def test_constructor(self):
+        with self.assertRaises(UnexpectedPagingReceivedError) as err:
+            raise UnexpectedPagingReceivedError()
+        error_message = str(err.exception)
+        self.assertIn('Received unexpected paging data', error_message)
+
+
+class TestAuthTokenCreationError(TestCase):
+    def test_constructor(self):
+        request = Mock(status_code=400, text='Bad data')
+        with self.assertRaises(AuthTokenCreationError) as err:
+            raise AuthTokenCreationError(request)
+        error_message = str(err.exception)
+        self.assertIn('Failed to create auth token', error_message)
+        self.assertIn('400', error_message)
+        self.assertIn('Bad data', error_message)

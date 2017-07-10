@@ -2,30 +2,17 @@
 import json
 import requests
 import time
-from ddsc.config import LOCAL_CONFIG_FILENAME
+from ddsc.config import get_user_config_filename
 from ddsc.versioncheck import APP_NAME, get_internal_version_str
 
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
-
-MISSING_INITIAL_SETUP_MSG = """Missing initial setup.
-You need to add agent_key and user_key to {}.
-Follow this guide: {}\n""".format(LOCAL_CONFIG_FILENAME, SETUP_GUIDE_URL)
-
-SOFTWARE_AGENT_NOT_FOUND_MSG = """Your software agent was not found on the server.
-Perhaps you have the wrong URL. You can change it via the 'url' setting in {}.""".format(LOCAL_CONFIG_FILENAME, LOCAL_CONFIG_FILENAME)
-
-UNEXPECTED_PAGING_DATA_RECEIVED = """Received unexpected paging data in single item response.
-This may be due to an incompatible DukeDS API change.
-Try upgrading ddsclient: pip install --upgrade DukeDSClient
-"""
-
 DEFAULT_RESULTS_PER_PAGE = 100
 
 
 def get_user_agent_str():
     """
-    Returns the user agent: DukeDSClient/<versigon>
+    Returns the user agent: DukeDSClient/<version>
     :return: str: user agent value
     """
     return '{}/{}'.format(APP_NAME, get_internal_version_str())
@@ -82,12 +69,11 @@ class DataServiceAuth(object):
         response = requests.post(url, headers=headers, data=json.dumps(data))
         if response.status_code == 404:
             if not self.config.agent_key:
-                raise ValueError(MISSING_INITIAL_SETUP_MSG)
+                raise MissingInitialSetupError()
             else:
-                raise ValueError(SOFTWARE_AGENT_NOT_FOUND_MSG)
+                raise SoftwareAgentNotFoundError()
         if response.status_code != 201:
-            msg_format = 'Failed to create auth token status:{}\n{}'
-            raise ValueError(msg_format.format(response.status_code, response.text))
+            raise AuthTokenCreationError(response)
         resp_json = response.json()
         self._auth = resp_json['api_token']
         self._expires = resp_json['expires_on']
@@ -310,7 +296,7 @@ class DataServiceApi(object):
         """
         total_pages = resp.headers.get('x-total-pages')
         if not allow_pagination and total_pages:
-            raise ValueError(UNEXPECTED_PAGING_DATA_RECEIVED)
+            raise UnexpectedPagingReceivedError()
         if 200 <= resp.status_code < 300:
             return resp
         if resp.status_code == 404:
@@ -918,3 +904,47 @@ class ActivityRelationTypes(object):
     USED = "used"
     WAS_GENERATED_BY = "was_generated_by"
     WAS_INVALIDATED_BY = "was_invalidated_by"
+
+
+class AuthTokenException(Exception):
+    def __init__(self, message):
+        super(AuthTokenException, self).__init__(message)
+
+
+class MissingInitialSetupError(AuthTokenException):
+    MSG_BASE = """Missing initial setup.
+You need to add agent_key and user_key to {}.
+Follow this guide: {}\n"""
+
+    def __init__(self):
+        user_config_filename = get_user_config_filename()
+        message = self.MSG_BASE.format(user_config_filename, SETUP_GUIDE_URL)
+        super(MissingInitialSetupError, self).__init__(message)
+
+
+class SoftwareAgentNotFoundError(AuthTokenException):
+    MSG_BASE = """Your software agent was not found on the server.
+Perhaps you have the wrong URL. You can change it via the 'url' setting in {}."""
+
+    def __init__(self):
+        user_config_filename = get_user_config_filename()
+        message = self.MSG_BASE.format(user_config_filename)
+        super(SoftwareAgentNotFoundError, self).__init__(message)
+
+
+class AuthTokenCreationError(AuthTokenException):
+    MSG_BASE = at = 'Failed to create auth token status:{}\n{}'
+
+    def __init__(self, response):
+        message = self.MSG_BASE.format(response.status_code, response.text)
+        super(AuthTokenCreationError, self).__init__(message)
+
+
+class UnexpectedPagingReceivedError(Exception):
+    MESSAGE = """Received unexpected paging data in single item response.
+This may be due to an incompatible DukeDS API change.
+Try upgrading ddsclient: pip install --upgrade DukeDSClient
+"""
+
+    def __init__(self):
+        super(UnexpectedPagingReceivedError, self).__init__(self.MESSAGE)
