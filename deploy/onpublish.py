@@ -21,12 +21,12 @@ resp = requests.get(url, headers=headers)
 if resp.status_code == 404:
     print("Creating spec file {}.".format(target_filename))
     with open(source_filename, 'r') as infile:
-        base64_content = base64.b64encode(infile.read())
+        base64_content = base64.b64encode(infile.read().encode('utf-8'))
     data = {
       "path": "rpmbuild/SPECS/{}".format(target_filename),
       "message": commit_msg,
       "committer": {"name": commit_user, "email": commit_email},
-      "content": base64_content,
+      "content": str(base64_content),
       "branch": commit_branch
     }
     resp = requests.put(url, headers=headers, json=data)
