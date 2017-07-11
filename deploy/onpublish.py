@@ -8,7 +8,7 @@ commit_token = os.environ['COMMIT_TOKEN']
 commit_user = os.environ['COMMIT_USER']
 commit_email = os.environ['COMMIT_EMAIL']
 
-base_url = 'https://api.github.com/repos/johnbradley/helmod/contents/rpmbuild/SPECS/'
+base_url = 'https://api.github.com/repos/Duke-GCB/helmod/contents/rpmbuild/SPECS/'
 source_filename = "deploy/ddsclient-generic-gcb01.spec"
 target_filename = "ddsclient-{}-gcb01.spec".format(travis_tag)
 commit_msg = "DukeDSClient module update {}".format(travis_tag)
