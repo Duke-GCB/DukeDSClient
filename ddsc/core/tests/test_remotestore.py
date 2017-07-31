@@ -1,6 +1,6 @@
 import json
 from unittest import TestCase
-from mock import MagicMock
+from mock import MagicMock, Mock
 from mock.mock import patch
 from ddsc.core.remotestore import RemoteProject, RemoteFolder, RemoteFile, RemoteUser
 from ddsc.core.remotestore import RemoteStore
@@ -415,6 +415,39 @@ class TestRemoteStore(TestCase):
         ids = set([auth_role.id for auth_role in auth_roles])
         expected_ids = set(["project_admin", "project_viewer"])
         self.assertEqual(expected_ids, ids)
+
+    @patch("ddsc.core.remotestore.DataServiceApi")
+    def test_get_projects_with_auth_role(self, mock_data_service_api):
+        projects_resp = Mock()
+        projects_resp.json.return_value = {
+            'results': [
+                {
+                    'id': '123'
+                },
+                {
+                    'id': '456'
+                }
+            ]
+        }
+        mock_data_service_api.return_value.get_projects.return_value = projects_resp
+        permission_resp = Mock()
+        permission_resp.json.side_effect = [
+            {
+                'auth_role': {
+                    'id': 'project_admin'
+                }
+            }, {
+                'auth_role': {
+                    'id': 'file_downloader'
+                }
+            }
+        ]
+        mock_data_service_api.return_value.get_user_project_permission.return_value = permission_resp
+        remote_store = RemoteStore(config=MagicMock())
+        result = remote_store.get_projects_with_auth_role(auth_role='project_admin')
+        mock_data_service_api.return_value.get_projects.assert_called()
+        self.assertEqual(1, len(result))
+        self.assertEqual('123', result[0]['id'])
 
 
 class TestRemoteProjectChildren(TestCase):
