@@ -305,20 +305,30 @@ class ListCommand(object):
         Lists project names.
         :param args Namespace arguments parsed from the command line
         """
+        # project_name and auth_role args are mutually exclusive
         if args.project_name:
             project = self.remote_store.fetch_remote_project(args.project_name, must_exist=True)
             self.print_project_details(project)
         else:
-            self.print_project_names()
+            self.print_project_names(args.auth_role)
 
-    def print_project_details(self, project):
+    @staticmethod
+    def print_project_details(project):
         filename_list = ProjectFilenameList()
         filename_list.walk_project(project)
         for info in filename_list.details:
             print(info)
 
-    def print_project_names(self):
-        names = self.remote_store.get_project_names()
+    def print_project_names(self, filter_auth_role):
+        """
+        Prints project names to stdout for all projects or just those with the specified auth_role
+        :param filter_auth_role: str: optional auth_role to filter project list
+        """
+        if filter_auth_role:
+            projects = self.remote_store.get_projects_with_auth_role(auth_role=filter_auth_role)
+            names = [project['name'] for project in projects]
+        else:
+            names = self.remote_store.get_project_names()
         if names:
             for name in names:
                 print(pipes.quote(name))

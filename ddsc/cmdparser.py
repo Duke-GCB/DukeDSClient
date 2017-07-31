@@ -160,6 +160,21 @@ def _add_auth_role_arg(arg_parser, default_permissions):
                             default=default_permissions)
 
 
+def _add_project_filter_auth_role_arg(arg_parser):
+    """
+    Adds optional auth_role filtering parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    """
+    help_text = "Filters project listing to just those projects with the specified role. "
+    help_text += "See command list_auth_roles for AuthRole values."
+    arg_parser.add_argument("--auth-role",
+                            metavar='AuthRole',
+                            type=to_unicode,
+                            dest='auth_role',
+                            help=help_text,
+                            default=None)
+
+
 def _add_copy_project_arg(arg_parser):
     """
     Adds optional copy_project parameter to a parser.
@@ -378,7 +393,9 @@ class CommandParser(object):
         """
         description = "Show a list of project names or folders/files of a single project."
         list_parser = self.subparsers.add_parser('list', description=description)
-        add_project_name_arg(list_parser, required=False, help_text="Name of the project to show details for.")
+        project_name_or_auth_role = list_parser.add_mutually_exclusive_group(required=False)
+        _add_project_filter_auth_role_arg(project_name_or_auth_role)
+        add_project_name_arg(project_name_or_auth_role, required=False, help_text="Name of the project to show details for.")
         list_parser.set_defaults(func=list_func)
 
     def register_delete_command(self, delete_func):
