@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from ddsc.ddsclient import UploadCommand
+from ddsc.ddsclient import UploadCommand, ListCommand
 from ddsc.ddsclient import ShareCommand, DeliverCommand, read_argument_file_contents
-from mock import patch, MagicMock, Mock
+from mock import patch, MagicMock, Mock, call
 
 
 class TestUploadCommand(TestCase):
@@ -106,3 +106,38 @@ class TestDDSClient(TestCase):
         self.assertEqual('', read_argument_file_contents(None))
         with open("setup.py") as infile:
             self.assertIn("setup(", read_argument_file_contents(infile))
+
+
+class TestListCommand(TestCase):
+    @patch('sys.stdout.write')
+    @patch('ddsc.ddsclient.RemoteStore')
+    def test_print_project_names_no_auth_role(self, mock_remote_store, mock_print):
+        mock_remote_store.return_value.get_project_names.return_value = ['one', 'two', 'three']
+        cmd = ListCommand(MagicMock())
+        cmd.print_project_names(filter_auth_role=None)
+        expected_calls = [
+            call("one"),
+            call("\n"),
+            call("two"),
+            call("\n"),
+            call("three"),
+            call("\n")
+        ]
+        self.assertEqual(expected_calls, mock_print.call_args_list)
+
+    @patch('sys.stdout.write')
+    @patch('ddsc.ddsclient.RemoteStore')
+    def test_print_project_names_with_auth_role(self, mock_remote_store, mock_print):
+        mock_remote_store.return_value.get_projects_with_auth_role.return_value = [
+            {'name': 'mouse'},
+            {'name': 'ant'},
+        ]
+        cmd = ListCommand(MagicMock())
+        cmd.print_project_names(filter_auth_role='project_admin')
+        expected_calls = [
+            call("mouse"),
+            call("\n"),
+            call("ant"),
+            call("\n")
+        ]
+        self.assertEqual(expected_calls, mock_print.call_args_list)

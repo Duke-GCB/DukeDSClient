@@ -254,6 +254,23 @@ class RemoteStore(object):
             names.append(project['name'])
         return names
 
+    def get_projects_with_auth_role(self, auth_role):
+        """
+        Return the list of projects that have the specified auth role from the list that the current user has access to.
+        :param auth_role: str: auth role we are filtering for
+        :return: [dict]: list of projects that have auth_role permissions for the current user
+        """
+        user = self.get_current_user()
+        # user.id
+        projects = []
+        response = self.data_service.get_projects().json()
+        for project in response['results']:
+            project_id = project['id']
+            permissions = self.data_service.get_user_project_permission(project_id, user.id).json()
+            if auth_role == permissions['auth_role']['id']:
+                projects.append(project)
+        return projects
+
     def delete_project_by_name(self, project_name):
         """
         Find the project named project_name and delete it raise error if not found.
