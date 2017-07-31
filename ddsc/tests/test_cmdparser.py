@@ -3,6 +3,7 @@ from unittest import TestCase
 from ddsc.cmdparser import CommandParser
 from mock import Mock
 
+
 def no_op():
     pass
 
