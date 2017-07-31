@@ -109,7 +109,7 @@ class TestDDSClient(TestCase):
 
 
 class TestListCommand(TestCase):
-    @patch('__builtin__.print')
+    @patch('sys.stdout.write')
     @patch('ddsc.ddsclient.RemoteStore')
     def test_print_project_names_no_auth_role(self, mock_remote_store, mock_print):
         mock_remote_store.return_value.get_project_names.return_value = ['one', 'two', 'three']
@@ -117,12 +117,15 @@ class TestListCommand(TestCase):
         cmd.print_project_names(filter_auth_role=None)
         expected_calls = [
             call("one"),
+            call("\n"),
             call("two"),
+            call("\n"),
             call("three"),
+            call("\n")
         ]
         self.assertEqual(expected_calls, mock_print.call_args_list)
 
-    @patch('__builtin__.print')
+    @patch('sys.stdout.write')
     @patch('ddsc.ddsclient.RemoteStore')
     def test_print_project_names_with_auth_role(self, mock_remote_store, mock_print):
         mock_remote_store.return_value.get_projects_with_auth_role.return_value = [
@@ -133,6 +136,8 @@ class TestListCommand(TestCase):
         cmd.print_project_names(filter_auth_role='project_admin')
         expected_calls = [
             call("mouse"),
-            call("ant")
+            call("\n"),
+            call("ant"),
+            call("\n")
         ]
         self.assertEqual(expected_calls, mock_print.call_args_list)
