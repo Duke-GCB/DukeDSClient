@@ -2,6 +2,7 @@
 Downloads a file based on ranges.
 """
 import math
+import logging
 import tempfile
 import requests
 from multiprocessing import Process, Queue
@@ -9,6 +10,7 @@ from ddsc.core.util import ProgressQueue, wait_for_processes
 
 DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
 MIN_DOWNLOAD_CHUNK_SIZE = DOWNLOAD_FILE_CHUNK_SIZE
+logging.basicConfig(filename='/tmp/ddsclient.log',level=logging.INFO)
 
 
 class FileDownloader(object):
@@ -118,27 +120,29 @@ class FileDownloader(object):
         :param progress_queue: ProgressQueue: queue to notify as we make progress
         :return: Process: the process we created
         """
+        expected_size = range_end - range_start + 1
         http_headers = {'Range': 'bytes={}-{}'.format(range_start, range_end)}
         if self.http_headers:
             http_headers.update(self.http_headers)
         seek_amt = range_start
         process = Process(target=download_async,
-                          args=(self.url, http_headers, self.path, seek_amt, progress_queue))
+                          args=(self.url, http_headers, self.path, seek_amt, expected_size, progress_queue))
         process.start()
         return process
 
 
-def download_async(url, headers, path, seek_amt, progress_queue):
+def download_async(url, headers, path, seek_amt, expected_size, progress_queue):
     """
     Called in separate process to download a chunk of a file.
     :param url: str: url to file we should download
     :param headers: dict: header to use with url, should contain Range to limit what we download
     :param path: str: path to where we should save our chunk we download
     :param seek_amt: int: offset to seek before writing our chunk out to path
+    :param expected_size: int: expected size we should receive from the url
     :param progress_queue: ProgressQueue: queue of tuples we will add progress/errors to
     :return:
     """
-    downloader = ChunkDownloader(url, headers, path, seek_amt, progress_queue)
+    downloader = ChunkDownloader(url, headers, path, seek_amt, expected_size, progress_queue)
     downloader.run()
 
 
@@ -147,22 +151,26 @@ class ChunkDownloader(object):
     Downloads part of a file and writes it to a location in a local pre-existing file.
     This runs in a separate process from the main application.
     """
-    def __init__(self, url, http_headers, path, seek_amt, progress_queue):
+    def __init__(self, url, http_headers, path, seek_amt, expected_size, progress_queue):
         """
         Setup for downloading part of a file.
         :param url: str: url to the file
         :param http_headers: dict: headers for use with the url should contain byte Range
         :param path: str: path to file to write data to
         :param seek_amt: int: offset amount to seek into the file
+        :param expected_size: int: expected size we should receive from the url
         :param progress_queue: ProgressQueue: queue we notify of progress or errors
         """
         self.url = url
         self.http_headers = http_headers
         self.path = path
         self.seek_amt = seek_amt
+        self.expected_size = expected_size
         self.progress_queue = progress_queue
 
     def run(self):
+        total_size = 0
+        logging.info('run downloader path:{} headers:{}'.format(self.path, self.http_headers))
         try:
             response = requests.get(self.url, headers=self.http_headers, stream=True)
             # open file for read/write without truncating
@@ -171,6 +179,18 @@ class ChunkDownloader(object):
                 for chunk in response.iter_content(chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
                     if chunk:  # filter out keep-alive chunks
                         outfile.write(chunk)
-                        self.progress_queue.processed(len(chunk))
+                        size = len(chunk)
+                        total_size += size
+                        self.progress_queue.processed(size)
+                if total_size != self.expected_size:
+                    wrong_data_size_msg = 'Received {} bytes downloading when we expected {} ({})'.format(
+                        total_size, self.expected_size, self.path)
+                    logging.error(wrong_data_size_msg)
+                    self.progress_queue.error(wrong_data_size_msg)
+                else:
+                    logging.error("download completed correctly {}".format(self.path))
         except Exception as ex:
-            self.progress_queue.error(str(ex))
+            error_msg = str(ex)
+            logging.error(error_msg)
+            self.progress_queue.error(error_msg)
+
