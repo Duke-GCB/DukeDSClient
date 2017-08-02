@@ -1,7 +1,8 @@
 from unittest import TestCase
 import ddsc.core.filedownloader
-from ddsc.core.filedownloader import FileDownloader
-
+from ddsc.core.filedownloader import FileDownloader, download_async, ChunkDownloader, \
+    TooLargeChunkDownloadError, PartialChunkDownloadError, PARTIAL_DOWNLOAD_RETRY_TIMES
+from mock import patch, MagicMock, call
 
 class FakeConfig(object):
     def __init__(self, download_workers):
@@ -127,3 +128,49 @@ class TestFileDownloader(TestCase):
         rest = total - first
         progress_queue.processed(first)
         progress_queue.processed(rest)
+
+
+class TestDownloadAsync(TestCase):
+    @patch('ddsc.core.filedownloader.ChunkDownloader')
+    def test_download_async_too_large_error(self, mock_chunk_downloader):
+        # If we get too much data we should quit immediately sending a message to the progress_queue error
+        mock_chunk_downloader.return_value.run.side_effect = TooLargeChunkDownloadError(100, 10, '/tmp/data.dat')
+        progress_queue = MagicMock()
+        download_async(url='', headers=None, path=None, seek_amt=0, bytes_to_read=10, progress_queue=progress_queue)
+        self.assertEqual(1, mock_chunk_downloader.call_count, "on too big we should only try downloading once")
+        expected = 'Received too many bytes downloading part of a file. Actual: 100 Expected: 10 File:/tmp/data.dat'
+        progress_queue.error.assert_called_with(expected)
+
+    @patch('ddsc.core.filedownloader.ChunkDownloader')
+    @patch('ddsc.core.filedownloader.time.sleep')
+    def test_download_async_partial_twice(self, mock_sleep, mock_chunk_downloader):
+        mock_chunk_downloader.return_value.run.side_effect = [
+            PartialChunkDownloadError(2, 10, '/tmp/data.dat'),
+            PartialChunkDownloadError(2, 10, '/tmp/data.dat'),
+            None
+        ]
+        progress_queue = MagicMock()
+        download_async(url='', headers=None, path=None, seek_amt=0, bytes_to_read=10, progress_queue=progress_queue)
+        self.assertEqual(3, mock_chunk_downloader.call_count, 'we should retry downloading multiple times')
+        self.assertEqual(0, progress_queue.error.call_count, 'there should have been no errors')
+        self.assertEqual(2, mock_sleep.call_count, 'we should have called sleep')
+
+    @patch('ddsc.core.filedownloader.ChunkDownloader')
+    @patch('ddsc.core.filedownloader.time.sleep')
+    def test_download_async_partial_too_many_times(self, mock_sleep, mock_chunk_downloader):
+        mock_chunk_downloader.return_value.run.side_effect = [
+            PartialChunkDownloadError(2, 10, '/tmp/data.dat'),
+            PartialChunkDownloadError(2, 10, '/tmp/data.dat'),
+            PartialChunkDownloadError(2, 10, '/tmp/data.dat'),
+            PartialChunkDownloadError(2, 10, '/tmp/data.dat'),
+            PartialChunkDownloadError(2, 10, '/tmp/data.dat'),
+            PartialChunkDownloadError(2, 10, '/tmp/data.dat'),
+        ]
+        progress_queue = MagicMock()
+        download_async(url='', headers=None, path=None, seek_amt=0, bytes_to_read=10, progress_queue=progress_queue)
+        self.assertEqual(6, mock_chunk_downloader.call_count, 'we should retry downloading multiple times')
+        self.assertEqual(5, mock_sleep.call_count, 'we should have called sleep four times')
+        self.assertEqual(1, progress_queue.error.call_count)
+        expected = 'Received too few bytes downloading part of a file. Actual: 2 Expected: 10 File:/tmp/data.dat'
+        progress_queue.error.assert_called_with(expected)
+

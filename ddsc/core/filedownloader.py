@@ -159,8 +159,7 @@ def download_async(url, headers, path, seek_amt, bytes_to_read, progress_queue):
             else:
                 progress_queue.error(str(err))
                 break
-        except:
-            err = sys.exc_info()[0]
+        except Exception as err:
             progress_queue.error(str(err))
             break
 
@@ -233,10 +232,11 @@ class PartialChunkDownloadError(Exception):
     """
     Raised when we only received part of a file (possibly due to connection errors)
     """
+
     def __init__(self, actual_bytes, expected_bytes, path):
-        message = "Received too few bytes downloading part of a file. " \
-                  "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
-        super(PartialChunkDownloadError, self).__init__(message)
+        self.message = "Received too few bytes downloading part of a file. " \
+                       "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
+        super(PartialChunkDownloadError, self).__init__(self.message)
 
 
 class TooLargeChunkDownloadError(Exception):
@@ -244,6 +244,6 @@ class TooLargeChunkDownloadError(Exception):
     Raised when we only received an unexpectedly large part of a file
     """
     def __init__(self, actual_bytes, expected_bytes, path):
-        message = "Received too many bytes downloading part of a file. " \
-                  "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
-        super(TooLargeChunkDownloadError, self).__init__(message)
+        self.message = "Received too many bytes downloading part of a file. " \
+                       "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
+        super(TooLargeChunkDownloadError, self).__init__(self.message)
