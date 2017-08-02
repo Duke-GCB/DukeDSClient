@@ -1,8 +1,9 @@
 from unittest import TestCase
 import ddsc.core.filedownloader
 from ddsc.core.filedownloader import FileDownloader, download_async, ChunkDownloader, \
-    TooLargeChunkDownloadError, PartialChunkDownloadError, PARTIAL_DOWNLOAD_RETRY_TIMES
-from mock import patch, MagicMock, call, mock_open
+    TooLargeChunkDownloadError, PartialChunkDownloadError
+from mock import patch, MagicMock, call
+
 
 class FakeConfig(object):
     def __init__(self, download_workers):

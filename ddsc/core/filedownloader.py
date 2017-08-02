@@ -5,7 +5,6 @@ import math
 import time
 import tempfile
 import requests
-import sys
 from multiprocessing import Process, Queue
 from ddsc.core.util import ProgressQueue, wait_for_processes
 
