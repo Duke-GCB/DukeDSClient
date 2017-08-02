@@ -2,13 +2,18 @@
 Downloads a file based on ranges.
 """
 import math
+import time
 import tempfile
 import requests
+import sys
 from multiprocessing import Process, Queue
 from ddsc.core.util import ProgressQueue, wait_for_processes
 
 DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
 MIN_DOWNLOAD_CHUNK_SIZE = DOWNLOAD_FILE_CHUNK_SIZE
+
+PARTIAL_DOWNLOAD_RETRY_TIMES = 5
+PARTIAL_DOWNLOAD_RETRY_SECONDS = 1
 
 
 class FileDownloader(object):
@@ -119,27 +124,45 @@ class FileDownloader(object):
         :return: Process: the process we created
         """
         http_headers = {'Range': 'bytes={}-{}'.format(range_start, range_end)}
+        bytes_to_read = range_end - range_start + 1
         if self.http_headers:
             http_headers.update(self.http_headers)
         seek_amt = range_start
         process = Process(target=download_async,
-                          args=(self.url, http_headers, self.path, seek_amt, progress_queue))
+                          args=(self.url, http_headers, self.path, seek_amt, bytes_to_read, progress_queue))
         process.start()
         return process
 
 
-def download_async(url, headers, path, seek_amt, progress_queue):
+def download_async(url, headers, path, seek_amt, bytes_to_read, progress_queue):
     """
     Called in separate process to download a chunk of a file.
     :param url: str: url to file we should download
     :param headers: dict: header to use with url, should contain Range to limit what we download
     :param path: str: path to where we should save our chunk we download
     :param seek_amt: int: offset to seek before writing our chunk out to path
+    :param bytes_to_read: int: how many bytes of data we will receive from the url
     :param progress_queue: ProgressQueue: queue of tuples we will add progress/errors to
-    :return:
     """
-    downloader = ChunkDownloader(url, headers, path, seek_amt, progress_queue)
-    downloader.run()
+    partial_download_failures = 0
+    while True:
+        try:
+            downloader = ChunkDownloader(url, headers, path, seek_amt, bytes_to_read, progress_queue)
+            downloader.run()
+            break
+        except PartialChunkDownloadError as err:
+            # partial downloads can be due to flaky connections so we should retry a few times
+            partial_download_failures += 1
+            if partial_download_failures <= PARTIAL_DOWNLOAD_RETRY_TIMES:
+                time.sleep(PARTIAL_DOWNLOAD_RETRY_SECONDS)
+                # loop will call ChunkDownloader run again
+            else:
+                progress_queue.error(str(err))
+                break
+        except:
+            err = sys.exc_info()[0]
+            progress_queue.error(str(err))
+            break
 
 
 class ChunkDownloader(object):
@@ -147,30 +170,80 @@ class ChunkDownloader(object):
     Downloads part of a file and writes it to a location in a local pre-existing file.
     This runs in a separate process from the main application.
     """
-    def __init__(self, url, http_headers, path, seek_amt, progress_queue):
+    def __init__(self, url, http_headers, path, seek_amt, bytes_to_read, progress_queue):
         """
         Setup for downloading part of a file.
         :param url: str: url to the file
         :param http_headers: dict: headers for use with the url should contain byte Range
         :param path: str: path to file to write data to
         :param seek_amt: int: offset amount to seek into the file
+        :param bytes_to_read: int: how many bytes of data we will receive from the url
         :param progress_queue: ProgressQueue: queue we notify of progress or errors
         """
         self.url = url
         self.http_headers = http_headers
         self.path = path
         self.seek_amt = seek_amt
+        self.bytes_to_read = bytes_to_read
+        self.actual_bytes_read = 0
         self.progress_queue = progress_queue
 
     def run(self):
-        try:
-            response = requests.get(self.url, headers=self.http_headers, stream=True)
-            # open file for read/write without truncating
-            with open(self.path, 'r+b') as outfile:
-                outfile.seek(self.seek_amt)
-                for chunk in response.iter_content(chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
-                    if chunk:  # filter out keep-alive chunks
-                        outfile.write(chunk)
-                        self.progress_queue.processed(len(chunk))
-        except Exception as ex:
-            self.progress_queue.error(str(ex))
+        """
+        Download part of a file at self.url and write it to the appropriate section of self.path.
+        """
+        response = requests.get(self.url, headers=self.http_headers, stream=True)
+        response.raise_for_status()
+        self._write_response_to_file(response)
+        self._verify_download_complete()
+
+    def _write_response_to_file(self, response):
+        """
+        Write response to the appropriate section of the file at self.path.
+        :param response: requests.Response: response containing stream-able data
+        """
+        with open(self.path, 'r+b') as outfile:  # open file for read/write (no truncate)
+            outfile.seek(self.seek_amt)
+            for chunk in response.iter_content(chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
+                if chunk:  # filter out keep-alive chunks
+                    outfile.write(chunk)
+                    self._on_bytes_read(len(chunk))
+
+    def _on_bytes_read(self, num_bytes_read):
+        """
+        Record our progress so we can validate that we receive all the data
+        :param num_bytes_read: int: number of bytes we received as part of one chunk
+        """
+        self.actual_bytes_read += num_bytes_read
+        if self.actual_bytes_read > self.bytes_to_read:
+            raise TooLargeChunkDownloadError(self.actual_bytes_read, self.bytes_to_read, self.path)
+        self.progress_queue.processed(num_bytes_read)
+
+    def _verify_download_complete(self):
+        """
+        Make sure we received all the data
+        """
+        if self.actual_bytes_read > self.bytes_to_read:
+            raise TooLargeChunkDownloadError(self.actual_bytes_read, self.bytes_to_read, self.path)
+        elif self.actual_bytes_read < self.bytes_to_read:
+            raise PartialChunkDownloadError(self.actual_bytes_read, self.bytes_to_read, self.path)
+
+
+class PartialChunkDownloadError(Exception):
+    """
+    Raised when we only received part of a file (possibly due to connection errors)
+    """
+    def __init__(self, actual_bytes, expected_bytes, path):
+        message = "Received too few bytes downloading part of a file. " \
+                  "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
+        super(PartialChunkDownloadError, self).__init__(message)
+
+
+class TooLargeChunkDownloadError(Exception):
+    """
+    Raised when we only received an unexpectedly large part of a file
+    """
+    def __init__(self, actual_bytes, expected_bytes, path):
+        message = "Received too many bytes downloading part of a file. " \
+                  "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
+        super(TooLargeChunkDownloadError, self).__init__(message)
