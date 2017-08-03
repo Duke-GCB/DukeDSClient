@@ -968,6 +968,6 @@ def retry_until_resource_is_consistent(func, monitor):
             return resp
         except DSResourceNotConsistentError:
             if not waiting and monitor:
-                monitor.started_waiting()
+                monitor.start_waiting()
                 waiting = True
             time.sleep(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)
