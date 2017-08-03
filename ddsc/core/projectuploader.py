@@ -1,6 +1,6 @@
-from ddsc.core.util import ProjectWalker, KindType
+from ddsc.core.util import ProjectWalker, KindType, ProjectStatusMonitor
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
-from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData, ProjectStatusMonitor
+from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 
 
@@ -22,7 +22,7 @@ class UploadSettings(object):
         self.project_name = project_name
         self.project_id = None
         self.file_upload_post_processor = file_upload_post_processor
-        self.project_status_monitor = ProjectStatusMonitor(watcher)
+        self.project_status_monitor = ProjectStatusMonitor(watcher, action_name='uploading')
 
     def get_data_service_auth_data(self):
         """

@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from ddsc.core.util import verify_terminal_encoding, ProgressBar, ProgressPrinter, KindType
-from mock import patch, Mock
+from ddsc.core.util import verify_terminal_encoding, ProgressBar, ProgressPrinter, KindType, ProjectStatusMonitor
+from mock import patch, Mock, MagicMock, call
 
 
 class TestUtil(TestCase):
@@ -134,3 +134,31 @@ class TestProgressPrinter(TestCase):
         mock_progress_bar.return_value.set_state.assert_called_with(mock_progress_bar.STATE_DONE)
         mock_progress_bar.return_value.show.assert_called()
         mock_progress_bar.reset_mock()
+
+
+class TestProjectStatusMonitor(TestCase):
+    def test_started_waiting_debounces(self):
+        watcher = MagicMock()
+        monitor = ProjectStatusMonitor(watcher, action_name='uploading')
+        monitor.started_waiting()
+        self.assertEqual(1, watcher.start_waiting.call_count)
+        watcher.start_waiting.assert_has_calls([
+            call('Waiting for project to become ready for uploading')
+        ])
+        monitor.started_waiting()
+        monitor.started_waiting()
+        self.assertEqual(1, watcher.start_waiting.call_count)
+        watcher.start_waiting.assert_has_calls([
+            call('Waiting for project to become ready for uploading')
+        ])
+
+    def test_done_waiting(self):
+        watcher = MagicMock()
+        monitor = ProjectStatusMonitor(watcher, action_name='uploading')
+        monitor.started_waiting()
+        monitor.done_waiting()
+        self.assertEqual(1, watcher.start_waiting.call_count)
+        watcher.start_waiting.assert_has_calls([
+            call('Waiting for project to become ready for uploading'),
+        ])
+        self.assertEqual(1, watcher.done_waiting.call_count)

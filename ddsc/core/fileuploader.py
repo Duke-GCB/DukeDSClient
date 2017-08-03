@@ -6,8 +6,8 @@ import math
 import time
 import requests
 from multiprocessing import Process, Queue
-from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi, DSResourceNotConsistentError
-from ddsc.core.util import ProgressQueue, wait_for_processes
+from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi, retry_until_resource_is_consistent
+from ddsc.core.util import ProgressQueue, wait_for_processes, ProjectStatusMonitor
 from ddsc.core.localstore import HashData
 import traceback
 import sys
@@ -37,7 +37,8 @@ class FileUploader(object):
         """
         self.config = config
         self.data_service = data_service
-        self.upload_operations = FileUploadOperations(self.data_service, ProjectStatusMonitor(watcher))
+        project_status_monitor = ProjectStatusMonitor(watcher, action_name='uploading')
+        self.upload_operations = FileUploadOperations(self.data_service, project_status_monitor)
         self.file_upload_post_processor = file_upload_post_processor
         self.local_file = local_file
         self.upload_id = None
@@ -343,48 +344,3 @@ class ChunkSender(object):
         """
         url_info = self.upload_operations.create_file_chunk_url(self.upload_id, chunk_num, chunk)
         self.upload_operations.send_file_external(url_info, chunk)
-
-
-def retry_until_resource_is_consistent(func, monitor):
-    """
-    Runs func, if func raises DSResourceNotConsistentError will retry func indefinitely.
-    Notifies monitor if we have to wait(only happens if DukeDS API raises DSResourceNotConsistentError.
-    :param func: func(): function to run
-    :param monitor: object: has start_waiting() and done_waiting() methods when waiting for non-consistent resource
-    :return: whatever func returns
-    """
-    waiting = False
-    while True:
-        try:
-            resp = func()
-            if waiting and monitor:
-                monitor.done_waiting()
-            return resp
-        except DSResourceNotConsistentError:
-            if not waiting and monitor:
-                monitor.started_waiting()
-                waiting = True
-            time.sleep(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)
-
-
-class ProjectStatusMonitor(object):
-    """
-    Displays messages to user while we are waiting for a project that isn't ready for file uploading.
-    De-bounces messages so we don't spam the user.
-    """
-    def __init__(self, watcher):
-        """
-        :param watcher: object with show_warning(str) method
-        """
-        self.watcher = watcher
-        self.waiting = False
-
-    def started_waiting(self):
-        if not self.waiting:
-            self.watcher.start_waiting("Waiting for project to become ready for uploading")
-            self.waiting = True
-
-    def done_waiting(self):
-        if self.waiting:
-            self.watcher.done_waiting()
-            self.waiting = False

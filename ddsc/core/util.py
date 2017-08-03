@@ -145,6 +145,31 @@ class ProgressBar(object):
         return formatted_line
 
 
+class ProjectStatusMonitor(object):
+    """
+    Displays messages to user while we are waiting for a project that isn't ready for file uploading.
+    De-bounces messages so we don't spam the user.
+    """
+    def __init__(self, watcher, action_name):
+        """
+        :param watcher: object with show_warning(str) method
+        :param action_name: str: type of activity we are performing that may be interrupted (eg. 'uploading')
+        """
+        self.watcher = watcher
+        self.action_name = action_name
+        self.waiting = False
+
+    def started_waiting(self):
+        if not self.waiting:
+            self.watcher.start_waiting("Waiting for project to become ready for {}".format(self.action_name))
+            self.waiting = True
+
+    def done_waiting(self):
+        if self.waiting:
+            self.watcher.done_waiting()
+            self.waiting = False
+
+
 class ProjectWalker(object):
     """
     Generic tool for visiting all the nodes in a project.
