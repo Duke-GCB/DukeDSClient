@@ -3,7 +3,7 @@ from unittest import TestCase
 import requests
 from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth, SETUP_GUIDE_URL
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
-    UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError
+    UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, retry_until_resource_is_consistent
 from mock import MagicMock, Mock, patch
 
 
@@ -508,3 +508,46 @@ class TestAuthTokenCreationError(TestCase):
         self.assertIn('Failed to create auth token', error_message)
         self.assertIn('400', error_message)
         self.assertIn('Bad data', error_message)
+
+
+class TestInconsistentResourceMonitoring(TestCase):
+    @patch('ddsc.core.ddsapi.time.sleep')
+    def test_retry_until_resource_is_consistent(self, mock_sleep):
+        func = MagicMock()
+        func.return_value = 'ok'
+        monitor = MagicMock()
+        ret = retry_until_resource_is_consistent(func, monitor)
+        self.assertEqual('ok', ret)
+        monitor.start_waiting.assert_not_called()
+        monitor.done_waiting.assert_not_called()
+
+    @patch('ddsc.core.ddsapi.time.sleep')
+    def test_retry_until_resource_is_consistent_with_one_retry(self, mock_sleep):
+        func = MagicMock()
+        func.side_effect = [
+            DSResourceNotConsistentError(MagicMock(), MagicMock(), MagicMock()),
+            'ok'
+        ]
+        monitor = MagicMock()
+        ret = retry_until_resource_is_consistent(func, monitor)
+        self.assertEqual('ok', ret)
+        monitor.start_waiting.assert_called()
+        self.assertEqual(1, monitor.start_waiting.call_count)
+        monitor.done_waiting.assert_called()
+        self.assertEqual(1, monitor.done_waiting.call_count)
+
+    @patch('ddsc.core.ddsapi.time.sleep')
+    def test_retry_until_resource_is_consistent_with_two_retries(self, mock_sleep):
+        func = MagicMock()
+        func.side_effect = [
+            DSResourceNotConsistentError(MagicMock(), MagicMock(), MagicMock()),
+            DSResourceNotConsistentError(MagicMock(), MagicMock(), MagicMock()),
+            'ok'
+        ]
+        monitor = MagicMock()
+        ret = retry_until_resource_is_consistent(func, monitor)
+        self.assertEqual('ok', ret)
+        monitor.start_waiting.assert_called()
+        self.assertEqual(1, monitor.start_waiting.call_count)
+        monitor.done_waiting.assert_called()
+        self.assertEqual(1, monitor.done_waiting.call_count)
