@@ -1,4 +1,4 @@
-from ddsc.core.util import ProjectWalker, KindType, ProjectStatusMonitor
+from ddsc.core.util import ProjectWalker, KindType
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData
 from ddsc.core.parallel import TaskExecutor, TaskRunner
@@ -22,7 +22,6 @@ class UploadSettings(object):
         self.project_name = project_name
         self.project_id = None
         self.file_upload_post_processor = file_upload_post_processor
-        self.project_status_monitor = ProjectStatusMonitor(watcher, action_name='uploading')
 
     def get_data_service_auth_data(self):
         """
@@ -384,11 +383,11 @@ class CreateSmallFileCommand(object):
         Receives started_waiting boolean from create_small_file method and notifies project_status_monitor in settings.
         :param started_waiting: boolean: True when we start waiting, False when done
         """
-        project_status_monitor = self.settings.project_status_monitor
+        watcher = self.settings.watcher
         if started_waiting:
-            project_status_monitor.started_waiting()
+            watcher.start_waiting()
         else:
-            project_status_monitor.done_waiting()
+            watcher.done_waiting()
 
 
 def create_small_file(upload_context):

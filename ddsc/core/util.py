@@ -54,6 +54,7 @@ class ProgressPrinter(object):
         self.total = total
         self.cnt = 0
         self.max_width = 0
+        self.waiting = False
         self.msg_verb = msg_verb
         self.progress_bar = ProgressBar()
 
@@ -86,21 +87,23 @@ class ProgressPrinter(object):
         """
         print(message)
 
-    def start_waiting(self, wait_msg):
+    def start_waiting(self):
         """
-        Show waiting progress bar until done_waiting is called
-        :param wait_msg: str: message describing what we are waiting for
+        Show waiting progress bar until done_waiting is called.
+        Only has an effect if we are in waiting state.
         """
-        self.progress_bar.wait_msg = wait_msg
-        self.progress_bar.set_state(ProgressBar.STATE_WAITING)
-        self.progress_bar.show()
+        if not self.waiting:
+            self.waiting = True
+            wait_msg = "Waiting for project to become ready for {}".format(self.msg_verb)
+            self.progress_bar.show_waiting(wait_msg)
 
     def done_waiting(self):
         """
-        Show running progress bar
+        Show running progress bar (only has an effect if we are in waiting state).
         """
-        self.progress_bar.set_state(ProgressBar.STATE_RUNNING)
-        self.progress_bar.show()
+        if self.waiting:
+            self.waiting = False
+            self.progress_bar.show_running()
 
 
 class ProgressBar(object):
@@ -144,30 +147,22 @@ class ProgressBar(object):
             formatted_line += '\n'
         return formatted_line
 
-
-class ProjectStatusMonitor(object):
-    """
-    Displays messages to user while we are waiting for a project that isn't ready for file uploading.
-    De-bounces messages so we don't spam the user.
-    """
-    def __init__(self, watcher, action_name):
+    def show_running(self):
         """
-        :param watcher: object with show_warning(str) method
-        :param action_name: str: type of activity we are performing that may be interrupted (eg. 'uploading')
+        Show running progress bar
         """
-        self.watcher = watcher
-        self.action_name = action_name
-        self.waiting = False
+        self.set_state(ProgressBar.STATE_RUNNING)
+        self.show()
 
-    def started_waiting(self):
-        if not self.waiting:
-            self.watcher.start_waiting("Waiting for project to become ready for {}".format(self.action_name))
-            self.waiting = True
-
-    def done_waiting(self):
-        if self.waiting:
-            self.watcher.done_waiting()
-            self.waiting = False
+    def show_waiting(self, wait_msg):
+        """
+        Show waiting progress bar until done_waiting is called.
+        Only has an effect if we are in waiting state.
+        :param wait_msg: str: message describing what we are waiting for
+        """
+        self.wait_msg = wait_msg
+        self.set_state(ProgressBar.STATE_WAITING)
+        self.show()
 
 
 class ProjectWalker(object):

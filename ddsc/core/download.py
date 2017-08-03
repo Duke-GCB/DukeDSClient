@@ -1,5 +1,5 @@
 import os
-from ddsc.core.util import ProgressPrinter, ProjectStatusMonitor
+from ddsc.core.util import ProgressPrinter
 from ddsc.core.filedownloader import FileDownloader
 from ddsc.core.pathfilter import PathFilteredProject
 from ddsc.core.ddsapi import retry_until_resource_is_consistent
@@ -43,8 +43,7 @@ class ProjectDownload(object):
         path_filtered_project.run(project)  # calls visit_project, visit_folder, visit_file in RemoteContentCounter
 
         self.watcher = ProgressPrinter(counter.count, msg_verb='downloading')
-        self.project_status_monitor = ProjectStatusMonitor(self.watcher, action_name='downloading')
-        path_filtered_project = PathFilteredProject(self.path_filter, self)
+        path_filtered_project = PathFilteredProject(self.path_filter, self.watcher)
         path_filtered_project.run(project)  # calls visit_project, visit_folder, visit_file below
         self.watcher.finished()
         warnings = self.check_warnings()

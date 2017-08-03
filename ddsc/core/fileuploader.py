@@ -7,7 +7,7 @@ import time
 import requests
 from multiprocessing import Process, Queue
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi, retry_until_resource_is_consistent
-from ddsc.core.util import ProgressQueue, wait_for_processes, ProjectStatusMonitor
+from ddsc.core.util import ProgressQueue, wait_for_processes
 from ddsc.core.localstore import HashData
 import traceback
 import sys
@@ -37,8 +37,7 @@ class FileUploader(object):
         """
         self.config = config
         self.data_service = data_service
-        project_status_monitor = ProjectStatusMonitor(watcher, action_name='uploading')
-        self.upload_operations = FileUploadOperations(self.data_service, project_status_monitor)
+        self.upload_operations = FileUploadOperations(self.data_service, watcher)
         self.file_upload_post_processor = file_upload_post_processor
         self.local_file = local_file
         self.upload_id = None
