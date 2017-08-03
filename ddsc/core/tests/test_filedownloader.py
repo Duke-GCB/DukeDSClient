@@ -156,6 +156,7 @@ class TestDownloadAsync(TestCase):
         self.assertEqual(3, mock_chunk_downloader.call_count, 'we should retry downloading multiple times')
         self.assertEqual(0, progress_queue.error.call_count, 'there should have been no errors')
         self.assertEqual(2, mock_sleep.call_count, 'we should have called sleep')
+        self.assertEqual(2, mock_chunk_downloader().revert_progress.call_count)
 
     @patch('ddsc.core.filedownloader.ChunkDownloader')
     @patch('ddsc.core.filedownloader.time.sleep')
@@ -170,6 +171,7 @@ class TestDownloadAsync(TestCase):
         self.assertEqual(3, mock_chunk_downloader.call_count, 'we should retry downloading multiple times')
         self.assertEqual(0, progress_queue.error.call_count, 'there should have been no errors')
         self.assertEqual(2, mock_sleep.call_count, 'we should have called sleep')
+        self.assertEqual(2, mock_chunk_downloader().revert_progress.call_count)
 
     @patch('ddsc.core.filedownloader.ChunkDownloader')
     @patch('ddsc.core.filedownloader.time.sleep')
@@ -189,6 +191,7 @@ class TestDownloadAsync(TestCase):
         self.assertEqual(1, progress_queue.error.call_count)
         expected = 'Received too few bytes downloading part of a file. Actual: 2 Expected: 10 File:/tmp/data.dat'
         progress_queue.error.assert_called_with(expected)
+        self.assertEqual(5, mock_chunk_downloader().revert_progress.call_count)
 
 
 class ChunkDownloaderTest(TestCase):
@@ -249,3 +252,15 @@ class ChunkDownloaderTest(TestCase):
                                            progress_queue=progress_queue)
         with self.assertRaises(PartialChunkDownloadError):
             chunk_downloader.run()
+
+    def test_revert_progress(self):
+        progress_queue = MagicMock()
+        chunk_downloader = ChunkDownloader(url=None,
+                                           http_headers=None,
+                                           path=None,
+                                           seek_amt=10,
+                                           bytes_to_read=10,
+                                           progress_queue=progress_queue)
+        chunk_downloader.actual_bytes_read = 101
+        chunk_downloader.revert_progress()
+        progress_queue.processed.assert_called_with(-101)

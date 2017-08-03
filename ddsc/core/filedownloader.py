@@ -153,6 +153,7 @@ def download_async(url, headers, path, seek_amt, bytes_to_read, progress_queue):
             # partial downloads can be due to flaky connections so we should retry a few times
             partial_download_failures += 1
             if partial_download_failures <= PARTIAL_DOWNLOAD_RETRY_TIMES:
+                downloader.revert_progress()  # Notify progress monitor to undo our current progress
                 time.sleep(PARTIAL_DOWNLOAD_RETRY_SECONDS)
                 # loop will call ChunkDownloader run again
             else:
@@ -225,6 +226,13 @@ class ChunkDownloader(object):
             raise TooLargeChunkDownloadError(self.actual_bytes_read, self.bytes_to_read, self.path)
         elif self.actual_bytes_read < self.bytes_to_read:
             raise PartialChunkDownloadError(self.actual_bytes_read, self.bytes_to_read, self.path)
+
+    def revert_progress(self):
+        """
+        Update progress monitor with negative number so it is accurate since this download failed.
+        """
+        undo_size = self.actual_bytes_read * -1
+        self.progress_queue.processed(undo_size)
 
 
 class PartialChunkDownloadError(Exception):
