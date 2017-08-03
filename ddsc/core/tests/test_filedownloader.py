@@ -2,6 +2,7 @@ from unittest import TestCase
 import ddsc.core.filedownloader
 from ddsc.core.filedownloader import FileDownloader, download_async, ChunkDownloader, \
     TooLargeChunkDownloadError, PartialChunkDownloadError
+from requests.exceptions import ConnectionError
 from mock import patch, MagicMock, call
 
 
@@ -148,6 +149,20 @@ class TestDownloadAsync(TestCase):
         mock_chunk_downloader.return_value.run.side_effect = [
             PartialChunkDownloadError(2, 10, '/tmp/data.dat'),
             PartialChunkDownloadError(2, 10, '/tmp/data.dat'),
+            None
+        ]
+        progress_queue = MagicMock()
+        download_async(url='', headers=None, path=None, seek_amt=0, bytes_to_read=10, progress_queue=progress_queue)
+        self.assertEqual(3, mock_chunk_downloader.call_count, 'we should retry downloading multiple times')
+        self.assertEqual(0, progress_queue.error.call_count, 'there should have been no errors')
+        self.assertEqual(2, mock_sleep.call_count, 'we should have called sleep')
+
+    @patch('ddsc.core.filedownloader.ChunkDownloader')
+    @patch('ddsc.core.filedownloader.time.sleep')
+    def test_download_async_connection_error_twice(self, mock_sleep, mock_chunk_downloader):
+        mock_chunk_downloader.return_value.run.side_effect = [
+            ConnectionError(),
+            ConnectionError(),
             None
         ]
         progress_queue = MagicMock()

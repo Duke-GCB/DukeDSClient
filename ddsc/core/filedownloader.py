@@ -149,7 +149,7 @@ def download_async(url, headers, path, seek_amt, bytes_to_read, progress_queue):
             downloader = ChunkDownloader(url, headers, path, seek_amt, bytes_to_read, progress_queue)
             downloader.run()
             break
-        except PartialChunkDownloadError as err:
+        except (PartialChunkDownloadError, requests.exceptions.ConnectionError) as err:
             # partial downloads can be due to flaky connections so we should retry a few times
             partial_download_failures += 1
             if partial_download_failures <= PARTIAL_DOWNLOAD_RETRY_TIMES:
