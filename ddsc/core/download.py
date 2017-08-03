@@ -24,7 +24,6 @@ class ProjectDownload(object):
         self.path_filter = path_filter
         self.file_download_pre_processor = file_download_pre_processor
         self.watcher = None
-        self.project_status_monitor = None
 
     def run(self):
         """
@@ -87,7 +86,7 @@ class ProjectDownload(object):
             self.file_download_pre_processor.run(self.remote_store.data_service, item)
         path = os.path.join(self.dest_directory, item.remote_path)
         get_file_url = GetFileUrl(self.remote_store.data_service, item)
-        url_json = retry_until_resource_is_consistent(get_file_url.run, self.project_status_monitor)
+        url_json = retry_until_resource_is_consistent(get_file_url.run, self.watcher)
         downloader = FileDownloader(self.remote_store.config, item, url_json, path, self.watcher)
         downloader.run()
         ProjectDownload.check_file_size(item, path)
