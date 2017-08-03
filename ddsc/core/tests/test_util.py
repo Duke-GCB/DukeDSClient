@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from ddsc.core.util import verify_terminal_encoding, ProgressBar, ProgressPrinter, KindType
-from mock import patch, Mock, MagicMock, call
+from mock import patch, Mock
 
 
 class TestUtil(TestCase):
