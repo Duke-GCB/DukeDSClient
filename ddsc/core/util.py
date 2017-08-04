@@ -302,7 +302,7 @@ def verify_terminal_encoding(encoding):
     :param encoding: str: encoding we want to check
     """
     encoding = encoding or ''
-    if not ("UTF" in encoding.upper()):
+    if not ("UTF" in encoding.upper()) and encoding:
         raise ValueError(TERMINAL_ENCODING_NOT_UTF_ERROR)
 
 
