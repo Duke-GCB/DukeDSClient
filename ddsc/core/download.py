@@ -2,6 +2,7 @@ import os
 from ddsc.core.util import ProgressPrinter
 from ddsc.core.filedownloader import FileDownloader
 from ddsc.core.pathfilter import PathFilteredProject
+from ddsc.core.ddsapi import retry_until_resource_is_consistent
 
 
 class ProjectDownload(object):
@@ -84,7 +85,8 @@ class ProjectDownload(object):
         if self.file_download_pre_processor:
             self.file_download_pre_processor.run(self.remote_store.data_service, item)
         path = os.path.join(self.dest_directory, item.remote_path)
-        url_json = self.remote_store.data_service.get_file_url(item.id).json()
+        get_file_url = GetFileUrl(self.remote_store.data_service, item)
+        url_json = retry_until_resource_is_consistent(get_file_url.run, self.watcher)
         downloader = FileDownloader(self.remote_store.config, item, url_json, path, self.watcher)
         downloader.run()
         ProjectDownload.check_file_size(item, path)
@@ -137,3 +139,12 @@ class RemoteContentCounter(object):
         :return:
         """
         self.count += item.size
+
+
+class GetFileUrl(object):
+    def __init__(self, data_service, item):
+        self.data_service = data_service
+        self.item = item
+
+    def run(self):
+        return self.data_service.get_file_url(self.item.id).json()

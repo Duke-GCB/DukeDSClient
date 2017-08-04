@@ -8,6 +8,7 @@ from ddsc.versioncheck import APP_NAME, get_internal_version_str
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
 DEFAULT_RESULTS_PER_PAGE = 100
+RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 
 
 def get_user_agent_str():
@@ -948,3 +949,25 @@ Try upgrading ddsclient: pip install --upgrade DukeDSClient
 
     def __init__(self):
         super(UnexpectedPagingReceivedError, self).__init__(self.MESSAGE)
+
+
+def retry_until_resource_is_consistent(func, monitor):
+    """
+    Runs func, if func raises DSResourceNotConsistentError will retry func indefinitely.
+    Notifies monitor if we have to wait(only happens if DukeDS API raises DSResourceNotConsistentError.
+    :param func: func(): function to run
+    :param monitor: object: has start_waiting() and done_waiting() methods when waiting for non-consistent resource
+    :return: whatever func returns
+    """
+    waiting = False
+    while True:
+        try:
+            resp = func()
+            if waiting and monitor:
+                monitor.done_waiting()
+            return resp
+        except DSResourceNotConsistentError:
+            if not waiting and monitor:
+                monitor.start_waiting()
+                waiting = True
+            time.sleep(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)

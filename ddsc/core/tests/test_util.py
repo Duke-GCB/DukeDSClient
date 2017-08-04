@@ -89,6 +89,26 @@ class TestProgressBar(TestCase):
         expected = '\rDone: 100%                         \n'
         mock_stdout.write.assert_called_with(expected)
 
+    @patch('ddsc.core.util.sys.stdout')
+    def test_show_running(self, mock_stdout):
+        progress_bar = ProgressBar()
+        progress_bar.percent_done = 4
+        progress_bar.current_item_details = 'somefile.dat'
+        progress_bar.show_running()
+        self.assertEqual(progress_bar.state, ProgressBar.STATE_RUNNING)
+        expected = '\rProgress: 4% - somefile.dat'
+        mock_stdout.write.assert_called_with(expected)
+
+    @patch('ddsc.core.util.sys.stdout')
+    def test_show_waiting(self, mock_stdout):
+        progress_bar = ProgressBar()
+        progress_bar.percent_done = 5
+        progress_bar.current_item_details = 'somefile.dat'
+        progress_bar.show_waiting('waiting for consistency')
+        self.assertEqual(progress_bar.state, ProgressBar.STATE_WAITING)
+        expected = '\rProgress: 5% - waiting for consistency'
+        mock_stdout.write.assert_called_with(expected)
+
 
 class TestProgressPrinter(TestCase):
     @patch('ddsc.core.util.ProgressBar')
@@ -110,16 +130,13 @@ class TestProgressPrinter(TestCase):
         mock_progress_bar.reset_mock()
 
         # pretend we get stuck waiting for project uploads to be ready
-        progress_printer.start_waiting('Waiting for project uploads')
-        self.assertEqual(progress_printer.progress_bar.wait_msg, 'Waiting for project uploads')
-        mock_progress_bar.return_value.set_state.assert_called_with(mock_progress_bar.STATE_WAITING)
-        mock_progress_bar.return_value.show.assert_called()
+        progress_printer.start_waiting()
+        mock_progress_bar.return_value.show_waiting.assert_called_with('Waiting for project to become ready for sending')
         mock_progress_bar.reset_mock()
 
         # pretend project uploads are ready
         progress_printer.done_waiting()
-        mock_progress_bar.return_value.set_state.assert_called_with(mock_progress_bar.STATE_RUNNING)
-        mock_progress_bar.return_value.show.assert_called()
+        mock_progress_bar.return_value.show_running.assert_called()
         mock_progress_bar.reset_mock()
 
         # pretend we uploaded a file
@@ -134,3 +151,26 @@ class TestProgressPrinter(TestCase):
         mock_progress_bar.return_value.set_state.assert_called_with(mock_progress_bar.STATE_DONE)
         mock_progress_bar.return_value.show.assert_called()
         mock_progress_bar.reset_mock()
+
+    @patch('ddsc.core.util.ProgressBar')
+    def test_start_waiting_debounces(self, mock_progress_bar):
+        progress_printer = ProgressPrinter(total=10, msg_verb='uploading')
+        progress_printer.start_waiting()
+        self.assertEqual(1, progress_printer.progress_bar.show_waiting.call_count)
+        progress_printer.progress_bar.show_waiting.assert_called_with(
+            'Waiting for project to become ready for uploading')
+        progress_printer.start_waiting()
+        progress_printer.start_waiting()
+        self.assertEqual(1, progress_printer.progress_bar.show_waiting.call_count)
+
+    @patch('ddsc.core.util.ProgressBar')
+    def test_done_waiting(self, mock_progress_bar):
+        progress_printer = ProgressPrinter(total=10, msg_verb='downloading')
+        progress_printer.start_waiting()
+        self.assertEqual(True, progress_printer.waiting)
+        self.assertEqual(1, progress_printer.progress_bar.show_waiting.call_count)
+        progress_printer.progress_bar.show_waiting.assert_called_with(
+            'Waiting for project to become ready for downloading')
+        progress_printer.done_waiting()
+        self.assertEqual(False, progress_printer.waiting)
+        self.assertEqual(1, progress_printer.progress_bar.show_running.call_count)
