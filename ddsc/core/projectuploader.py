@@ -78,7 +78,7 @@ class UploadContext(object):
         """
         self.message_queue.put((self.task_id, data))
 
-    def started_waiting(self):
+    def start_waiting(self):
         """
         Called when we start waiting for project to be ready for file uploads.
         """
@@ -86,7 +86,7 @@ class UploadContext(object):
 
     def done_waiting(self):
         """
-        Called when project isready for file uploads (after waiting).
+        Called when project is ready for file uploads (after waiting).
         """
         self.send_message(False)
 

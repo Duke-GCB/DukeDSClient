@@ -24,6 +24,24 @@ class TestUploadContext(TestCase):
         context = UploadContext(settings, params, multiprocessing.Manager().Queue(), 12)
         pickle.dumps(context)
 
+    def test_start_waiting(self):
+        mock_message_queue = MagicMock()
+        context = UploadContext(settings=MagicMock(),
+                                params=[],
+                                message_queue=mock_message_queue,
+                                task_id=12)
+        context.start_waiting()
+        mock_message_queue.put.assert_called_with((12, True))
+
+    def test_done_waiting(self):
+        mock_message_queue = MagicMock()
+        context = UploadContext(settings=MagicMock(),
+                                params=[],
+                                message_queue=mock_message_queue,
+                                task_id=13)
+        context.done_waiting()
+        mock_message_queue.put.assert_called_with((13, False))
+
 
 class TestProjectUploadDryRun(TestCase):
     def test_single_empty_non_existant_directory(self):
