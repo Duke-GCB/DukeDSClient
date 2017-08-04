@@ -16,13 +16,11 @@ class TestUtil(TestCase):
         with self.assertRaises(ValueError):
             verify_terminal_encoding('ascii')
 
-    def test_verify_terminal_encoding_empty_raises(self):
-        with self.assertRaises(ValueError):
-            verify_terminal_encoding('')
+    def test_verify_terminal_encoding_empty_is_ok(self):
+        verify_terminal_encoding('')
 
-    def test_verify_terminal_encoding_none_raises(self):
-        with self.assertRaises(ValueError):
-            verify_terminal_encoding(None)
+    def test_verify_terminal_encoding_none_is_ok(self):
+        verify_terminal_encoding(None)
 
 
 class TestProgressBar(TestCase):
