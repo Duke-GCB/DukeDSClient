@@ -9,7 +9,7 @@ class TestProjectDownload(TestCase):
     @patch('ddsc.core.download.ProjectDownload.check_file_size')
     def test_visit_file_download_pre_processor_off(self, mock_file_downloader, mock_check_file_size):
         project_download = ProjectDownload(remote_store=MagicMock(),
-                                           project_name='test',
+                                           project=Mock(name='test'),
                                            dest_directory='/tmp/fakedir',
                                            path_filter=MagicMock())
         project_download.visit_file(Mock(), None)
@@ -20,7 +20,7 @@ class TestProjectDownload(TestCase):
         pre_processor_run = MagicMock()
         pre_processor = Mock(run=pre_processor_run)
         project_download = ProjectDownload(remote_store=MagicMock(),
-                                           project_name='test',
+                                           project=Mock(name='test'),
                                            dest_directory='/tmp/fakedir',
                                            path_filter=MagicMock(),
                                            file_download_pre_processor=pre_processor)

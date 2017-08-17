@@ -9,17 +9,17 @@ class ProjectDownload(object):
     """
     Creates local version of remote content.
     """
-    def __init__(self, remote_store, project_name, dest_directory, path_filter, file_download_pre_processor=None):
+    def __init__(self, remote_store, project, dest_directory, path_filter, file_download_pre_processor=None):
         """
         Setup for downloading a remote project.
         :param remote_store: RemoteStore: which remote store to download the project from
-        :param project_name: str: name of the project to download
+        :param project: RemoteProject: project to download
         :param dest_directory: str: path to where we will save the project contents
         :param path_filter: PathFilter: determines which files will be downloaded
         :param file_download_pre_processor: object: has run(data_service, RemoteFile) method to run before downloading
         """
         self.remote_store = remote_store
-        self.project_name = project_name
+        self.project = project
         self.dest_directory = dest_directory
         self.path_filter = path_filter
         self.file_download_pre_processor = file_download_pre_processor
@@ -27,10 +27,9 @@ class ProjectDownload(object):
 
     def run(self):
         """
-        Download the contents of the specified project_name to dest_directory.
+        Download the contents of the specified project name or id to dest_directory.
         """
-        remote_project = self.remote_store.fetch_remote_project(self.project_name, must_exist=True)
-        self.walk_project(remote_project)
+        self.walk_project(self.project)
 
     def walk_project(self, project):
         """

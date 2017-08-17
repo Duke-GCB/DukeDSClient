@@ -12,6 +12,7 @@ from ddsc.core.download import ProjectDownload
 from ddsc.core.ddsapi import DataServiceAuth
 from ddsc.core.util import KindType
 from ddsc.versioncheck import get_internal_version_str
+from ddsc.core.remotestore import ProjectNameOrId
 
 UNAUTHORIZED_MESSAGE = """
 ERROR: Your account does not have authorization for D4S2 (the deliver/share service).
@@ -208,27 +209,17 @@ class D4S2Project(object):
         self.remote_store = remote_store
         self.print_func = print_func
 
-    def share(self, project_name, to_user, force_send, auth_role, user_message):
+    def share(self, project, to_user, force_send, auth_role, user_message):
         """
         Send mail and give user specified access to the project.
-        :param project_name: str name of the project to share
+        :param project: RemoteProject project to share
         :param to_user: RemoteUser user to receive email/access
         :param auth_role: str project role eg 'project_admin' to give to the user
         :param user_message: str message to be sent with the share
         :return: str email we share the project with
         """
-        project = self.fetch_remote_project(project_name, must_exist=True)
         self.set_user_project_permission(project, to_user, auth_role)
         return self._share_project(D4S2Api.SHARE_DESTINATION, project, to_user, force_send, auth_role, user_message)
-
-    def fetch_remote_project(self, project_name, must_exist=False):
-        """
-        Download project metadata from a remote store.
-        :param project_name: str project to download
-        :param must_exist: bool is it ok if the project doesn't exist
-        :return: RemoteProject
-        """
-        return self.remote_store.fetch_remote_project(project_name, must_exist=must_exist)
 
     def set_user_project_permission(self, project, user, auth_role):
         """
@@ -239,11 +230,11 @@ class D4S2Project(object):
         """
         self.remote_store.set_user_project_permission(project, user, auth_role)
 
-    def deliver(self, project_name, new_project_name, to_user, force_send, path_filter, user_message):
+    def deliver(self, project, new_project_name, to_user, force_send, path_filter, user_message):
         """
         Remove access to project_name for to_user, copy to new_project_name if not None,
         send message to service to email user so they can have access.
-        :param project_name: str name of the pre-existing project
+        :param project: RemoteProject pre-existing project to be delivered
         :param new_project_name: str name of non-existing project to copy project_name to, if None we don't copy
         :param to_user: RemoteUser user we are handing over the project to
         :param force_send: boolean enables resending of email for existing projects
@@ -251,10 +242,9 @@ class D4S2Project(object):
         :param user_message: str message to be sent with the share
         :return: str email we sent deliver to
         """
-        project = self.fetch_remote_project(project_name, must_exist=True)
         self.remove_user_permission(project, to_user)
         if new_project_name:
-            project = self._copy_project(project_name, new_project_name, path_filter)
+            project = self._copy_project(project, new_project_name, path_filter)
         return self._share_project(D4S2Api.DELIVER_DESTINATION, project, to_user, force_send, user_message=user_message)
 
     def remove_user_permission(self, project, user):
@@ -286,10 +276,10 @@ class D4S2Project(object):
         item.send(self.api, force_send)
         return to_user.email
 
-    def _copy_project(self, project_name, new_project_name, path_filter):
+    def _copy_project(self, project, new_project_name, path_filter):
         """
         Copy pre-existing project with name project_name to non-existing project new_project_name.
-        :param project_name: str project to copy from
+        :param project: remotestore.RemoteProject project to copy from
         :param new_project_name: str project to copy to
         :param path_filter: PathFilter: filters what files are shared
         :return: RemoteProject new project we copied data to
@@ -298,23 +288,24 @@ class D4S2Project(object):
         remote_project = self.remote_store.fetch_remote_project(new_project_name)
         if remote_project:
             raise ValueError("A project with name '{}' already exists.".format(new_project_name))
-        activity = CopyActivity(self.remote_store.data_service, project_name, new_project_name)
-        self._download_project(activity, project_name, temp_directory, path_filter)
+        activity = CopyActivity(self.remote_store.data_service, project, new_project_name)
+        self._download_project(activity, project, temp_directory, path_filter)
         self._upload_project(activity, new_project_name, temp_directory)
         activity.finished()
         shutil.rmtree(temp_directory)
         return self.remote_store.fetch_remote_project(new_project_name, must_exist=True)
 
-    def _download_project(self, activity, project_name, temp_directory, path_filter):
+    def _download_project(self, activity, project, temp_directory, path_filter):
         """
         Download the project with project_name to temp_directory.
         :param activity: CopyActivity: info about the copy activity are downloading for
-        :param project_name: str name of the pre-existing project
+        :param project: remotestore.RemoteProject project to download
         :param temp_directory: str path to directory we can download into
         :param path_filter: PathFilter: filters what files are shared
         """
-        self.print_func("Downloading a copy of '{}'.".format(project_name))
-        downloader = ProjectDownload(self.remote_store, project_name, temp_directory, path_filter,
+        self.print_func("Downloading a copy of '{}'.".format(project.name))
+        project_name_or_id = project.get_project_name_or_id()
+        downloader = ProjectDownload(self.remote_store, project_name_or_id, temp_directory, path_filter,
                                      file_download_pre_processor=DownloadedFileRelations(activity))
         downloader.run()
 
@@ -327,23 +318,23 @@ class D4S2Project(object):
         """
         self.print_func("Uploading to '{}'.".format(project_name))
         items_to_send = [os.path.join(temp_directory, item) for item in os.listdir(os.path.abspath(temp_directory))]
-
-        project_upload = ProjectUpload(self.config, project_name, items_to_send,
+        project_name_or_id = ProjectNameOrId.create_from_name(project_name)
+        project_upload = ProjectUpload(self.config, project_name_or_id, items_to_send,
                                        file_upload_post_processor=UploadedFileRelations(activity))
         project_upload.run()
 
 
 class CopyActivity(object):
-    def __init__(self, data_service, project_name, new_project_name):
+    def __init__(self, data_service, project, new_project_name):
         """
         Create an activity for our copy operation so users can trace back where the copied files came from.
         :param data_service: DataServiceApi: service used to create the activity
-        :param project_name: str project name we will download files from
+        :param project: RemoteProject project name we will download files from
         :param new_project_name: str project name we will upload files into
         """
         self.data_service = data_service
-        self.name = "DukeDSClient copying project: {}".format(project_name)
-        self.desc = "Copying {} to project {} using DukeDSClient{}".format(project_name, new_project_name,
+        self.name = "DukeDSClient copying project: {}".format(project.name)
+        self.desc = "Copying {} to project {} using DukeDSClient{}".format(project.name, new_project_name,
                                                                            get_internal_version_str())
         self.started = self._current_timestamp_str()
         result = data_service.create_activity(self.name, self.desc, started_on=self.started)

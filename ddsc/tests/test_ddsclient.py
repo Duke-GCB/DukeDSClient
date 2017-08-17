@@ -40,8 +40,8 @@ class TestShareCommand(TestCase):
                       auth_role='project_viewer', msg_file=None)
         cmd.run(myargs)
         args, kwargs = mock_d4s2_project().share.call_args
-        project_name, to_user, force_send, auth_role, message = args
-        self.assertEqual('mouse', project_name)
+        project, to_user, force_send, auth_role, message = args
+        self.assertEqual(project, mock_remote_store.return_value.fetch_remote_project.return_value)
         self.assertEqual('project_viewer', auth_role)
         self.assertEqual('', message)
 
@@ -54,8 +54,8 @@ class TestShareCommand(TestCase):
                           auth_role='project_viewer', msg_file=message_infile)
             cmd.run(myargs)
             args, kwargs = mock_d4s2_project().share.call_args
-            project_name, to_user, force_send, auth_role, message = args
-            self.assertEqual('mouse', project_name)
+            project, to_user, force_send, auth_role, message = args
+            self.assertEqual(project, mock_remote_store.return_value.fetch_remote_project.return_value)
             self.assertEqual('project_viewer', auth_role)
             self.assertIn('setup(', message)
 
@@ -75,8 +75,8 @@ class TestDeliverCommand(TestCase):
                       msg_file=None)
         cmd.run(myargs)
         args, kwargs = mock_d4s2_project().deliver.call_args
-        project_name, new_project_name, to_user, force_send, path_filter, message = args
-        self.assertEqual('mouse', project_name)
+        project, new_project_name, to_user, force_send, path_filter, message = args
+        self.assertEqual(project, mock_remote_store.return_value.fetch_remote_project.return_value)
         self.assertEqual(False, force_send)
         self.assertEqual('', message)
 
@@ -95,8 +95,8 @@ class TestDeliverCommand(TestCase):
                           msg_file=message_infile)
             cmd.run(myargs)
             args, kwargs = mock_d4s2_project().deliver.call_args
-            project_name, new_project_name, to_user, force_send, path_filter, message = args
-            self.assertEqual('mouse', project_name)
+            project, new_project_name, to_user, force_send, path_filter, message = args
+            self.assertEqual(project, mock_remote_store.return_value.fetch_remote_project.return_value)
             self.assertEqual(False, force_send)
             self.assertIn('setup(', message)
 

@@ -44,6 +44,33 @@ def add_project_name_arg(arg_parser, required=True, help_text="Name of the remot
                             required=required)
 
 
+def add_project_id_arg(arg_parser, required=True, help_text="Name of the remote project to manage."):
+    """
+    Adds project_name parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    :param help_text: str label displayed in usage
+    """
+    arg_parser.add_argument("-i",
+                            metavar='ProjectUUID',
+                            type=to_unicode,
+                            dest='project_id',
+                            help=help_text,
+                            required=required)
+
+
+def add_project_name_or_id_arg(arg_parser, required=True, help_text="ID of the remote project to manage."):
+    """
+    Adds project name or project id argument. These two are mutually exclusive.
+    :param arg_parser:
+    :param required:
+    :param help_text:
+    :return:
+    """
+    project_name_or_id = arg_parser.add_mutually_exclusive_group(required=required)
+    add_project_name_arg(project_name_or_id, required=False, help_text=help_text)
+    add_project_id_arg(project_name_or_id, required=False, help_text=help_text)
+
+
 def _paths_must_exists(path):
     """
     Raises error if path doesn't exist.
@@ -298,7 +325,7 @@ class CommandParser(object):
         upload_parser = self.subparsers.add_parser('upload', description=description)
         _add_dry_run(upload_parser, help_text="Instead of uploading displays a list of folders/files that "
                                               "need to be uploaded.")
-        add_project_name_arg(upload_parser, help_text="Name of the project to upload files/folders to.")
+        add_project_name_or_id_arg(upload_parser, help_text="Name of the project to upload files/folders to.")
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
         upload_parser.set_defaults(func=upload_func)
@@ -311,7 +338,7 @@ class CommandParser(object):
         """
         description = "Gives user permission to access a remote project."
         add_user_parser = self.subparsers.add_parser('add-user', description=description)
-        add_project_name_arg(add_user_parser, help_text="Name of the project to add a user to.")
+        add_project_name_or_id_arg(add_user_parser, help_text="Name of the project to add a user to.")
         user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
@@ -325,7 +352,7 @@ class CommandParser(object):
         """
         description = "Removes user permission to access a remote project."
         remove_user_parser = self.subparsers.add_parser('remove-user', description=description)
-        add_project_name_arg(remove_user_parser, help_text="Name of the project to remove a user from.")
+        add_project_name_or_id_arg(remove_user_parser, help_text="Name of the project to remove a user from.")
         user_or_email = remove_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
@@ -338,7 +365,7 @@ class CommandParser(object):
         """
         description = "Download the contents of a remote remote project to a local folder."
         download_parser = self.subparsers.add_parser('download', description=description)
-        add_project_name_arg(download_parser, help_text="Name of the project to download.")
+        add_project_name_or_id_arg(download_parser, help_text="Name of the project to download.")
         _add_folder_positional_arg(download_parser)
         include_or_exclude = download_parser.add_mutually_exclusive_group(required=False)
         _add_include_arg(include_or_exclude)
@@ -354,7 +381,7 @@ class CommandParser(object):
                       "Sends the other user an email message via D4S2 service. " \
                       "If not specified this command gives user download permissions."
         share_parser = self.subparsers.add_parser('share', description=description)
-        add_project_name_arg(share_parser)
+        add_project_name_or_id_arg(share_parser)
         user_or_email = share_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
@@ -373,7 +400,7 @@ class CommandParser(object):
                       "Makes a copy of the project. Send message to D4S2 service to send email and allow " \
                       "access to the copy of the project once user acknowledges receiving the data."
         deliver_parser = self.subparsers.add_parser('deliver', description=description)
-        add_project_name_arg(deliver_parser)
+        add_project_name_or_id_arg(deliver_parser)
         user_or_email = deliver_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
@@ -395,7 +422,7 @@ class CommandParser(object):
         list_parser = self.subparsers.add_parser('list', description=description)
         project_name_or_auth_role = list_parser.add_mutually_exclusive_group(required=False)
         _add_project_filter_auth_role_arg(project_name_or_auth_role)
-        add_project_name_arg(project_name_or_auth_role, required=False, help_text="Name of the project to show details for.")
+        add_project_name_or_id_arg(project_name_or_auth_role, required=False, help_text="Name of the project to show details for.")
         list_parser.set_defaults(func=list_func)
 
     def register_delete_command(self, delete_func):
@@ -405,7 +432,7 @@ class CommandParser(object):
         """
         description = "Permanently delete a project."
         delete_parser = self.subparsers.add_parser('delete', description=description)
-        add_project_name_arg(delete_parser, help_text="Name of the project to delete.")
+        add_project_name_or_id_arg(delete_parser, help_text="Name of the project to delete.")
         _add_force_arg(delete_parser, "Do not prompt before deleting.")
         delete_parser.set_defaults(func=delete_func)
 

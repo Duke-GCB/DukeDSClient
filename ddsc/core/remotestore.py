@@ -20,21 +20,22 @@ class RemoteStore(object):
         auth = DataServiceAuth(self.config)
         self.data_service = DataServiceApi(auth, self.config.url)
 
-    def fetch_remote_project(self, project_name, must_exist=False, include_children=True):
+    def fetch_remote_project(self, project_name_or_id, must_exist=False, include_children=True):
         """
-        Retrieve the project via project_name.
-        :param project_name: str name of the project to try and download
+        Retrieve the project via project name or id.
+        :param project_name_or_id: ProjectNameOrId name or id of the project to fetch
         :param must_exist: should we error if the project doesn't exist
         :param include_children: should we read children(folders/files)
         :return: RemoteProject project requested or None if not found(and must_exist=False)
         """
-        project = self._get_my_project(project_name)
+        project = self._get_my_project(project_name_or_id)
         if project:
             if include_children:
                 self._add_project_children(project)
         else:
             if must_exist:
-                raise NotFoundError(u'There is no project with the name {}'.format(project_name).encode('utf-8'))
+                project_description = project_name_or_id.description()
+                raise NotFoundError(u'There is no project with the {}'.format(project_description))
         return project
 
     def fetch_remote_project_by_id(self, id):
@@ -46,15 +47,15 @@ class RemoteStore(object):
         response = self.data_service.get_project_by_id(id).json()
         return RemoteProject(response)
 
-    def _get_my_project(self, project_name):
+    def _get_my_project(self, project_name_or_id):
         """
-        Return project tree root for project_name.
-        :param project_name: str name of the project to download
+        Return project tree root for project_name_or_id.
+        :param project_name_or_id: ProjectNameOrId name or id of the project to lookup
         :return: RemoteProject project we found or None
         """
         response = self.data_service.get_projects().json()
         for project in response['results']:
-            if project['name'] == project_name:
+            if project_name_or_id.contained_in_dict(project):
                 return RemoteProject(project)
         return None
 
@@ -271,16 +272,16 @@ class RemoteStore(object):
                 projects.append(project)
         return projects
 
-    def delete_project_by_name(self, project_name):
+    def delete_project(self, project_name_or_id):
         """
-        Find the project named project_name and delete it raise error if not found.
-        :param project_name: str: Name of the project we want to be deleted
+        Find the project with project_name_or_id and delete it raise error if not found.
+        :param project_name_or_id: ProjectNameOrId: name or id of the project we want to be deleted
         """
-        project = self._get_my_project(project_name)
+        project = self._get_my_project(project_name_or_id)
         if project:
             self.data_service.delete_project(project.id)
         else:
-            raise ValueError("No project named '{}' found.\n".format(project_name))
+            raise ValueError("No project with {} found.\n".format(project_name_or_id.description()))
 
     def get_active_auth_roles(self, context):
         """
@@ -333,6 +334,12 @@ class RemoteProject(object):
         :param child: RemoteFolder/RemoteFile child to add.
         """
         self.children.append(child)
+
+    def get_project_name_or_id(self):
+        """
+        :return: ProjectNameOrId: contains key of id
+        """
+        return ProjectNameOrId.create_from_remote_project(self)
 
     def __str__(self):
         return 'project: {} id:{} {}'.format(self.name, self.id, self.children)
@@ -550,3 +557,38 @@ class NotFoundError(Exception):
     def __init__(self, message):
         Exception.__init__(self, message)
         self.message = message
+
+
+class ProjectNameOrId(object):
+    def __init__(self, value, is_name):
+        self.value = value
+        self.is_name = is_name
+
+    def description(self):
+        format_str = 'name {}'
+        if not self.is_name:
+            format_str = 'id {}'
+        return format_str.format(self.value)
+
+    def contained_in_dict(self, data):
+        if self.is_name:
+            return self.value == data.get('name')
+        else:
+            return self.value == data.get('id')
+
+    def get_name_or_raise(self):
+        if self.is_name:
+            return self.value
+        raise ValueError("Programming Error: Cannot return name. value is project id.")
+
+    @staticmethod
+    def create_from_name(name):
+        return ProjectNameOrId(value=name, is_name=True)
+
+    @staticmethod
+    def create_from_project_id(project_id):
+        return ProjectNameOrId(value=project_id, is_name=False)
+
+    @staticmethod
+    def create_from_remote_project(project):
+        return ProjectNameOrId.create_from_project_id(project.id)

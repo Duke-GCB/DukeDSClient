@@ -9,19 +9,19 @@ class ProjectUpload(object):
     """
     Allows uploading a local project to a remote duke-data-service.
     """
-    def __init__(self, config, project_name, folders, follow_symlinks=False, file_upload_post_processor=None):
+    def __init__(self, config, project_name_or_id, folders, follow_symlinks=False, file_upload_post_processor=None):
         """
         Setup for uploading folders dictionary of paths to project_name using config.
         :param config: Config configuration for performing the upload(url, keys, etc)
-        :param project_name: str name of the project we will upload files to
+        :param project_name_or_id: ProjectNameOrId: name or id of the project we will upload files to
         :param folders: [str] list of paths of files/folders to upload to the project
         :param follow_symlinks: bool if true we will traverse symbolic linked directories
         :param file_upload_post_processor: object: has run(data_service, file_response) method to run after uploading
         """
         self.config = config
         self.remote_store = RemoteStore(config)
-        self.project_name = project_name
-        self.remote_project = self.remote_store.fetch_remote_project(project_name)
+        self.project_name_or_id = project_name_or_id
+        self.remote_project = self.remote_store.fetch_remote_project(project_name_or_id)
         self.local_project = ProjectUpload._load_local_project(folders, follow_symlinks, config.file_exclude_regex)
         self.local_project.update_remote_ids(self.remote_project)
         self.different_items = self._count_differences()
@@ -56,7 +56,7 @@ class ProjectUpload(object):
         """
         progress_printer = ProgressPrinter(self.different_items.total_items(), msg_verb='sending')
         upload_settings = UploadSettings(self.config, self.remote_store.data_service, progress_printer,
-                                         self.project_name, self.file_upload_post_processor)
+                                         self.project_name_or_id, self.file_upload_post_processor)
         project_uploader = ProjectUploader(upload_settings)
         project_uploader.run(self.local_project)
         progress_printer.finished()
@@ -90,7 +90,10 @@ class ProjectUpload(object):
         """
         Generate and print a report onto stdout.
         """
-        report = UploadReport(self.project_name)
+        project = self.remote_store.fetch_remote_project(self.project_name_or_id,
+                                                         must_exist=True,
+                                                         include_children=False)
+        report = UploadReport(project.name)
         report.walk_project(self.local_project)
         return report.get_content()
 

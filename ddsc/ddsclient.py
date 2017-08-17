@@ -6,7 +6,7 @@ import datetime
 import pipes
 import time
 from ddsc.core.d4s2 import D4S2Project, D4S2Error
-from ddsc.core.remotestore import RemoteStore, RemoteAuthRole
+from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
@@ -85,9 +85,9 @@ class DDSClient(object):
         command.run(args)
 
 
-class UploadCommand(object):
+class BaseCommand(object):
     """
-    Uploads a folder to a remote project.
+    Setup remote store and save config
     """
     def __init__(self, config):
         """
@@ -97,6 +97,31 @@ class UploadCommand(object):
         self.remote_store = RemoteStore(config)
         self.config = config
 
+    @staticmethod
+    def create_project_name_or_id_from_args(args):
+        if args.project_name:
+            return ProjectNameOrId.create_from_name(args.project_name)
+        else:
+            return ProjectNameOrId.create_from_project_id(args.project_id)
+
+    def fetch_project(self, args, must_exist=True, include_children=False):
+        project_name_or_id = self.create_project_name_or_id_from_args(args)
+        return self.remote_store.fetch_remote_project(project_name_or_id,
+                                                      must_exist=must_exist,
+                                                      include_children=include_children)
+
+
+class UploadCommand(BaseCommand):
+    """
+    Uploads a folder to a remote project.
+    """
+    def __init__(self, config):
+        """
+        Pass in the config containing remote_store/url so we can access the remote data.
+        :param config: Config global configuration for use with this command.
+        """
+        super(UploadCommand, self).__init__(config)
+
     def run(self, args):
         """
         Upload contents of folders to a project with project_name on remote store.
@@ -104,12 +129,12 @@ class UploadCommand(object):
         If content is already on remote site it will not be sent.
         :param args: Namespace arguments parsed from the command line.
         """
-        project_name = args.project_name        # name of the remote project to create/upload to
+        project_name_or_id = self.create_project_name_or_id_from_args(args)
         folders = args.folders                  # list of local files/folders to upload into the project
         follow_symlinks = args.follow_symlinks  # should we follow symlinks when traversing folders
         dry_run = args.dry_run                  # do not upload anything, instead print out what you would upload
 
-        project_upload = ProjectUpload(self.config, project_name, folders, follow_symlinks=follow_symlinks)
+        project_upload = ProjectUpload(self.config, project_name_or_id, folders, follow_symlinks=follow_symlinks)
         if dry_run:
             print(project_upload.dry_run_report())
         else:
@@ -122,7 +147,7 @@ class UploadCommand(object):
             print(project_upload.get_url_msg())
 
 
-class DownloadCommand(object):
+class DownloadCommand(BaseCommand):
     """
     Downloads the content from a remote project into a folder.
     """
@@ -131,25 +156,26 @@ class DownloadCommand(object):
         Pass in the config who can create a remote_store so we can access the remote data.
         :param config: Config global configuration for use with this command.
         """
-        self.remote_store = RemoteStore(config)
+        super(DownloadCommand, self).__init__(config)
 
     def run(self, args):
         """
         Download a project based on passed in args.
         :param args: Namespace arguments parsed from the command line.
         """
-        project_name = args.project_name    # name of the pre-existing project to set permissions on
+        project_name_or_id = self.create_project_name_or_id_from_args(args)
         folder = args.folder                # path to a folder to download data into
         # Default to project name with spaces replaced with '_' if not specified
         if not folder:
-            fixed_path = replace_invalid_path_chars(project_name.replace(' ', '_'))
+            fixed_path = replace_invalid_path_chars(project_name_or_id.value.replace(' ', '_'))
             folder = path_does_not_exist_or_is_empty(fixed_path)
         path_filter = PathFilter(args.include_paths, args.exclude_paths)
-        project_download = ProjectDownload(self.remote_store, project_name, folder, path_filter)
+        project = self.fetch_project(args, must_exist=True, include_children=True)
+        project_download = ProjectDownload(self.remote_store, project, folder, path_filter)
         project_download.run()
 
 
-class AddUserCommand(object):
+class AddUserCommand(BaseCommand):
     """
     Adds a user to a pre-existing remote project.
     """
@@ -158,24 +184,23 @@ class AddUserCommand(object):
         Pass in the config who can create a remote_store so we can access the remote data.
         :param config: Config global configuration for use with this command.
         """
-        self.remote_store = RemoteStore(config)
+        super(AddUserCommand, self).__init__(config)
 
     def run(self, args):
         """
         Give the user with user_full_name the auth_role permissions on the remote project with project_name.
         :param args Namespace arguments parsed from the command line
         """
-        project_name = args.project_name    # name of the pre-existing project to set permissions on
         email = args.email                  # email of person to give permissions, will be None if username is specified
         username = args.username            # username of person to give permissions, will be None if email is specified
         auth_role = args.auth_role          # type of permission(project_admin)
-        project = self.remote_store.fetch_remote_project(project_name, must_exist=True, include_children=False)
+        project = self.fetch_project(args, must_exist=True, include_children=False)
         user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         self.remote_store.set_user_project_permission(project, user, auth_role)
-        print(u'Gave user {} {} permissions for {}.'.format(user.full_name, auth_role, project_name))
+        print(u'Gave user {} {} permissions for project {}.'.format(user.full_name, auth_role, project.name))
 
 
-class RemoveUserCommand(object):
+class RemoveUserCommand(BaseCommand):
     """
     Removes a user from a pre-existing remote project.
     """
@@ -184,23 +209,22 @@ class RemoveUserCommand(object):
         Pass in the config who can create a remote_store so we can access the remote data.
         :param config: Config global configuration for use with this command.
         """
-        self.remote_store = RemoteStore(config)
+        super(RemoveUserCommand, self).__init__(config)
 
     def run(self, args):
         """
         Remove permissions from the user with user_full_name or email on the remote project with project_name.
         :param args Namespace arguments parsed from the command line
         """
-        project_name = args.project_name  # name of the pre-existing project to set permissions on
         email = args.email                # email of person to remove permissions from (None if username specified)
         username = args.username          # username of person to remove permissions from (None if email is specified)
-        project = self.remote_store.fetch_remote_project(project_name, must_exist=True, include_children=False)
+        project = self.fetch_project(args, must_exist=True, include_children=False)
         user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         self.remote_store.revoke_user_project_permission(project, user)
-        print(u'Removed permissions from user {} for project {}.'.format(user.full_name, project_name))
+        print(u'Removed permissions from user {} for project {}.'.format(user.full_name, project.name))
 
 
-class ShareCommand(object):
+class ShareCommand(BaseCommand):
     """
     Gives user project level permission and sends an email to that user.
     """
@@ -209,7 +233,7 @@ class ShareCommand(object):
         Pass in the config who can create a remote_store so we can access the remote data.
         :param config: Config global configuration for use with this command.
         """
-        self.remote_store = RemoteStore(config)
+        super(ShareCommand, self).__init__(config)
         self.service = D4S2Project(config, self.remote_store, print_func=print)
 
     def run(self, args):
@@ -217,7 +241,6 @@ class ShareCommand(object):
         Gives user permission based on auth_role arg and sends email to that user.
         :param args Namespace arguments parsed from the command line
         """
-        project_name = args.project_name    # name of the pre-existing project to set permissions on
         email = args.email                  # email of person to send email to
         username = args.username            # username of person to send email to, will be None if email is specified
         force_send = args.resend            # is this a resend so we should force sending
@@ -227,7 +250,8 @@ class ShareCommand(object):
         print("Sharing project.")
         to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         try:
-            dest_email = self.service.share(project_name, to_user, force_send, auth_role, message)
+            project = self.fetch_project(args, must_exist=True, include_children=False)
+            dest_email = self.service.share(project, to_user, force_send, auth_role, message)
             print("Share email message sent to " + dest_email)
         except D4S2Error as ex:
             if ex.warning:
@@ -236,7 +260,7 @@ class ShareCommand(object):
                 raise
 
 
-class DeliverCommand(object):
+class DeliverCommand(BaseCommand):
     """
     Transfers project to another user once they accept it via the D4S2 service.
     """
@@ -245,7 +269,7 @@ class DeliverCommand(object):
         Pass in the config who can create a remote_store so we can access the remote data.
         :param config: Config global configuration for use with this command.
         """
-        self.remote_store = RemoteStore(config)
+        super(DeliverCommand, self).__init__(config)
         self.service = D4S2Project(config, self.remote_store, print_func=print)
 
     def run(self, args):
@@ -255,22 +279,21 @@ class DeliverCommand(object):
         When user accepts delivery they receive access and we lose admin privileges.
         :param args Namespace arguments parsed from the command line
         """
-        project_name = args.project_name    # name of the pre-existing project to set permissions on
         email = args.email                  # email of person to deliver to, will be None if username is specified
         username = args.username            # username of person to deliver to, will be None if email is specified
         skip_copy_project = args.skip_copy_project  # should we skip the copy step
         force_send = args.resend            # is this a resend so we should force sending
         msg_file = args.msg_file            # message file who's contents will be sent with the delivery
         message = read_argument_file_contents(msg_file)
+        project = self.fetch_project(args, must_exist=True, include_children=False)
         print("Delivering project.")
         new_project_name = None
         if not skip_copy_project:
-            new_project_name = self.get_new_project_name(project_name)
+            new_project_name = self.get_new_project_name(project.name)
         to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
-            dest_email = self.service.deliver(project_name, new_project_name, to_user, force_send, path_filter,
-                                              message)
+            dest_email = self.service.deliver(project, new_project_name, to_user, force_send, path_filter, message)
             print("Delivery email message sent to " + dest_email)
         except D4S2Error as ex:
             if ex.warning:
@@ -281,14 +304,15 @@ class DeliverCommand(object):
     def get_new_project_name(self, project_name):
         """
         Return a unique project name for the copy.
-        :param project_name:
-        :return:
+        :param project_name: str: name of project we will copy
+        :return: str
         """
+        self.remote_store.fetch_remote_project_by_id()
         timestamp_str = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')
         return "{} {}".format(project_name, timestamp_str)
 
 
-class ListCommand(object):
+class ListCommand(BaseCommand):
     """
     Print out a list of project names one line at a time or details about a single project.
     Names are escaped so the output can be used with the delete command.
@@ -298,7 +322,7 @@ class ListCommand(object):
         Pass in the config for which data service and user to list data for.
         :param config: Config global configuration for use with this command.
         """
-        self.remote_store = RemoteStore(config)
+        super(ListCommand, self).__init__(config)
 
     def run(self, args):
         """
@@ -306,8 +330,8 @@ class ListCommand(object):
         :param args Namespace arguments parsed from the command line
         """
         # project_name and auth_role args are mutually exclusive
-        if args.project_name:
-            project = self.remote_store.fetch_remote_project(args.project_name, must_exist=True)
+        if args.project_name or args.project_id:
+            project = self.fetch_project(args, must_exist=True, include_children=True)
             self.print_project_details(project)
         else:
             self.print_project_names(args.auth_role)
@@ -336,7 +360,7 @@ class ListCommand(object):
             print(NO_PROJECTS_FOUND_MESSAGE)
 
 
-class DeleteCommand(object):
+class DeleteCommand(BaseCommand):
     """
     Delete a single project from the duke-data-service.
     """
@@ -345,26 +369,22 @@ class DeleteCommand(object):
         Pass in the config who can create a remote_store so we can access the remote data.
         :param config: Config global configuration for use with this command.
         """
-        self.remote_store = RemoteStore(config)
+        super(DeleteCommand, self).__init__(config)
 
     def run(self, args):
         """
         Deletes a single project specified by project_name in args.
         :param args Namespace arguments parsed from the command line
         """
-        project_name = args.project_name
-        project = self.remote_store.fetch_remote_project(project_name, must_exist=False, include_children=False)
-        if not project:
-            raise ValueError("No project named '{}' found.\n".format(project_name))
-        else:
-            if not args.force:
-                delete_prompt = "Are you sure you wish to delete {} (y/n)?".format(project_name)
-                if not boolean_input_prompt(delete_prompt):
-                    return
-            self.remote_store.delete_project_by_name(args.project_name)
+        project = self.fetch_project(args, must_exist=True, include_children=False)
+        if not args.force:
+            delete_prompt = "Are you sure you wish to delete {} (y/n)?".format(project.name)
+            if not boolean_input_prompt(delete_prompt):
+                return
+        self.remote_store.delete_project(self.create_project_name_or_id_from_args(args))
 
 
-class ListAuthRolesCommand(object):
+class ListAuthRolesCommand(BaseCommand):
     """
     List available auth roles for a project. Intentionally excludes system-type auth roles.
     System-type auth roles are accepted by DukeDS add_user API endpoint but are non-functional.
@@ -374,7 +394,7 @@ class ListAuthRolesCommand(object):
         Pass in the config who can create a remote_store so we can access the remote data.
         :param config: Config global configuration for use with this command.
         """
-        self.remote_store = RemoteStore(config)
+        super(ListAuthRolesCommand, self).__init__(config)
 
     def run(self, args):
         """
