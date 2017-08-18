@@ -1,9 +1,11 @@
 from unittest import TestCase
 import pickle
 import multiprocessing
-from ddsc.core.projectuploader import UploadSettings, UploadContext, ProjectUploadDryRun
+from ddsc.core.projectuploader import UploadSettings, UploadContext, ProjectUploadDryRun, CreateProjectCommand, \
+    upload_project_run
 from ddsc.core.util import KindType
-from mock import MagicMock
+from ddsc.core.remotestore import ProjectNameOrId
+from mock import MagicMock, Mock
 
 
 class FakeDataServiceApi(object):
@@ -19,7 +21,7 @@ class FakeDataServiceAuth(object):
 class TestUploadContext(TestCase):
     def test_can_pickle(self):
         """Make sure we can pickle context since it must be passed to another process."""
-        settings = UploadSettings(None, FakeDataServiceApi(), None, None, None)
+        settings = UploadSettings(None, FakeDataServiceApi(), None, ProjectNameOrId.create_from_name('mouse'), None)
         params = ('one', 'two', 'three')
         context = UploadContext(settings, params, multiprocessing.Manager().Queue(), 12)
         pickle.dumps(context)
@@ -120,3 +122,25 @@ class TestProjectUploadDryRun(TestCase):
             '/data/2017/08/flyresults/results.txt',
         ]
         self.assertEqual(expected_results, upload_dry_run.upload_items)
+
+
+class TestCreateProjectCommand(TestCase):
+    def test_constructor_fails_for_id(self):
+        mock_settings = Mock(project_name_or_id=ProjectNameOrId.create_from_project_id('123'))
+        mock_local_project = Mock()
+        with self.assertRaises(ValueError):
+            CreateProjectCommand(mock_settings, mock_local_project)
+
+    def test_constructor_ok_for_name(self):
+        mock_settings = Mock(project_name_or_id=ProjectNameOrId.create_from_name('mouse'))
+        mock_local_project = Mock()
+        CreateProjectCommand(mock_settings, mock_local_project)
+
+    def test_upload_project_run(self):
+        mock_data_service = Mock()
+        mock_data_service.create_project.return_value = MagicMock()
+        mock_upload_context = Mock()
+        mock_upload_context.make_data_service.return_value = mock_data_service
+        mock_upload_context.project_name_or_id = ProjectNameOrId.create_from_name('mouse')
+        upload_project_run(mock_upload_context)
+        mock_data_service.create_project.assert_called_with('mouse', 'mouse')

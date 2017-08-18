@@ -242,7 +242,6 @@ class CreateProjectCommand(object):
         self.local_project = local_project
         if not settings.project_name_or_id.is_name:
             raise ValueError('Programming Error: CreateProjectCommand called without project name.')
-        self.project_name = settings.project_name_or_id.get_name_or_raise()
         self.func = upload_project_run
 
     def before_run(self, parent_task_result):
