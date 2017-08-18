@@ -258,14 +258,14 @@ class ProjectDetailsList(object):
         name = self.get_name(item, parent)
         self.id_to_path[item.id] = name
         if self.long_format:
-            self.details.append('{}\t{}'.format(item.id, item.name))
+            self.details.append('{}\t{}'.format(item.id, name))
         else:
             self.details.append(name)
 
     def visit_file(self, item, parent):
         name = self.get_name(item, parent)
         if self.long_format:
-            self.details.append('{}\t{}'.format(item.id, item.name))
+            self.details.append('{}\t{}'.format(item.id, name))
         else:
             self.details.append(name)
 
