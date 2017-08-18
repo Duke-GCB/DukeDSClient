@@ -69,7 +69,6 @@ class TestCopyActivity(TestCase):
     def test_constructor_and_finished(self):
         data_service = MagicMock()
         data_service.create_activity().json().__getitem__.return_value = '1'
-        project_name = "mouse"
         new_project_name = "mouse_copy"
 
         # Constructor should create activity

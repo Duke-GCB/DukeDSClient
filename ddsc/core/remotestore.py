@@ -587,6 +587,11 @@ class ProjectNameOrId(object):
             return self.value
         raise ValueError("Programming Error: Cannot return name. value is project id.")
 
+    def get_id_or_raise(self):
+        if not self.is_name:
+            return self.value
+        raise ValueError("Programming Error: Cannot return id. value is project name.")
+
     @staticmethod
     def create_from_name(name):
         return ProjectNameOrId(value=name, is_name=True)

@@ -3,7 +3,6 @@ from __future__ import print_function, unicode_literals
 from builtins import input
 import sys
 import datetime
-import pipes
 import time
 from ddsc.core.d4s2 import D4S2Project, D4S2Error
 from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
