@@ -566,6 +566,11 @@ class NotFoundError(Exception):
 
 
 class ProjectNameOrId(object):
+    """
+    Contains either a project name or a project id(uuid).
+    If it contains a project ID the project is assumed to already exist (only DukeDS makes up project uuid).
+    If it contains a project name they project may or may not exist.
+    """
     def __init__(self, value, is_name):
         self.value = value
         self.is_name = is_name

@@ -7,6 +7,7 @@ from ddsc.core.remotestore import RemoteStore
 from ddsc.core.remotestore import RemoteAuthRole
 from ddsc.core.remotestore import RemoteProjectChildren
 from ddsc.core.remotestore import RemoteAuthProvider
+from ddsc.core.remotestore import ProjectNameOrId
 
 
 class TestProjectFolderFile(TestCase):
@@ -667,3 +668,43 @@ class TestRemoteAuthProvider(TestCase):
         remote_store = RemoteStore(MagicMock())
         with self.assertRaises(ValueError):
             remote_store.register_user_by_username("joe")
+
+
+class TestProjectNameOrId(TestCase):
+    def test_constructors(self):
+        item = ProjectNameOrId.create_from_project_id('123')
+        self.assertEqual(item.is_name, False)
+        self.assertEqual(item.value, '123')
+        self.assertEqual('123', item.get_id_or_raise())
+        with self.assertRaises(ValueError):
+            item.get_name_or_raise()
+
+        item = ProjectNameOrId.create_from_name('mouse')
+        self.assertEqual(item.is_name, True)
+        self.assertEqual(item.value, 'mouse')
+        self.assertEqual('mouse', item.get_name_or_raise())
+        with self.assertRaises(ValueError):
+            item.get_id_or_raise()
+
+        mock_project = Mock()
+        mock_project.id = '456'
+        item = ProjectNameOrId.create_from_remote_project(mock_project)
+        self.assertEqual(item.is_name, False)
+        self.assertEqual(item.value, '456')
+        self.assertEqual('456', item.get_id_or_raise())
+        with self.assertRaises(ValueError):
+            item.get_name_or_raise()
+
+    def test_description(self):
+        item = ProjectNameOrId(value='mouse', is_name=True)
+        self.assertEqual('name mouse', item.description())
+        item = ProjectNameOrId(value='123', is_name=False)
+        self.assertEqual('id 123', item.description())
+
+    def test_contained_in_dict(self):
+        item = ProjectNameOrId(value='mouse', is_name=True)
+        self.assertEqual(True, item.contained_in_dict({'name': 'mouse'}))
+        self.assertEqual(False, item.contained_in_dict({'name': 'mouse2'}))
+        item = ProjectNameOrId(value='576', is_name=False)
+        self.assertEqual(False, item.contained_in_dict({'id': '123'}))
+        self.assertEqual(True, item.contained_in_dict({'id': '576'}))
