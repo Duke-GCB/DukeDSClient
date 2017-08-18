@@ -302,6 +302,17 @@ def _add_message_file(arg_parser, help_text):
                             help=help_text)
 
 
+def _add_long_format_option(arg_parser, help_text):
+    """
+    Adds optional follow_symlinks parameter to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    """
+    arg_parser.add_argument("-l",
+                            help=help_text,
+                            action='store_true',
+                            dest='long_format')
+
+
 class CommandParser(object):
     """
     Root command line parser. Supports the following commands: upload and add_user.
@@ -423,6 +434,7 @@ class CommandParser(object):
         project_name_or_auth_role = list_parser.add_mutually_exclusive_group(required=False)
         _add_project_filter_auth_role_arg(project_name_or_auth_role)
         add_project_name_or_id_arg(project_name_or_auth_role, required=False, help_text="Name of the project to show details for.")
+        _add_long_format_option(list_parser, 'Display long format.')
         list_parser.set_defaults(func=list_func)
 
     def register_delete_command(self, delete_func):

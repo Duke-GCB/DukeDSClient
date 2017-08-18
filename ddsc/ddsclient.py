@@ -1,5 +1,5 @@
 """ Runs the appropriate command for a user based on arguments. """
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
 from builtins import input
 import sys
 import datetime
@@ -10,7 +10,7 @@ from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
-from ddsc.core.util import ProjectFilenameList, verify_terminal_encoding
+from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException
 from ddsc.config import create_config
@@ -329,35 +329,43 @@ class ListCommand(BaseCommand):
         Lists project names.
         :param args Namespace arguments parsed from the command line
         """
+        long_format = args.long_format
         # project_name and auth_role args are mutually exclusive
         if args.project_name or args.project_id:
             project = self.fetch_project(args, must_exist=True, include_children=True)
-            self.print_project_details(project)
+            self.print_project_details(project, long_format)
         else:
-            self.print_project_names(args.auth_role)
+            self.print_project_list_details(args.auth_role, long_format)
 
     @staticmethod
-    def print_project_details(project):
-        filename_list = ProjectFilenameList()
-        filename_list.walk_project(project)
-        for info in filename_list.details:
+    def print_project_details(project, long_format):
+        details_list = ProjectDetailsList(long_format)
+        details_list.walk_project(project)
+        for info in details_list.details:
             print(info)
 
-    def print_project_names(self, filter_auth_role):
+    def print_project_list_details(self, filter_auth_role, long_format):
         """
         Prints project names to stdout for all projects or just those with the specified auth_role
         :param filter_auth_role: str: optional auth_role to filter project list
         """
         if filter_auth_role:
-            projects = self.remote_store.get_projects_with_auth_role(auth_role=filter_auth_role)
-            names = [project['name'] for project in projects]
+            projects_details = self.remote_store.get_projects_with_auth_role(auth_role=filter_auth_role)
         else:
-            names = self.remote_store.get_project_names()
-        if names:
-            for name in names:
-                print(pipes.quote(name))
+            projects_details = self.remote_store.get_projects_details()
+        if projects_details:
+            for projects_detail in projects_details:
+                print(self.get_project_info_line(projects_detail, long_format))
         else:
             print(NO_PROJECTS_FOUND_MESSAGE)
+
+    @staticmethod
+    def get_project_info_line(project_dict, long_format):
+        project_name = project_dict['name']
+        project_id = project_dict['id']
+        if long_format:
+            return '{}\t{}'.format(project_id, project_name)
+        return project_name
 
 
 class DeleteCommand(BaseCommand):

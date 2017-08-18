@@ -255,6 +255,12 @@ class RemoteStore(object):
             names.append(project['name'])
         return names
 
+    def get_projects_details(self):
+        """
+        Return list of top level details for all projects
+        """
+        return self.data_service.get_projects().json()['results']
+
     def get_projects_with_auth_role(self, auth_role):
         """
         Return the list of projects that have the specified auth role from the list that the current user has access to.
