@@ -28,7 +28,7 @@ Details of all configuration options: [Configuration options](https://github.com
 #####  Follow these instructions to setup your __user_key__ and  __agent_key__:
 [Instructions for adding agent and user keys to the user config file.](https://github.com/Duke-GCB/DukeDSClient/wiki/Agent-User-Keys-(setup))
 
-###Use:
+### Use:
 See general help screen:
 ```
 ddsclient -h
@@ -43,7 +43,7 @@ All commands take the form:
 ddsclient <command> <arguments...>
 ```
 
-###Upload:
+### Upload:
 ```
 ddsclient upload -p <ProjectName> <Folders/Files...>
 ```
@@ -73,7 +73,7 @@ ddsclient download -p 'Mouse RNA' /tmp/mouserna
 ```
 
 
-###Add User To Project:
+### Add User To Project:
 #### Using duke netid:
 ```
 ddsclient add_user -p <ProjectName> --user <Username> --auth_role 'project_admin'
