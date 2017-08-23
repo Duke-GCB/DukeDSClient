@@ -7,6 +7,8 @@ import tempfile
 import requests
 from multiprocessing import Process, Queue
 from ddsc.core.util import ProgressQueue, wait_for_processes
+from ddsc.core.remotestore import RemoteStore
+from ddsc.core.ddsapi import retry_until_resource_is_consistent
 
 DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
 MIN_DOWNLOAD_CHUNK_SIZE = DOWNLOAD_FILE_CHUNK_SIZE
@@ -21,11 +23,10 @@ class FileDownloader(object):
     Creates an empty file.
     Each worker seeks to their spot and streams the data from their url data into the file.
     """
-    def __init__(self, config, remote_file, url_parts, path, watcher):
+    def __init__(self, config, remote_file, path, watcher):
         """
         Setup details on what to download and watcher to notify of progress.
         :param config: Config: configuration settings for download (number workers)
-        :param remote_file: RemoteFile: info about the file we are downloading
         :param url_parts: dictionary of fields related to url ('http_verb','host','http_headers') received from duke_data_service
         :param path: str: path to where we will save the file
         :param watcher: ProgressPrinter: we notify of our progress
@@ -33,29 +34,9 @@ class FileDownloader(object):
         self.config = config
         self.remote_file = remote_file
         self.file_size = remote_file.size
-        self.url_parts = url_parts
         self.path = path
         self.watcher = watcher
         self.file_parts = []
-
-    @property
-    def http_verb(self):
-        verb = self.url_parts['http_verb']
-        if verb != 'GET':
-            raise ValueError("Unsupported download method: {}".format(verb))
-        return verb
-
-    @property
-    def url(self):
-        """
-        Returns the full url based on url_parts.
-        The 'url' part of url_parts is actually the path.
-        """
-        return self.url_parts['host'] + self.url_parts['url']
-
-    @property
-    def http_headers(self):
-        return self.url_parts['http_headers']
 
     def make_ranges(self):
         """
@@ -122,18 +103,17 @@ class FileDownloader(object):
         :param progress_queue: ProgressQueue: queue to notify as we make progress
         :return: Process: the process we created
         """
-        http_headers = {'Range': 'bytes={}-{}'.format(range_start, range_end)}
+        range_headers = {'Range': 'bytes={}-{}'.format(range_start, range_end)}
         bytes_to_read = range_end - range_start + 1
-        if self.http_headers:
-            http_headers.update(self.http_headers)
         seek_amt = range_start
         process = Process(target=download_async,
-                          args=(self.url, http_headers, self.path, seek_amt, bytes_to_read, progress_queue))
+                          args=(self.config, self.remote_file.id, range_headers,
+                                self.path, seek_amt, bytes_to_read, progress_queue))
         process.start()
         return process
 
 
-def download_async(url, headers, path, seek_amt, bytes_to_read, progress_queue):
+def download_async(config, remote_file_id, range_headers, path, seek_amt, bytes_to_read, progress_queue):
     """
     Called in separate process to download a chunk of a file.
     :param url: str: url to file we should download
@@ -144,8 +124,10 @@ def download_async(url, headers, path, seek_amt, bytes_to_read, progress_queue):
     :param progress_queue: ProgressQueue: queue of tuples we will add progress/errors to
     """
     partial_download_failures = 0
+    remote_store = RemoteStore(config)
     while True:
         try:
+            url, headers = get_file_chunk_url_and_headers(remote_store, remote_file_id, range_headers, progress_queue)
             downloader = ChunkDownloader(url, headers, path, seek_amt, bytes_to_read, progress_queue)
             downloader.run()
             break
@@ -162,6 +144,26 @@ def download_async(url, headers, path, seek_amt, bytes_to_read, progress_queue):
         except Exception as err:
             progress_queue.error(str(err))
             break
+
+
+def get_file_chunk_url_and_headers(remote_store, remote_file_id, range_headers, progress_queue):
+    get_file_url = GetFileUrl(remote_store.data_service, remote_file_id)
+    url_json = retry_until_resource_is_consistent(get_file_url.run, progress_queue)
+    url = url_json['host'] + url_json['url']
+    additional_headers = url_json['http_headers']
+    headers = range_headers
+    if additional_headers:
+        headers.update(additional_headers)
+    return url, headers
+
+
+class GetFileUrl(object):
+    def __init__(self, data_service, remote_file_id):
+        self.data_service = data_service
+        self.remote_file_id = remote_file_id
+
+    def run(self):
+        return self.data_service.get_file_url(self.remote_file_id).json()
 
 
 class ChunkDownloader(object):

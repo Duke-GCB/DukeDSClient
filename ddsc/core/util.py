@@ -273,6 +273,8 @@ class ProgressQueue(object):
     """
     ERROR = 'error'
     PROCESSED = 'processed'
+    START_WAITING = 'start_waiting'
+    DONE_WAITING = 'done_waiting'
 
     def __init__(self, queue):
         self.queue = queue
@@ -282,6 +284,12 @@ class ProgressQueue(object):
 
     def processed(self, amt):
         self.queue.put((ProgressQueue.PROCESSED, amt))
+
+    def start_waiting(self):
+        self.queue.put((ProgressQueue.START_WAITING, None))
+
+    def done_waiting(self):
+        self.queue.put((ProgressQueue.DONE_WAITING, None))
 
     def get(self):
         """
@@ -307,6 +315,10 @@ def wait_for_processes(processes, size, progress_queue, watcher, item):
             chunk_size = value
             watcher.transferring_item(item, increment_amt=chunk_size)
             size -= chunk_size
+        elif progress_type == ProgressQueue.START_WAITING:
+            watcher.start_waiting()
+        elif progress_type == ProgressQueue.DONE_WAITING:
+            watcher.done_waiting()
         else:
             error_message = value
             for process in processes:
