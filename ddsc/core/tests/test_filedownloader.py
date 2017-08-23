@@ -1,9 +1,9 @@
 from unittest import TestCase
 import ddsc.core.filedownloader
 from ddsc.core.filedownloader import FileDownloader, download_async, ChunkDownloader, \
-    TooLargeChunkDownloadError, PartialChunkDownloadError
+    TooLargeChunkDownloadError, PartialChunkDownloadError, get_file_chunk_url_and_headers, GetFileUrl
 from requests.exceptions import ConnectionError
-from mock import patch, MagicMock, call
+from mock import patch, MagicMock, Mock, call
 
 
 class FakeConfig(object):
@@ -136,7 +136,7 @@ class TestFileDownloader(TestCase):
         progress_queue.processed(rest)
 
 
-class TestDownloadAsync(TestCase):
+class TestDownloadFunctions(TestCase):
     @patch('ddsc.core.filedownloader.ChunkDownloader')
     @patch('ddsc.core.filedownloader.RemoteStore')
     def test_download_async_too_large_error(self, mock_remote_store, mock_chunk_downloader):
@@ -204,6 +204,25 @@ class TestDownloadAsync(TestCase):
         expected = 'Received too few bytes downloading part of a file. Actual: 2 Expected: 10 File:/tmp/data.dat'
         progress_queue.error.assert_called_with(expected)
         self.assertEqual(5, mock_chunk_downloader().revert_progress.call_count)
+
+    @patch('ddsc.core.filedownloader.retry_until_resource_is_consistent')
+    def test_get_file_chunk_url_and_headers(self, mock_retry_func):
+        range_headers = {
+            "Range": "bytes=1-456"
+        }
+        mock_retry_func.return_value = {
+            "http_headers": {
+                'key': '123'
+            },
+            "host": "somewhere.com",
+            "url": "/get_file=?123"
+        }
+        url, headers = get_file_chunk_url_and_headers(remote_store=MagicMock(),
+                                                      remote_file_id='123',
+                                                      range_headers=range_headers,
+                                                      progress_queue=MagicMock())
+        self.assertEqual('somewhere.com/get_file=?123', url)
+        self.assertEqual({'Range': 'bytes=1-456', 'key': '123'}, headers)
 
 
 class ChunkDownloaderTest(TestCase):
@@ -276,3 +295,17 @@ class ChunkDownloaderTest(TestCase):
         chunk_downloader.actual_bytes_read = 101
         chunk_downloader.revert_progress()
         progress_queue.processed.assert_called_with(-101)
+
+
+class TestGetFileUrl(TestCase):
+    def test_stuff(self):
+        mock_data_service = MagicMock()
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            'url': '/files/1'
+        }
+        mock_data_service.get_file_url.return_value = mock_response
+        get_file_url = GetFileUrl(mock_data_service, remote_file_id='123')
+        url_info = get_file_url.run()
+        mock_data_service.get_file_url.assert_called_with('123')
+        self.assertEqual({'url': '/files/1'}, url_info)
