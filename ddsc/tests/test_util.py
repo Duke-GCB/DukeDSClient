@@ -2,8 +2,8 @@ from unittest import TestCase
 import subprocess
 import os
 import tempfile
-from ddsc.core.util import mode_allows_group_or_other, verify_file_private
-from mock import patch
+from ddsc.core.util import mode_allows_group_or_other, verify_file_private, ProjectDetailsList
+from mock import patch, Mock
 
 
 def make_temp_filename():
@@ -81,3 +81,40 @@ class TestUtil(TestCase):
         mock_platform.system.return_value = 'Linux'
         tempfilename = './file.never.gonna.exist'
         verify_file_private(tempfilename)
+
+
+class TestProjectDetailsList(TestCase):
+    def setUp(self):
+        self.mock_project_item = Mock()
+        self.mock_project_item.id = '123'
+        self.mock_project_item.name = 'mouse'
+        self.mock_folder_item = Mock()
+        self.mock_folder_item.id = '456'
+        self.mock_folder_item.name = 'data'
+        self.mock_file_item = Mock()
+        self.mock_file_item.id = '789'
+        self.mock_file_item.name = 'results.csv'
+
+    def test_visit_methods_short_format(self):
+        project_details_list = ProjectDetailsList(long_format=False)
+        project_details_list.visit_project(self.mock_project_item)
+        project_details_list.visit_folder(self.mock_folder_item, self.mock_project_item)
+        project_details_list.visit_file(self.mock_file_item, self.mock_folder_item)
+        expected_details = [
+            'Project mouse Contents:',
+            'data',
+            'data/results.csv',
+        ]
+        self.assertEqual(expected_details, project_details_list.details)
+
+    def test_visit_methods_long_format(self):
+        project_details_list = ProjectDetailsList(long_format=True)
+        project_details_list.visit_project(self.mock_project_item)
+        project_details_list.visit_folder(self.mock_folder_item, self.mock_project_item)
+        project_details_list.visit_file(self.mock_file_item, self.mock_folder_item)
+        expected_details = [
+            '123 - Project mouse Contents:',
+            '456\tdata',
+            '789\tdata/results.csv',
+        ]
+        self.assertEqual(expected_details, project_details_list.details)

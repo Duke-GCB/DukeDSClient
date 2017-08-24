@@ -8,18 +8,18 @@ class UploadSettings(object):
     """
     Settings used to upload a project
     """
-    def __init__(self, config, data_service, watcher, project_name, file_upload_post_processor):
+    def __init__(self, config, data_service, watcher, project_name_or_id, file_upload_post_processor):
         """
         :param config: ddsc.config.Config user configuration settings from YAML file/environment
         :param data_service: DataServiceApi: where we will upload to
         :param watcher: ProgressPrinter we notify of our progress
-        :param project_name: str: name of the project so we can create it if necessary
+        :param project_name_or_id: ProjectNameOrId: name or id of the project so we can create it if necessary
         :param file_upload_post_processor: object: has run(data_service, file_response) method to run after download
         """
         self.config = config
         self.data_service = data_service
         self.watcher = watcher
-        self.project_name = project_name
+        self.project_name_or_id = project_name_or_id
         self.project_id = None
         self.file_upload_post_processor = file_upload_post_processor
 
@@ -58,7 +58,7 @@ class UploadContext(object):
         """
         self.data_service_auth_data = settings.get_data_service_auth_data()
         self.config = settings.config
-        self.project_name = settings.project_name
+        self.project_name_or_id = settings.project_name_or_id
         self.project_id = settings.project_id
         self.params = params
         self.message_queue = message_queue
@@ -240,7 +240,8 @@ class CreateProjectCommand(object):
         """
         self.settings = settings
         self.local_project = local_project
-        self.project_name = settings.project_name
+        if not settings.project_name_or_id.is_name:
+            raise ValueError('Programming Error: CreateProjectCommand called without project name.')
         self.func = upload_project_run
 
     def before_run(self, parent_task_result):
@@ -273,7 +274,7 @@ def upload_project_run(upload_context):
     :param upload_context: UploadContext: contains data service setup and project name to create.
     """
     data_service = upload_context.make_data_service()
-    project_name = upload_context.project_name
+    project_name = upload_context.project_name_or_id.get_name_or_raise()
     result = data_service.create_project(project_name, project_name)
     return result.json()['id']
 

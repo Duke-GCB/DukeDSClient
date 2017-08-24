@@ -12,7 +12,7 @@ class TestD4S2Project(TestCase):
     def test_share(self, mock_requests, mock_d4s2api):
         mock_d4s2api().get_existing_item.return_value = Mock(json=Mock(return_value=[]))
         project = D4S2Project(config=MagicMock(), remote_store=MagicMock(), print_func=MagicMock())
-        project.share(project_name='mouserna',
+        project.share(project=Mock(name='mouserna'),
                       to_user=MagicMock(id='123'),
                       force_send=False,
                       auth_role='project_viewer',
@@ -30,7 +30,7 @@ class TestD4S2Project(TestCase):
     def test_deliver(self, mock_requests, mock_d4s2api):
         mock_d4s2api().get_existing_item.return_value = Mock(json=Mock(return_value=[]))
         project = D4S2Project(config=MagicMock(), remote_store=MagicMock(), print_func=MagicMock())
-        project.deliver(project_name='mouserna',
+        project.deliver(project=Mock(name='mouserna'),
                         new_project_name=None,
                         to_user=MagicMock(id='456'),
                         force_send=False,
@@ -51,7 +51,7 @@ class TestD4S2Project(TestCase):
         remote_store.fetch_remote_project.return_value = None
         project = D4S2Project(config=MagicMock(), remote_store=remote_store, print_func=MagicMock())
         path_filter = PathFilter(include_paths=[], exclude_paths=[])
-        project._copy_project('mouse', 'new_mouse', path_filter)
+        project._copy_project(Mock(name='mouse'), 'new_mouse', path_filter)
         data_service.create_activity.assert_called()
 
         mock_project_download.assert_called()
@@ -69,11 +69,12 @@ class TestCopyActivity(TestCase):
     def test_constructor_and_finished(self):
         data_service = MagicMock()
         data_service.create_activity().json().__getitem__.return_value = '1'
-        project_name = "mouse"
         new_project_name = "mouse_copy"
 
         # Constructor should create activity
-        activity = CopyActivity(data_service, project_name, new_project_name)
+        project = Mock()
+        project.name = 'mouse'
+        activity = CopyActivity(data_service, project, new_project_name)
         self.assertEqual('1', activity.id)
         data_service.create_activity.assert_called()
         args, kwargs = data_service.create_activity.call_args
@@ -101,7 +102,7 @@ class TestDownloadedFileRelations(TestCase):
         data_service = MagicMock()
         data_service.create_activity().json().__getitem__.return_value = new_activity_id
         remote_file = Mock(remote_path=file_remote_path, file_version_id=file_version_id)
-        activity = CopyActivity(data_service, "mouse", "mouse_copy")
+        activity = CopyActivity(data_service, Mock(name='mouse'), "mouse_copy")
 
         downloaded_file_relations = DownloadedFileRelations(activity)
         downloaded_file_relations.run(data_service, remote_file)
@@ -141,7 +142,7 @@ class TestUploadedFileRelations(TestCase):
         }
         data_service = MagicMock()
         data_service.create_activity().json().__getitem__.return_value = new_activity_id
-        activity = CopyActivity(data_service, "mouse", "mouse_copy")
+        activity = CopyActivity(data_service, Mock(name="mouse"), "mouse_copy")
         activity.remote_path_to_file_version_id[file_remote_path] = download_file_version_id
 
         uploaded_file_relations = UploadedFileRelations(activity)

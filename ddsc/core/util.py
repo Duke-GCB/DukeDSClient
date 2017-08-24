@@ -231,11 +231,12 @@ class FilteredProject(object):
             self.visitor.visit_file(item, parent)
 
 
-class ProjectFilenameList(object):
+class ProjectDetailsList(object):
     """
     Walks a project and saves the project name and filenames to [str] filenames property.
     """
-    def __init__(self):
+    def __init__(self, long_format):
+        self.long_format = long_format
         self.details = []
         self.id_to_path = {}
 
@@ -248,16 +249,25 @@ class ProjectFilenameList(object):
         ProjectWalker.walk_project(project, self)
 
     def visit_project(self, item):
-        self.details.append("Project {} Contents:".format(item.name))
+        if self.long_format:
+            self.details.append("{} - Project {} Contents:".format(item.id, item.name))
+        else:
+            self.details.append("Project {} Contents:".format(item.name))
 
     def visit_folder(self, item, parent):
         name = self.get_name(item, parent)
         self.id_to_path[item.id] = name
-        self.details.append(name)
+        if self.long_format:
+            self.details.append('{}\t{}'.format(item.id, name))
+        else:
+            self.details.append(name)
 
     def visit_file(self, item, parent):
         name = self.get_name(item, parent)
-        self.details.append(name)
+        if self.long_format:
+            self.details.append('{}\t{}'.format(item.id, name))
+        else:
+            self.details.append(name)
 
     def get_name(self, item, parent):
         if parent:
