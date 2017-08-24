@@ -129,3 +129,18 @@ class TestCommandParser(TestCase):
         self.assertEqual(True, self.parsed_args.long_format)
         self.assertEqual(None, self.parsed_args.project_name)
         self.assertEqual('123', self.parsed_args.project_id)
+
+        command_parser.run_command(['list', '--project-id', '123', '-l'])
+        self.assertEqual(True, self.parsed_args.long_format)
+        self.assertEqual(None, self.parsed_args.project_name)
+        self.assertEqual('123', self.parsed_args.project_id)
+
+        command_parser.run_command(['list', '-p', 'mouse', '-l'])
+        self.assertEqual(True, self.parsed_args.long_format)
+        self.assertEqual('mouse', self.parsed_args.project_name)
+        self.assertEqual(None, self.parsed_args.project_id)
+
+        command_parser.run_command(['list', '--project-name', 'mouse', '-l'])
+        self.assertEqual(True, self.parsed_args.long_format)
+        self.assertEqual('mouse', self.parsed_args.project_name)
+        self.assertEqual(None, self.parsed_args.project_id)
