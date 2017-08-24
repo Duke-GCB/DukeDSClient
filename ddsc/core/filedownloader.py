@@ -27,7 +27,7 @@ class FileDownloader(object):
         """
         Setup details on what to download and watcher to notify of progress.
         :param config: Config: configuration settings for download (number workers)
-        :param url_parts: dictionary of fields related to url ('http_verb','host','http_headers') received from duke_data_service
+        :param remote_file: RemoteFile: details about DukeDS file we will download
         :param path: str: path to where we will save the file
         :param watcher: ProgressPrinter: we notify of our progress
         """
@@ -116,6 +116,16 @@ class FileDownloader(object):
 def download_async(config, remote_file_id, range_headers, path, seek_amt, bytes_to_read, progress_queue):
     """
     Called in separate process to download a chunk of a file.
+    :param config: Config: configuration settings for download
+    :param remote_file_id: str: uuid of the file we will download
+    :param range_headers: dict: range request header to filter amount downloaded
+    :param path: str: path to where we should save our chunk we download
+    :param seek_amt: offset to seek before writing our chunk out to path
+    :param bytes_to_read: int: how many bytes of data we will receive from the url
+    :param progress_queue: ProgressQueue: queue of tuples we will add progress/errors to
+    """
+    """
+    Called in separate process to download a chunk of a file.
     :param url: str: url to file we should download
     :param headers: dict: header to use with url, should contain Range to limit what we download
     :param path: str: path to where we should save our chunk we download
@@ -147,6 +157,14 @@ def download_async(config, remote_file_id, range_headers, path, seek_amt, bytes_
 
 
 def get_file_chunk_url_and_headers(remote_store, remote_file_id, range_headers, progress_queue):
+    """
+    Return url and headers to use for downloading part of a file.
+    :param remote_store: RemoteStore: used to fetch url and default headers
+    :param remote_file_id: str: uuid of the file we will download
+    :param range_headers: dict: range request header to filter amount downloaded
+    :param progress_queue: ProgressQueue: queue of tuples we will add progress/errors to
+    :return: str, dict: url to download and headers to use (combines range_headers and those returned by DukeDS)
+    """
     get_file_url = GetFileUrl(remote_store.data_service, remote_file_id)
     url_json = retry_until_resource_is_consistent(get_file_url.run, progress_queue)
     url = url_json['host'] + url_json['url']
