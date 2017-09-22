@@ -872,6 +872,7 @@ class DataServiceApi(object):
         config = self.auth.config
         return config.page_size
 
+
 class MultiJSONResponse(object):
     """
     Wraps up multiple requests.Response objects into an object that will return composite dictionary for json() method.

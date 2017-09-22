@@ -108,8 +108,8 @@ class BaseCommand(object):
         if include_children:
             print("Fetching list of files for project {}.".format(project_name_or_id.value))
         project = self.remote_store.fetch_remote_project(project_name_or_id,
-                                                      must_exist=must_exist,
-                                                      include_children=include_children)
+                                                         must_exist=must_exist,
+                                                         include_children=include_children)
         if include_children:
             print("Done fetching list of files.".format(project_name_or_id.value))
         return project
