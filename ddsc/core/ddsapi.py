@@ -110,13 +110,6 @@ class DataServiceAuth(object):
             return now_with_skew > self._expires
         return True
 
-    def get_page_size(self):
-        """
-        Return how many items we should include in each page for multi-page DukeDS results
-        :return: int
-        """
-        return self.config.page_size
-
 
 class DataServiceError(Exception):
     """
@@ -869,6 +862,10 @@ class DataServiceApi(object):
         return self._post(url, {})
 
     def _get_page_size(self):
+        """
+        Return how many items we should include in each page for multi-page DukeDS results
+        :return: int
+        """
         config = self.auth.config
         return config.page_size
 
