@@ -7,7 +7,6 @@ from ddsc.versioncheck import APP_NAME, get_internal_version_str
 
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
-DEFAULT_RESULTS_PER_PAGE = 100
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 
 
@@ -237,7 +236,7 @@ class DataServiceApi(object):
     def _get_single_page(self, url_suffix, data, page_num):
         """
         Send GET request to API at url_suffix with post_data adding page and per_page parameters to
-        retrieve a single page. Always requests with per_page=DEFAULT_RESULTS_PER_PAGE.
+        retrieve a single page. Page size is determined by config.page_size.
         :param url_suffix: str URL path we are sending a GET to
         :param data: object data we are sending
         :param page_num: int: page number to fetch
@@ -245,7 +244,7 @@ class DataServiceApi(object):
         """
         data_with_per_page = dict(data)
         data_with_per_page['page'] = page_num
-        data_with_per_page['per_page'] = DEFAULT_RESULTS_PER_PAGE
+        data_with_per_page['per_page'] = self._get_page_size()
         (url, data_str, headers) = self._url_parts(url_suffix, data_with_per_page,
                                                    content_type=ContentType.form)
         resp = self.http.get(url, headers=headers, params=data_str)
@@ -861,6 +860,14 @@ class DataServiceApi(object):
         """
         url = "/auth_providers/{}/affiliates/{}/dds_user/".format(auth_provider_id, username)
         return self._post(url, {})
+
+    def _get_page_size(self):
+        """
+        Return how many items we should include in each page for multi-page DukeDS results
+        :return: int
+        """
+        config = self.auth.config
+        return config.page_size
 
 
 class MultiJSONResponse(object):

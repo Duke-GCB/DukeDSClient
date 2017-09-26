@@ -135,3 +135,13 @@ class TestConfig(TestCase):
         mock_os.environ.get.return_value = '/tmp/special.ddsclient.conf'
         self.assertEqual('/tmp/special.ddsclient.conf', ddsc.config.get_user_config_filename())
         mock_os.environ.get.assert_called_with(ddsc.config.LOCAL_CONFIG_ENV)
+
+    @patch('ddsc.config.os')
+    def test_get_user_config_get_page_size(self, mock_os):
+        config = ddsc.config.Config()
+        self.assertEqual(config.page_size, 100)
+        some_config = {
+            'get_page_size': 200,
+        }
+        config.update_properties(some_config)
+        self.assertEqual(config.page_size, 200)

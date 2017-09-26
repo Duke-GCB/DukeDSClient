@@ -22,6 +22,7 @@ AUTH_ENV_KEY_NAME = 'DUKE_DATA_SERVICE_AUTH'
 # when uploading skip .DS_Store, our key file, and ._ (resource fork metadata)
 FILE_EXCLUDE_REGEX_DEFAULT = '^\.DS_Store$|^\.ddsclient$|^\.\_'
 MAX_DEFAULT_WORKERS = 8
+GET_PAGE_SIZE_DEFAULT = 100  # fetch 100 items per page
 
 
 def get_user_config_filename():
@@ -69,6 +70,7 @@ class Config(object):
     DEBUG_MODE = 'debug'                               # show stack traces
     D4S2_URL = 'd4s2_url'                              # url for use with the D4S2 (share/deliver service)
     FILE_EXCLUDE_REGEX = 'file_exclude_regex'          # allows customization of which filenames will be uploaded
+    GET_PAGE_SIZE = 'get_page_size'                    # page size used for GET pagination requests
 
     def __init__(self):
         self.values = {}
@@ -198,3 +200,12 @@ class Config(object):
         :return: str: regex that when matches we should exclude a file from uploading.
         """
         return self.values.get(Config.FILE_EXCLUDE_REGEX, FILE_EXCLUDE_REGEX_DEFAULT)
+
+    @property
+    def page_size(self):
+        """
+        Returns the page size used to fetch paginated lists from DukeDS.
+        For DukeDS APIs that fail related to timeouts lowering this value can help.
+        :return:
+        """
+        return self.values.get(Config.GET_PAGE_SIZE, GET_PAGE_SIZE_DEFAULT)
