@@ -24,4 +24,4 @@ deploy:
     script: ./deploy/onpublish.sh
     on:
       tags: true
-      python: '3.5'
+      python: '2.7'
