@@ -461,7 +461,7 @@ class DDSIgnoreFilter(object):
         """
         Determines if a file or folder name should be included in a project for uploading.
         :param file_or_folder_name: str: file/folder name to test
-        :param is_file: bool: is this a file
+        :param is_file: boolean: is this a file (this is just passed to file_filter)
         :return: boolean: True if we should include the file.
         """
         for exclude_regex in self.exclude_regex_list:
@@ -474,6 +474,11 @@ class DDSIgnoreFilter(object):
 
     @staticmethod
     def create_from_file(file_filter, dds_ignore_filename):
+        """
+        :param file_filter: FileFilter: base filename filter based on
+        :param dds_ignore_filename: str: filename of .ddsignore file
+        :return: DDSIgnoreFilter
+        """
         with open(dds_ignore_filename, 'r') as infile:
             lines = infile.read().split('\n')
             exclude_regex_lines = [fnmatch.translate(line) for line in lines if line]

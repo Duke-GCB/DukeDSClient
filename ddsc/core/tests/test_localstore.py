@@ -1,9 +1,11 @@
 import shutil
 import tarfile
+import fnmatch
 from unittest import TestCase
-from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, FileFilter
+from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, FileFilter, DDSIgnoreFilter
 from ddsc.config import FILE_EXCLUDE_REGEX_DEFAULT
-from mock import patch
+from mock import patch, Mock, call
+import mock
 
 INCLUDE_ALL = ''
 
@@ -176,3 +178,42 @@ class TestLocalFile(TestCase):
         for file_size, bytes_per_chunk, expected in values:
             f.size = file_size
             self.assertEqual(expected, f.count_chunks(bytes_per_chunk))
+
+
+class DDSIgnoreFilterTests(TestCase):
+    def test_include(self):
+        file_filter = Mock()
+        file_filter.include.return_value = True
+        dds_ignore_filter = DDSIgnoreFilter(file_filter, exclude_regex_str_list=[
+            fnmatch.translate('*.txt'),
+            fnmatch.translate('somedata')
+        ])
+        self.assertEqual(2, len(dds_ignore_filter.exclude_regex_list))
+        # DDSIgnoreFilter doesn't make use of is_file (just passes it to file_filter.include)
+        self.assertEqual(False, dds_ignore_filter.include('data.txt', is_file=True))
+        self.assertEqual(0, file_filter.include.call_count)
+
+        self.assertEqual(True, dds_ignore_filter.include('stuff', is_file=False))
+        self.assertEqual(0, file_filter.include.call_count)
+
+        self.assertEqual(True, dds_ignore_filter.include('stuff', is_file=True))
+        self.assertEqual(1, file_filter.include.call_count)
+
+        self.assertEqual(False, dds_ignore_filter.include('somedata', is_file=True))
+        self.assertEqual(1, file_filter.include.call_count)
+
+        self.assertEqual(True, dds_ignore_filter.include('somedata.dat', is_file=True))
+        self.assertEqual(2, file_filter.include.call_count)
+
+    def test_create_from_file(self):
+        file_data = 'stuff.*\ndata'
+        expected_regex_list = ['stuff\\..*\\Z(?ms)', 'data\\Z(?ms)']
+
+        file_filter = Mock()
+        with mock.patch('ddsc.core.localstore.open',
+                        mock.mock_open(read_data=file_data),
+                        create=True) as mock_open:
+            dds_ignore_filter = DDSIgnoreFilter.create_from_file(file_filter, '/tmp/fakestuff/.ddsignore')
+
+        actual_regex_list = [regex.pattern for regex in dds_ignore_filter.exclude_regex_list]
+        self.assertEqual(expected_regex_list, actual_regex_list)
