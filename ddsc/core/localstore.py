@@ -3,8 +3,10 @@ import math
 import mimetypes
 import os
 import re
+import fnmatch
 
 from ddsc.core.util import KindType
+DDS_IGNORE_FILENAME = '.ddsignore'
 
 
 class LocalProject(object):
@@ -23,7 +25,7 @@ class LocalProject(object):
         self.children = []
         self.sent_to_remote = False
         self.followsymlinks = followsymlinks
-        self.file_include = FileFilter(file_exclude_regex).include
+        self.file_filter = FileFilter(file_exclude_regex)
 
     def add_path(self, path):
         """
@@ -31,7 +33,7 @@ class LocalProject(object):
         :param path: str path to add
         """
         abspath = os.path.abspath(path)
-        self.children.append(_build_project_tree(abspath, self.followsymlinks, self.file_include))
+        self.children.append(_build_project_tree(abspath, self.followsymlinks, self.file_filter))
 
     def add_paths(self, path_list):
         """
@@ -88,33 +90,35 @@ def _update_remote_children(remote_parent, children):
             local_child.update_remote_ids(remote_child)
 
 
-def _build_project_tree(path, followsymlinks, file_include):
+def _build_project_tree(path, followsymlinks, file_filter):
     """
     Build a tree of LocalFolder with children or just a LocalFile based on a path.
     :param path: str path to a directory to walk
     :param followsymlinks: bool should we follow symlinks when walking
-    :param file_include: func returns True if we should include a file
+    :param file_filter: FileFilter: include method returns True if we should include a file/folder
     :return: the top node of the tree LocalFile or LocalFolder
     """
     result = None
     if os.path.isfile(path):
         result = LocalFile(path)
     else:
-        result = _build_folder_tree(os.path.abspath(path), followsymlinks, file_include)
+        result = _build_folder_tree(os.path.abspath(path), followsymlinks, file_filter)
     return result
 
 
-def _build_folder_tree(top_abspath, followsymlinks, file_include):
+def _build_folder_tree(top_abspath, followsymlinks, file_filter):
     """
     Build a tree of LocalFolder with children based on a path.
     :param top_abspath: str path to a directory to walk
     :param followsymlinks: bool should we follow symlinks when walking
-    :param file_include: func returns True if we should include a file
+    :param file_filter: FileFilter: include method returns True if we should include a file/folder
     :return: the top node of the tree LocalFolder
     """
     path_to_content = {}
     child_to_parent = {}
-    for dir_name, child_dirs, child_files in os.walk(top_abspath, followlinks=followsymlinks):
+    dds_ignore_regex_map = DDSIgnoreRegexMap(file_filter, top_abspath)
+    for dir_name, child_dirs, child_files in os.walk(top_abspath, followlinks=followsymlinks, topdown=True):
+        ignore_filter = dds_ignore_regex_map.determine_dds_ignore_filter(dir_name)
         abspath = os.path.abspath(dir_name)
         folder = LocalFolder(abspath)
         path_to_content[abspath] = folder
@@ -123,11 +127,14 @@ def _build_folder_tree(top_abspath, followsymlinks, file_include):
         if parent_path:
             path_to_content[parent_path].add_child(folder)
         for child_dir in child_dirs:
-            # Record dir_name as the parent of child_dir so we can call add_child when get to it.
-            abs_child_path = os.path.abspath(os.path.join(dir_name, child_dir))
-            child_to_parent[abs_child_path] = abspath
+            if ignore_filter.include(child_dir, is_file=False):
+                # Record dir_name as the parent of child_dir so we can call add_child when get to it.
+                abs_child_path = os.path.abspath(os.path.join(dir_name, child_dir))
+                child_to_parent[abs_child_path] = abspath
+            else:
+                child_dirs.remove(child_dir)
         for child_filename in child_files:
-            if file_include(child_filename):
+            if ignore_filter.include(child_filename, is_file=True):
                 folder.add_child(LocalFile(os.path.join(dir_name, child_filename)))
     return path_to_content.get(top_abspath)
 
@@ -392,16 +399,82 @@ class FileFilter(object):
         else:
             self.exclude_regex = None
 
-    def include(self, filename):
+    def include(self, filename, is_file):
         """
         Determines if a file should be included in a project for uploading.
         If file_exclude_regex is empty it will include everything.
         :param filename: str: filename to match it should not include directory
+        :param is_file: bool: is this a file if not this will always return true
         :return: boolean: True if we should include the file.
         """
-        if self.exclude_regex:
+        if self.exclude_regex and is_file:
             if self.exclude_regex.match(filename):
                 return False
             return True
         else:
             return True
+
+
+class DDSIgnoreRegexMap(object):
+    def __init__(self, file_filter, top_abspath):
+        self.file_filter = file_filter
+        self.top_abspath = top_abspath
+        self.dir_name_to_filter = {}
+
+    def determine_dds_ignore_filter(self, dir_name):
+        self.check_for_ignore_filename(dir_name)
+        return self.get_dds_ignore_filter(dir_name)
+
+    def check_for_ignore_filename(self, dir_name):
+        ignore_filename = '{}/{}'.format(dir_name, DDS_IGNORE_FILENAME)
+        if os.path.exists(ignore_filename):
+            print("Found ignore file {}".format(ignore_filename))
+            self.dir_name_to_filter[dir_name] = DDSIgnoreFilter.create_from_file(self.file_filter, ignore_filename)
+
+    def get_dds_ignore_filter(self, dir_name):
+        ignore_filter = self.dir_name_to_filter.get(dir_name)
+        if ignore_filter:
+            return ignore_filter
+        if dir_name == self.top_abspath:
+            return self.file_filter
+        parent_dir_name, tail = os.path.split(dir_name)
+        if parent_dir_name:
+            return self.get_dds_ignore_filter(parent_dir_name)
+        return self.file_filter
+
+
+class DDSIgnoreFilter(object):
+    """
+    Filters files based on config and `.ddsclient` setup.
+    """
+    def __init__(self, file_filter, exclude_regex_str_list):
+        """
+        :param file_filter: FileFilter: base filename filter based on
+        :param exclude_regex_str_list: [str]: list of regex of filenames to exclude
+        """
+        self.exclude_regex_list = []
+        for exclude_regex_str in exclude_regex_str_list:
+            self.exclude_regex_list.append(re.compile(exclude_regex_str))
+        self.file_filter = file_filter
+
+    def include(self, file_or_folder_name, is_file):
+        """
+        Determines if a file or folder name should be included in a project for uploading.
+        :param file_or_folder_name: str: file/folder name to test
+        :param is_file: bool: is this a file
+        :return: boolean: True if we should include the file.
+        """
+        for exclude_regex in self.exclude_regex_list:
+            if exclude_regex.match(file_or_folder_name):
+                return False
+        if is_file:
+            return self.file_filter.include(file_or_folder_name, is_file)
+        else:
+            return True
+
+    @staticmethod
+    def create_from_file(file_filter, dds_ignore_filename):
+        with open(dds_ignore_filename, 'r') as infile:
+            lines = infile.read().split('\n')
+            exclude_regex_lines = [fnmatch.translate(line) for line in lines if line]
+            return DDSIgnoreFilter(file_filter, exclude_regex_lines)

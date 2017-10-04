@@ -155,10 +155,10 @@ class TestFileFilter(TestCase):
         ]
         # include good filenames
         for good_filename in good_files:
-            self.assertEqual(include_file(good_filename), True)
+            self.assertEqual(include_file(good_filename, is_file=True), True)
         # exclude bad filenames
         for bad_filename in bad_files:
-            self.assertEqual(include_file(bad_filename), False)
+            self.assertEqual(include_file(bad_filename, is_file=True), False)
 
 
 class TestLocalFile(TestCase):
