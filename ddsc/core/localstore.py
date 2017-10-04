@@ -416,22 +416,43 @@ class FileFilter(object):
 
 
 class DDSIgnoreRegexMap(object):
+    """
+    Contains a map of directory name to a DDSIgnoreFilter or FileFilter
+    """
     def __init__(self, file_filter, top_abspath):
+        """
+        :param file_filter: FileFilter: base filename filter based on
+        :param top_abspath:
+        """
         self.file_filter = file_filter
         self.top_abspath = top_abspath
         self.dir_name_to_filter = {}
 
     def determine_dds_ignore_filter(self, dir_name):
+        """
+        Record filtering settings for dir_name and return whatever settings is appropriate.
+        :param dir_name: str: directory that we want to get filtering settings for
+        :return: DDSIgnoreFilter or FileFilter
+        """
         self.check_for_ignore_filename(dir_name)
         return self.get_dds_ignore_filter(dir_name)
 
     def check_for_ignore_filename(self, dir_name):
+        """
+        If a .ddsignore file exists in the specified directory load it into the map.
+        :param dir_name: str: directory that may contain a .ddsignore
+        """
         ignore_filename = '{}/{}'.format(dir_name, DDS_IGNORE_FILENAME)
         if os.path.exists(ignore_filename):
             print("Found ignore file {}".format(ignore_filename))
             self.dir_name_to_filter[dir_name] = DDSIgnoreFilter.create_from_file(self.file_filter, ignore_filename)
 
     def get_dds_ignore_filter(self, dir_name):
+        """
+        Get DDSIgnoreFilter or FileFilter for dir_name
+        :param dir_name: str: directory we want to determine filtering settings for
+        :return: DDSIgnoreFilter or FileFilter
+        """
         ignore_filter = self.dir_name_to_filter.get(dir_name)
         if ignore_filter:
             return ignore_filter
