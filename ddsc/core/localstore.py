@@ -444,7 +444,6 @@ class DDSIgnoreRegexMap(object):
         """
         ignore_filename = '{}/{}'.format(dir_name, DDS_IGNORE_FILENAME)
         if os.path.exists(ignore_filename):
-            print("Found ignore file {}".format(ignore_filename))
             self.dir_name_to_filter[dir_name] = DDSIgnoreFilter.create_from_file(self.file_filter, ignore_filename)
 
     def get_dds_ignore_filter(self, dir_name):

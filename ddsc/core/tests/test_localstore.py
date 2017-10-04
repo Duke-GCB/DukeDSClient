@@ -2,10 +2,11 @@ import shutil
 import tarfile
 import fnmatch
 from unittest import TestCase
-from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, FileFilter, DDSIgnoreFilter
+from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, FileFilter, DDSIgnoreFilter, DDSIgnoreRegexMap
 from ddsc.config import FILE_EXCLUDE_REGEX_DEFAULT
-from mock import patch, Mock, call
+from mock import patch, Mock, MagicMock
 import mock
+
 
 INCLUDE_ALL = ''
 
@@ -210,10 +211,15 @@ class DDSIgnoreFilterTests(TestCase):
         expected_regex_list = ['stuff\\..*\\Z(?ms)', 'data\\Z(?ms)']
 
         file_filter = Mock()
-        with mock.patch('ddsc.core.localstore.open',
-                        mock.mock_open(read_data=file_data),
-                        create=True) as mock_open:
+        with mock.patch('ddsc.core.localstore.open', mock.mock_open(read_data=file_data), create=True):
             dds_ignore_filter = DDSIgnoreFilter.create_from_file(file_filter, '/tmp/fakestuff/.ddsignore')
 
         actual_regex_list = [regex.pattern for regex in dds_ignore_filter.exclude_regex_list]
         self.assertEqual(expected_regex_list, actual_regex_list)
+
+
+class DDSIgnoreRegexMapTests(TestCase):
+    def test_stuff(self):
+        file_filter = MagicMock()
+        dds_ignore_regex_map = DDSIgnoreRegexMap(file_filter, top_abspath='/tmp/fakedir')
+        self.assertEqual(1, dds_ignore_regex_map)
