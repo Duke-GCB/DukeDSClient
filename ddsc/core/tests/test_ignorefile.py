@@ -1,6 +1,6 @@
 from unittest import TestCase
 from ddsc.core.ignorefile import FileFilter, FilenamePatternList, IgnoreFilePatterns
-from mock import patch, Mock, mock_open, call, MagicMock
+from mock import patch, mock_open, call, MagicMock
 from ddsc.config import FILE_EXCLUDE_REGEX_DEFAULT
 
 
