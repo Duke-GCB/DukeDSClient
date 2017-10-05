@@ -115,7 +115,7 @@ def _build_folder_tree(top_abspath, followsymlinks, file_filter):
     child_to_parent = {}
     ignore_file_patterns = IgnoreFilePatterns(file_filter)
     ignore_file_patterns.load_directory(top_abspath, followsymlinks)
-    for dir_name, child_dirs, child_files in os.walk(top_abspath, followlinks=followsymlinks, topdown=True):
+    for dir_name, child_dirs, child_files in os.walk(top_abspath, followlinks=followsymlinks):
         abspath = os.path.abspath(dir_name)
         folder = LocalFolder(abspath)
         path_to_content[abspath] = folder
