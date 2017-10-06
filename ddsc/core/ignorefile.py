@@ -93,4 +93,6 @@ class IgnoreFilePatterns(object):
             return [line for line in lines if line]
 
     def include(self, path, is_file):
-        return self.pattern_list.include(path) and self.file_filter.include(path, is_file)
+        ret = self.pattern_list.include(path) and \
+              self.file_filter.include(os.path.basename(path), is_file)
+        return ret
