@@ -68,13 +68,18 @@ class FilenamePatternList(object):
 
 class IgnoreFilePatterns(object):
     """
-    Contains information
+    Determines if folders/files should be included based on .ddsignore files and config exclude filenames
     """
     def __init__(self, file_filter):
         self.file_filter = file_filter
         self.pattern_list = FilenamePatternList()
 
     def load_directory(self, top_path, followlinks):
+        """
+        Traverse top_path directory and save patterns in any .ddsignore files found.
+        :param top_path: str: directory name we should traverse looking for ignore files
+        :param followlinks: boolean: should we traverse symbolic links
+        """
         for dir_name, child_dirs, child_files in os.walk(top_path, followlinks=followlinks):
             for child_filename in child_files:
                 if child_filename == DDS_IGNORE_FILENAME:
@@ -82,6 +87,11 @@ class IgnoreFilePatterns(object):
                     self.add_patterns(dir_name, pattern_lines)
 
     def add_patterns(self, dir_name, pattern_lines):
+        """
+        Add patterns the should apply below dir_name
+        :param dir_name: str: directory that contained the patterns
+        :param pattern_lines: [str]: array of patterns
+        """
         for pattern_line in pattern_lines:
             self.pattern_list.add_filename_pattern(dir_name, pattern_line)
 
@@ -93,6 +103,9 @@ class IgnoreFilePatterns(object):
             return [line for line in lines if line]
 
     def include(self, path, is_file):
-        ret = self.pattern_list.include(path) and \
-              self.file_filter.include(os.path.basename(path), is_file)
-        return ret
+        """
+        Returns False if any pattern matches the path
+        :param path: str: filename path to test
+        :return: boolean: True if we should include this path
+        """
+        return self.pattern_list.include(path) and self.file_filter.include(os.path.basename(path), is_file)
