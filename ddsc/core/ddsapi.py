@@ -8,6 +8,7 @@ from ddsc.versioncheck import APP_NAME, get_internal_version_str
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
+SERVICE_DOWN_RETRY_SECONDS = 60  # 1 minute
 
 
 def get_user_agent_str():
@@ -16,6 +17,24 @@ def get_user_agent_str():
     :return: str: user agent value
     """
     return '{}/{}'.format(APP_NAME, get_internal_version_str())
+
+
+def retry_when_service_down(func):
+    """
+    Decorator that will retry a function while it fails with status code 503
+    :param func: function: will be called until it doesn't fail with DataServiceError status 503
+    :return: value returned by func
+    """
+    def retry_function(*args, **kwds):
+        while True:
+            try:
+                return func(*args, **kwds)
+            except DataServiceError as dse:
+                if dse.status_code != 503:
+                    time.sleep(SERVICE_DOWN_RETRY_SECONDS)
+                else:
+                    raise
+    return retry_function
 
 
 class ContentType(object):
@@ -52,6 +71,7 @@ class DataServiceAuth(object):
         self.claim_new_token()
         return self._auth
 
+    @retry_when_service_down
     def claim_new_token(self):
         """
         Update internal state to have a new token using a no authorization data service.
@@ -65,14 +85,17 @@ class DataServiceAuth(object):
             "agent_key": self.config.agent_key,
             "user_key": self.config.user_key,
         }
-        url = self.config.url + "/software_agents/api_token"
+        url_suffix = "/software_agents/api_token"
+        url = self.config.url + url_suffix
         response = requests.post(url, headers=headers, data=json.dumps(data))
         if response.status_code == 404:
             if not self.config.agent_key:
                 raise MissingInitialSetupError()
             else:
                 raise SoftwareAgentNotFoundError()
-        if response.status_code != 201:
+        elif response.status_code == 503:
+            raise DataServiceError(response, url_suffix, data)
+        elif response.status_code != 201:
             raise AuthTokenCreationError(response)
         resp_json = response.json()
         self._auth = resp_json['api_token']
@@ -194,6 +217,7 @@ class DataServiceApi(object):
             headers['Authorization'] = self.auth.get_auth()
         return url, send_data, headers
 
+    @retry_when_service_down
     def _post(self, url_suffix, data, content_type=ContentType.json):
         """
         Send POST request to API at url_suffix with post_data.
@@ -207,6 +231,7 @@ class DataServiceApi(object):
         resp = self.http.post(url, data_str, headers=headers)
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
+    @retry_when_service_down
     def _put(self, url_suffix, data, content_type=ContentType.json):
         """
         Send PUT request to API at url_suffix with post_data.
@@ -220,6 +245,7 @@ class DataServiceApi(object):
         resp = self.http.put(url, data_str, headers=headers)
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
+    @retry_when_service_down
     def _get_single_item(self, url_suffix, data, content_type=ContentType.json):
         """
         Send GET request to API at url_suffix with post_data.
@@ -233,6 +259,7 @@ class DataServiceApi(object):
         resp = self.http.get(url, headers=headers, params=data_str)
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
+    @retry_when_service_down
     def _get_single_page(self, url_suffix, data, page_num):
         """
         Send GET request to API at url_suffix with post_data adding page and per_page parameters to
@@ -271,6 +298,7 @@ class DataServiceApi(object):
                 return multi_response
         return response
 
+    @retry_when_service_down
     def _delete(self, url_suffix, data, content_type=ContentType.json):
         """
         Send DELETE request to API at url_suffix with post_data.
