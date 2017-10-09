@@ -30,7 +30,7 @@ def retry_when_service_down(func):
             try:
                 return func(*args, **kwds)
             except DataServiceError as dse:
-                if dse.status_code != 503:
+                if dse.status_code == 503:
                     time.sleep(SERVICE_DOWN_RETRY_SECONDS)
                 else:
                     raise

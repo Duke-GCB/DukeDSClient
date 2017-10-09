@@ -3,7 +3,8 @@ from unittest import TestCase
 import requests
 from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth, SETUP_GUIDE_URL
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
-    UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, retry_until_resource_is_consistent
+    UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
+    retry_until_resource_is_consistent, retry_when_service_down
 from mock import MagicMock, Mock, patch
 
 
@@ -551,3 +552,35 @@ class TestInconsistentResourceMonitoring(TestCase):
         self.assertEqual(1, monitor.start_waiting.call_count)
         monitor.done_waiting.assert_called()
         self.assertEqual(1, monitor.done_waiting.call_count)
+
+
+class TestRetryWhenServiceDown(TestCase):
+    def setUp(self):
+        self.raise_error_once = None
+
+    def func(self, param):
+        if self.raise_error_once:
+            raise_error_once = self.raise_error_once
+            self.raise_error_once = None
+            raise raise_error_once
+        return 'result' + param
+
+    @patch('ddsc.core.ddsapi.time')
+    def test_returns_value_when_ok(self, mock_time):
+        self.assertEqual('result123', retry_when_service_down(self.func)('123'))
+        self.assertEqual(0, mock_time.sleep.call_count)
+
+    @patch('ddsc.core.ddsapi.time')
+    def test_will_retry_after_waiting(self, mock_time):
+        mock_response = MagicMock(status_code=503)
+        self.raise_error_once = DataServiceError(mock_response, '', '')
+        self.assertEqual('result123', retry_when_service_down(self.func)('123'))
+        self.assertEqual(1, mock_time.sleep.call_count)
+
+    @patch('ddsc.core.ddsapi.time')
+    def test_will_just_raise_when_other_error(self, mock_time):
+        mock_response = MagicMock(status_code=500)
+        self.raise_error_once = DataServiceError(mock_response, '', '')
+        with self.assertRaises(DataServiceError):
+            retry_when_service_down(self.func)('123')
+        self.assertEqual(0, mock_time.sleep.call_count)
