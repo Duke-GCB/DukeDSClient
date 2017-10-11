@@ -1,4 +1,5 @@
 """DataServiceApi - communicates with to Duke Data Service REST API."""
+from __future__ import print_function
 import json
 import requests
 import time
@@ -9,6 +10,7 @@ AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 SERVICE_DOWN_RETRY_SECONDS = 60  # 1 minute
+SERVICE_DOWN_MESSAGE = "DukeDS service is down. Will continue retrying."
 
 
 def get_user_agent_str():
@@ -22,15 +24,24 @@ def get_user_agent_str():
 def retry_when_service_down(func):
     """
     Decorator that will retry a function while it fails with status code 503
+    Assumes the first argument to the fuction will be an object with a set_status_message method.
     :param func: function: will be called until it doesn't fail with DataServiceError status 503
     :return: value returned by func
     """
     def retry_function(*args, **kwds):
+        showed_status_msg = False
+        status_watcher = args[0]
         while True:
             try:
-                return func(*args, **kwds)
+                result = func(*args, **kwds)
+                if showed_status_msg:
+                    status_watcher.set_status_message('')
+                return result
             except DataServiceError as dse:
                 if dse.status_code == 503:
+                    if not showed_status_msg:
+                        status_watcher.set_status_message(SERVICE_DOWN_MESSAGE)
+                        showed_status_msg = True
                     time.sleep(SERVICE_DOWN_RETRY_SECONDS)
                 else:
                     raise
@@ -49,15 +60,17 @@ class DataServiceAuth(object):
     """
     Handles authorization refreshing for DataServiceApi.
     """
-    def __init__(self, config):
+    def __init__(self, config, set_status_msg=print):
         """
         Setup with initial authorization settings from config.
         :param config: ddsc.config.Config settings such as auth, user_key, agent_key
+        :param set_status_msg: func(str): show status message to user
         """
         self.config = config
         self._auth = self.config.auth
         self._expires = None
         self.user_agent_str = get_user_agent_str()
+        self.set_status_msg = set_status_msg
 
     def get_auth(self):
         """
@@ -185,6 +198,7 @@ class DataServiceApi(object):
         :param http: object requests style http object to do get/post/put (defaults to new requests Session)
         """
         self.auth = auth
+        self.set_status_msg = auth.set_status_msg
         self.base_url = url
         self.http = http
         if not self.http:
@@ -896,6 +910,9 @@ class DataServiceApi(object):
         """
         config = self.auth.config
         return config.page_size
+
+    def set_status_message(self, msg):
+        print(msg)
 
 
 class MultiJSONResponse(object):

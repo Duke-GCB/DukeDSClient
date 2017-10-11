@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 from unittest import TestCase
 import requests
 from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth, SETUP_GUIDE_URL
@@ -51,13 +51,17 @@ class TestMultiJSONResponse(TestCase):
 
 
 class TestDataServiceApi(TestCase):
+    def create_mock_auth(self, config_page_size):
+        return MagicMock(set_status_msg=print, config=Mock(page_size=config_page_size))
+
     def test_get_collection_one_page(self):
         mock_requests = MagicMock()
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200,
                                      json_return_value={"results": [1, 2, 3]},
                                      num_pages=1)]
-        api = DataServiceApi(auth=MagicMock(config=Mock(page_size=50)), url="something.com/v1/", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=50), url="something.com/v1/",
+                             http=mock_requests)
         response = api._get_collection(url_suffix="users", data={})
         self.assertEqual([1, 2, 3], response.json()["results"])
         call_args_list = mock_requests.get.call_args_list
@@ -82,7 +86,7 @@ class TestDataServiceApi(TestCase):
                                      json_return_value={"results": [4, 5]},
                                      num_pages=2)
         ]
-        api = DataServiceApi(auth=MagicMock(config=Mock(page_size=100)), url="something.com/v1/", http=mock_requests)
+        api = DataServiceApi(self.create_mock_auth(config_page_size=100), url="something.com/v1/", http=mock_requests)
         response = api._get_collection(url_suffix="projects", data={})
         self.assertEqual([1, 2, 3, 4, 5], response.json()["results"])
         call_args_list = mock_requests.get.call_args_list
@@ -119,7 +123,7 @@ class TestDataServiceApi(TestCase):
                                      json_return_value={"results": [6, 7]},
                                      num_pages=3)
         ]
-        api = DataServiceApi(auth=MagicMock(config=Mock(page_size=100)), url="something.com/v1/", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1/", http=mock_requests)
         response = api._get_collection(url_suffix="uploads", data={})
         self.assertEqual([1, 2, 3, 4, 5, 6, 7], response.json()["results"])
         call_args_list = mock_requests.get.call_args_list
@@ -158,7 +162,8 @@ class TestDataServiceApi(TestCase):
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200, json_return_value={}, num_pages=3)
         ]
-        api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1/",
+                             http=mock_requests)
         with self.assertRaises(UnexpectedPagingReceivedError):
             api._put(url_suffix='stuff', data={})
 
@@ -167,7 +172,8 @@ class TestDataServiceApi(TestCase):
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200, json_return_value={}, num_pages=3)
         ]
-        api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1/",
+                             http=mock_requests)
         with self.assertRaises(UnexpectedPagingReceivedError):
             api._post(url_suffix='stuff', data={})
 
@@ -176,7 +182,8 @@ class TestDataServiceApi(TestCase):
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200, json_return_value={}, num_pages=3)
         ]
-        api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1/",
+                             http=mock_requests)
         with self.assertRaises(UnexpectedPagingReceivedError):
             api._delete(url_suffix='stuff', data={})
 
@@ -185,7 +192,8 @@ class TestDataServiceApi(TestCase):
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200, json_return_value={}, num_pages=3)
         ]
-        api = DataServiceApi(auth=None, url="something.com/v1/", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1/",
+                             http=mock_requests)
         with self.assertRaises(UnexpectedPagingReceivedError):
             api._get_single_item(url_suffix='stuff', data={})
 
@@ -194,7 +202,8 @@ class TestDataServiceApi(TestCase):
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200, json_return_value={"ok": True}, num_pages=3)
         ]
-        api = DataServiceApi(auth=MagicMock(config=Mock(page_size=100)), url="something.com/v1/", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1/",
+                             http=mock_requests)
         resp = api._get_single_page(url_suffix='stuff', data={}, page_num=1)
         self.assertEqual(True, resp.json()['ok'])
 
@@ -216,7 +225,8 @@ class TestDataServiceApi(TestCase):
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200, json_return_value=json_results, num_pages=1)
         ]
-        api = DataServiceApi(auth=MagicMock(), url="something.com/v1", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
         result = api.get_auth_providers()
         self.assertEqual(200, result.status_code)
         self.assertEqual(json_results, result.json())
@@ -231,7 +241,8 @@ class TestDataServiceApi(TestCase):
         mock_requests.post.side_effect = [
             fake_response(status_code=200, json_return_value=user)
         ]
-        api = DataServiceApi(auth=MagicMock(), url="something.com/v1", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
         result = api.auth_provider_add_user('123', "joe")
         self.assertEqual(200, result.status_code)
         self.assertEqual(user, result.json())
@@ -251,7 +262,8 @@ class TestDataServiceApi(TestCase):
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200, json_return_value=return_value, num_pages=1)
         ]
-        api = DataServiceApi(auth=MagicMock(), url="something.com/v1/", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1/",
+                             http=mock_requests)
         resp = api.get_auth_roles(context='')
         self.assertEqual(1, len(resp.json()['results']))
         self.assertEqual("Project Admin", resp.json()['results'][0]['name'])
@@ -268,13 +280,14 @@ class TestDataServiceApi(TestCase):
         mock_requests.get.side_effect = [
             fake_response_with_pages(status_code=200, json_return_value=return_value, num_pages=1)
         ]
-        api = DataServiceApi(auth=MagicMock(), url="something.com/v1/", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1/",
+                             http=mock_requests)
         resp = api.get_project_transfers(project_id='4521')
         self.assertEqual(1, len(resp.json()['results']))
         self.assertEqual("1234", resp.json()['results'][0]['id'])
 
     def test_relations_methods(self):
-        api = DataServiceApi(auth=MagicMock(), url="base/v1/", http=MagicMock())
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="base/v1/", http=MagicMock())
         api._get_collection = MagicMock()
         api._get_single_item = MagicMock()
         api._post = MagicMock()
@@ -346,7 +359,7 @@ class TestDataServiceApi(TestCase):
         api._delete.assert_called_with('/relations/130/', {})
 
     def test_constructor_creates_session_when_passed_none(self):
-        api = DataServiceApi(auth=None, url="something.com/v1/", http=None)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1/", http=None)
         self.assertIsNotNone(api.http)
         self.assertEqual(type(api.http), requests.sessions.Session)
 
@@ -406,7 +419,8 @@ class TestDataServiceApi(TestCase):
             fake_response_with_pages(status_code=200, json_return_value=page1, num_pages=2),
             fake_response_with_pages(status_code=200, json_return_value=page2, num_pages=2),
         ]
-        api = DataServiceApi(auth=MagicMock(config=Mock(page_size=100)), url="something.com/v1", http=mock_requests)
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
         resp = api.get_projects()
         self.assertEqual(2, len(resp.json()['results']))
         self.assertEqual("1234", resp.json()['results'][0]['id'])
@@ -557,7 +571,9 @@ class TestInconsistentResourceMonitoring(TestCase):
 class TestRetryWhenServiceDown(TestCase):
     def setUp(self):
         self.raise_error_once = None
+        self.status_messages = []
 
+    @retry_when_service_down
     def func(self, param):
         if self.raise_error_once:
             raise_error_once = self.raise_error_once
@@ -565,22 +581,28 @@ class TestRetryWhenServiceDown(TestCase):
             raise raise_error_once
         return 'result' + param
 
+    def set_status_message(self, msg):
+        self.status_messages.append(msg)
+
     @patch('ddsc.core.ddsapi.time')
     def test_returns_value_when_ok(self, mock_time):
-        self.assertEqual('result123', retry_when_service_down(self.func)('123'))
+        self.assertEqual('result123', self.func('123'))
         self.assertEqual(0, mock_time.sleep.call_count)
+        self.assertEqual([], self.status_messages)
 
     @patch('ddsc.core.ddsapi.time')
     def test_will_retry_after_waiting(self, mock_time):
         mock_response = MagicMock(status_code=503)
         self.raise_error_once = DataServiceError(mock_response, '', '')
-        self.assertEqual('result123', retry_when_service_down(self.func)('123'))
+        self.assertEqual('result123', self.func('123'))
         self.assertEqual(1, mock_time.sleep.call_count)
+        self.assertEqual(['DukeDS service is down. Will continue retrying.', ''], self.status_messages)
 
     @patch('ddsc.core.ddsapi.time')
     def test_will_just_raise_when_other_error(self, mock_time):
         mock_response = MagicMock(status_code=500)
         self.raise_error_once = DataServiceError(mock_response, '', '')
         with self.assertRaises(DataServiceError):
-            retry_when_service_down(self.func)('123')
+            self.func('123')
         self.assertEqual(0, mock_time.sleep.call_count)
+        self.assertEqual([], self.status_messages)
