@@ -2,8 +2,7 @@ import hashlib
 import math
 import mimetypes
 import os
-import re
-
+from ddsc.core.ignorefile import FileFilter, IgnoreFilePatterns
 from ddsc.core.util import KindType
 
 
@@ -23,7 +22,7 @@ class LocalProject(object):
         self.children = []
         self.sent_to_remote = False
         self.followsymlinks = followsymlinks
-        self.file_include = FileFilter(file_exclude_regex).include
+        self.file_filter = FileFilter(file_exclude_regex)
 
     def add_path(self, path):
         """
@@ -31,7 +30,7 @@ class LocalProject(object):
         :param path: str path to add
         """
         abspath = os.path.abspath(path)
-        self.children.append(_build_project_tree(abspath, self.followsymlinks, self.file_include))
+        self.children.append(_build_project_tree(abspath, self.followsymlinks, self.file_filter))
 
     def add_paths(self, path_list):
         """
@@ -88,32 +87,34 @@ def _update_remote_children(remote_parent, children):
             local_child.update_remote_ids(remote_child)
 
 
-def _build_project_tree(path, followsymlinks, file_include):
+def _build_project_tree(path, followsymlinks, file_filter):
     """
     Build a tree of LocalFolder with children or just a LocalFile based on a path.
     :param path: str path to a directory to walk
     :param followsymlinks: bool should we follow symlinks when walking
-    :param file_include: func returns True if we should include a file
+    :param file_filter: FileFilter: include method returns True if we should include a file/folder
     :return: the top node of the tree LocalFile or LocalFolder
     """
     result = None
     if os.path.isfile(path):
         result = LocalFile(path)
     else:
-        result = _build_folder_tree(os.path.abspath(path), followsymlinks, file_include)
+        result = _build_folder_tree(os.path.abspath(path), followsymlinks, file_filter)
     return result
 
 
-def _build_folder_tree(top_abspath, followsymlinks, file_include):
+def _build_folder_tree(top_abspath, followsymlinks, file_filter):
     """
     Build a tree of LocalFolder with children based on a path.
     :param top_abspath: str path to a directory to walk
     :param followsymlinks: bool should we follow symlinks when walking
-    :param file_include: func returns True if we should include a file
+    :param file_filter: FileFilter: include method returns True if we should include a file/folder
     :return: the top node of the tree LocalFolder
     """
     path_to_content = {}
     child_to_parent = {}
+    ignore_file_patterns = IgnoreFilePatterns(file_filter)
+    ignore_file_patterns.load_directory(top_abspath, followsymlinks)
     for dir_name, child_dirs, child_files in os.walk(top_abspath, followlinks=followsymlinks):
         abspath = os.path.abspath(dir_name)
         folder = LocalFolder(abspath)
@@ -125,10 +126,14 @@ def _build_folder_tree(top_abspath, followsymlinks, file_include):
         for child_dir in child_dirs:
             # Record dir_name as the parent of child_dir so we can call add_child when get to it.
             abs_child_path = os.path.abspath(os.path.join(dir_name, child_dir))
-            child_to_parent[abs_child_path] = abspath
+            if ignore_file_patterns.include(abs_child_path, is_file=False):
+                child_to_parent[abs_child_path] = abspath
+            else:
+                child_dirs.remove(child_dir)
         for child_filename in child_files:
-            if file_include(child_filename):
-                folder.add_child(LocalFile(os.path.join(dir_name, child_filename)))
+            abs_child_filename = os.path.join(dir_name, child_filename)
+            if ignore_file_patterns.include(abs_child_filename, is_file=True):
+                folder.add_child(LocalFile(abs_child_filename))
     return path_to_content.get(top_abspath)
 
 
@@ -375,33 +380,3 @@ class HashUtil(object):
         :return: (str,str) -> (algorithm,value)
         """
         return HashUtil.HASH_NAME, self.hash.hexdigest()
-
-
-class FileFilter(object):
-    """
-    Provides a function for filtering files based on a regex.
-    """
-    def __init__(self, file_exclude_regex):
-        """
-        Set exclusion regex to be used when filtering.
-        Pass empty string to include everything.
-        :param file_exclude_regex: str: regex that matches files we want to exclude
-        """
-        if file_exclude_regex:
-            self.exclude_regex = re.compile(file_exclude_regex)
-        else:
-            self.exclude_regex = None
-
-    def include(self, filename):
-        """
-        Determines if a file should be included in a project for uploading.
-        If file_exclude_regex is empty it will include everything.
-        :param filename: str: filename to match it should not include directory
-        :return: boolean: True if we should include the file.
-        """
-        if self.exclude_regex:
-            if self.exclude_regex.match(filename):
-                return False
-            return True
-        else:
-            return True

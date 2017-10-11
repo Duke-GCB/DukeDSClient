@@ -1,9 +1,9 @@
 import shutil
 import tarfile
 from unittest import TestCase
-from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, FileFilter
-from ddsc.config import FILE_EXCLUDE_REGEX_DEFAULT
+from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject
 from mock import patch
+
 
 INCLUDE_ALL = ''
 
@@ -134,31 +134,6 @@ class TestProjectContent(TestCase):
         content = LocalProject(False, file_exclude_regex='^\.')
         content.add_path('test_scripts')
         self.assertNotIn('.hidden_file', str(content))
-
-
-class TestFileFilter(TestCase):
-    def test_default_file_exclude_regex(self):
-        include_file = FileFilter(FILE_EXCLUDE_REGEX_DEFAULT).include
-        good_files = [
-            'data.txt',
-            'long file with many words and stuff 2000.csv',
-            '.gitignore',
-            '.ddsclient_other',
-            '.DS_Storeage',
-            'DS_Store'
-        ]
-        bad_files = [
-            '.ddsclient',
-            '.DS_Store',
-            '._anything',
-            '._abc'
-        ]
-        # include good filenames
-        for good_filename in good_files:
-            self.assertEqual(include_file(good_filename), True)
-        # exclude bad filenames
-        for bad_filename in bad_files:
-            self.assertEqual(include_file(bad_filename), False)
 
 
 class TestLocalFile(TestCase):
