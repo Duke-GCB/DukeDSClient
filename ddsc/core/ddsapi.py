@@ -408,6 +408,9 @@ class DataServiceApi(object):
         }
         return self._post("/folders", data)
 
+    def delete_folder(self, folder_id):
+        return self._delete("/folders/{}/".format(folder_id))
+
     def get_project_children(self, project_id, name_contains):
         """
         Send GET to /projects/{project_id} filtering by a name.
@@ -516,6 +519,9 @@ class DataServiceApi(object):
             }
         }
         return self._post("/files/", data)
+
+    def delete_file(self, file_id):
+        return self._delete("/files/{}/".format(file_id))
 
     def update_file(self, file_id, upload_id):
         """
