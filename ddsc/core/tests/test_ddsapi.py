@@ -596,7 +596,9 @@ class TestRetryWhenServiceDown(TestCase):
         self.raise_error_once = DataServiceError(mock_response, '', '')
         self.assertEqual('result123', self.func('123'))
         self.assertEqual(1, mock_time.sleep.call_count)
-        self.assertEqual(['DukeDS service is down. Will continue retrying.', ''], self.status_messages)
+        self.assertEqual(2, len(self.status_messages))
+        self.assertIn('Duke Data Service is currently unavailable', self.status_messages[0])
+        self.assertEqual('', self.status_messages[1])
 
     @patch('ddsc.core.ddsapi.time')
     def test_will_just_raise_when_other_error(self, mock_time):
