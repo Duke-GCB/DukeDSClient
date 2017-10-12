@@ -3,6 +3,7 @@ from __future__ import print_function
 import json
 import requests
 import time
+import datetime
 from ddsc.config import get_user_config_filename
 from ddsc.versioncheck import APP_NAME, get_internal_version_str
 
@@ -10,7 +11,11 @@ AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 SERVICE_DOWN_RETRY_SECONDS = 60  # 1 minute
-SERVICE_DOWN_MESSAGE = "DukeDS service is down. Will continue retrying."
+SERVICE_DOWN_MESSAGE = """Duke Data Service is currently unavailable as, so this operation cannot complete right now. ({})
+The operation will be retried automatically, so no action is required. It will complete once Duke Data Service is available.
+
+To cancel this operation, press Ctrl+C.
+"""
 
 
 def get_user_agent_str():
@@ -40,7 +45,8 @@ def retry_when_service_down(func):
             except DataServiceError as dse:
                 if dse.status_code == 503:
                     if not showed_status_msg:
-                        status_watcher.set_status_message(SERVICE_DOWN_MESSAGE)
+                        message = SERVICE_DOWN_MESSAGE.format(datetime.datetime.utcnow())
+                        status_watcher.set_status_message(message)
                         showed_status_msg = True
                     time.sleep(SERVICE_DOWN_RETRY_SECONDS)
                 else:
