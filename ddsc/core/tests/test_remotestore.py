@@ -450,6 +450,27 @@ class TestRemoteStore(TestCase):
         self.assertEqual(1, len(result))
         self.assertEqual('123', result[0]['id'])
 
+    @patch("ddsc.core.remotestore.DataServiceApi")
+    def test_fetch_remote_project_exclude_response_fields(self, mock_data_service_api):
+        exclude_response_fields = ['audit', 'ancestors', 'project']
+        projects_resp = Mock()
+        projects_resp.json.return_value = {
+            'results': [
+                {
+                    'id': '123',
+                    'kind': 'dds-project',
+                    'name': 'Project1',
+                    'description': '',
+                    'is_deleted': False,
+                },
+            ]
+        }
+        mock_data_service_api.return_value.get_projects.return_value = projects_resp
+        remote_store = RemoteStore(config=MagicMock())
+        project_name_or_id = ProjectNameOrId.create_from_project_id('123')
+        remote_store.fetch_remote_project(project_name_or_id, must_exist=True, include_children=True)
+        mock_data_service_api.return_value.get_project_children.assert_called_with('123', '', exclude_response_fields)
+
 
 class TestRemoteProjectChildren(TestCase):
     def test_simple_case(self):

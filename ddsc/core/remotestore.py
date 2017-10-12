@@ -6,6 +6,15 @@ from ddsc.core.localstore import HashUtil
 FETCH_ALL_USERS_PAGE_SIZE = 25
 DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
 
+# Response content that does not need to be generated from the /project/<id>/children list.
+PROJECT_LIST_EXCLUDE_RESPONSE_FIELDS = [
+    'audit',
+    'ancestors',
+    'project',
+]
+# There is also a 'current_file_version' option that is still needed since it contains the
+# file hash and size.
+
 
 class RemoteStore(object):
     """
@@ -31,7 +40,7 @@ class RemoteStore(object):
         project = self._get_my_project(project_name_or_id)
         if project:
             if include_children:
-                self._add_project_children(project)
+                self._add_project_children(project, PROJECT_LIST_EXCLUDE_RESPONSE_FIELDS)
         else:
             if must_exist:
                 project_description = project_name_or_id.description()
@@ -59,12 +68,13 @@ class RemoteStore(object):
                 return RemoteProject(project)
         return None
 
-    def _add_project_children(self, project):
+    def _add_project_children(self, project, exclude_response_fields=None):
         """
         Add the rest of the project tree from the remote store to the project object.
         :param project: RemoteProject root of the project tree to add children too
+        :param exclude_response_fields: [str]: list of fields to exclude in the children response items
         """
-        response = self.data_service.get_project_children(project.id, '').json()
+        response = self.data_service.get_project_children(project.id, '', exclude_response_fields).json()
         project_children = RemoteProjectChildren(project.id, response['results'])
         for child in project_children.get_tree():
             project.add_child(child)

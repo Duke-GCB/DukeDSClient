@@ -408,14 +408,15 @@ class DataServiceApi(object):
         }
         return self._post("/folders", data)
 
-    def get_project_children(self, project_id, name_contains):
+    def get_project_children(self, project_id, name_contains, exclude_response_fields=None):
         """
         Send GET to /projects/{project_id} filtering by a name.
         :param project_id: str uuid of the project
         :param name_contains: str name to filter folders by (if not None this method works recursively)
+        :param exclude_response_fields: [str]: list of fields to exclude in the response items
         :return: requests.Response containing the successful result
         """
-        return self._get_children('projects', project_id, name_contains)
+        return self._get_children('projects', project_id, name_contains, exclude_response_fields)
 
     def get_folder_children(self, folder_id, name_contains):
         """
@@ -426,17 +427,20 @@ class DataServiceApi(object):
         """
         return self._get_children('folders', folder_id, name_contains)
 
-    def _get_children(self, parent_name, parent_id, name_contains):
+    def _get_children(self, parent_name, parent_id, name_contains, exclude_response_fields=None):
         """
         Send GET message to /<parent_name>/<parent_id>/children to fetch info about children(files and folders)
         :param parent_name: str 'projects' or 'folders'
         :param parent_id: str uuid of project or folder
         :param name_contains: name filtering (if not None this method works recursively)
+        :param exclude_response_fields: [str]: list of fields to exclude in the response items
         :return: requests.Response containing the successful result
         """
         data = {}
         if name_contains is not None:
             data['name_contains'] = name_contains
+        if exclude_response_fields:
+            data['exclude_response_fields'] = ' '.join(exclude_response_fields)
         url_prefix = "/{}/{}/children".format(parent_name, parent_id)
         return self._get_collection(url_prefix, data)
 
