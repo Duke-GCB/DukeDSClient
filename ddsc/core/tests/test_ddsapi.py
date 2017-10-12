@@ -5,7 +5,7 @@ from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth,
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
     retry_until_resource_is_consistent, retry_when_service_down
-from mock import MagicMock, Mock, patch, call
+from mock import MagicMock, Mock, patch
 
 
 def fake_response_with_pages(status_code, json_return_value, num_pages=1):
@@ -448,7 +448,7 @@ class TestDataServiceApi(TestCase):
         ]
         api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
                              http=mock_requests)
-        resp = api.get_project_children(project_id='123', name_contains='test', exclude_response_fields=['this','that'])
+        api.get_project_children(project_id='123', name_contains='test', exclude_response_fields=['this', 'that'])
         args, kwargs = mock_requests.get.call_args
         params = kwargs['params']
         self.assertEqual('test', params['name_contains'])
