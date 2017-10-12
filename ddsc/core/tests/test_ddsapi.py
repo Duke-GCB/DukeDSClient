@@ -5,7 +5,7 @@ from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth,
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
     retry_until_resource_is_consistent, retry_when_service_down
-from mock import MagicMock, Mock, patch
+from mock import MagicMock, Mock, patch, call
 
 
 def fake_response_with_pages(status_code, json_return_value, num_pages=1):
@@ -433,6 +433,26 @@ class TestDataServiceApi(TestCase):
         second_call_second_arg = mock_requests.get.call_args_list[0][1]
         self.assertEqual(100, second_call_second_arg['params']['per_page'])
         self.assertEqual(1, second_call_second_arg['params']['page'])
+
+    def test_get_project_children(self):
+        mock_requests = MagicMock()
+        page1 = {
+            "results": [
+                {
+                    "id": "1234"
+                }
+            ]
+        }
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=page1, num_pages=1),
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+        resp = api.get_project_children(project_id='123', name_contains='test', exclude_response_fields=['this','that'])
+        args, kwargs = mock_requests.get.call_args
+        params = kwargs['params']
+        self.assertEqual('test', params['name_contains'])
+        self.assertEqual('this that', params['exclude_response_fields'])
 
 
 class TestDataServiceAuth(TestCase):
