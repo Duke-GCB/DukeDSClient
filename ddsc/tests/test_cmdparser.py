@@ -16,7 +16,7 @@ class TestCommandParser(TestCase):
         self.parsed_args = args
 
     def test_register_add_user_command_project_name(self):
-        command_parser = CommandParser()
+        command_parser = CommandParser(version_str='1.0')
         command_parser.register_add_user_command(self.set_parsed_args)
         self.assertEqual(['add-user'], list(command_parser.subparsers.choices.keys()))
         command_parser.run_command(['add-user', '-p', 'myproj', '--user', 'joe123'])
@@ -24,7 +24,7 @@ class TestCommandParser(TestCase):
         self.assertEqual(None, self.parsed_args.project_id)
 
     def test_register_add_user_command_project_id(self):
-        command_parser = CommandParser()
+        command_parser = CommandParser(version_str='1.0')
         command_parser.register_add_user_command(self.set_parsed_args)
         self.assertEqual(['add-user'], list(command_parser.subparsers.choices.keys()))
         command_parser.run_command(['add-user', '-i', '123', '--user', 'joe123'])
@@ -32,7 +32,7 @@ class TestCommandParser(TestCase):
         self.assertEqual('123', self.parsed_args.project_id)
 
     def test_register_remove_user_command_project_name(self):
-        command_parser = CommandParser()
+        command_parser = CommandParser(version_str='1.0')
         command_parser.register_remove_user_command(self.set_parsed_args)
         self.assertEqual(['remove-user'], list(command_parser.subparsers.choices.keys()))
         command_parser.run_command(['remove-user', '-p', 'myproj', '--user', 'joe123'])
@@ -40,7 +40,7 @@ class TestCommandParser(TestCase):
         self.assertEqual(None, self.parsed_args.project_id)
 
     def test_register_remove_user_command_project_id(self):
-        command_parser = CommandParser()
+        command_parser = CommandParser(version_str='1.0')
         command_parser.register_remove_user_command(self.set_parsed_args)
         self.assertEqual(['remove-user'], list(command_parser.subparsers.choices.keys()))
         command_parser.run_command(['remove-user', '-i', '456', '--user', 'joe123'])
@@ -48,7 +48,7 @@ class TestCommandParser(TestCase):
         self.assertEqual('456', self.parsed_args.project_id)
 
     def test_deliver_no_msg(self):
-        command_parser = CommandParser()
+        command_parser = CommandParser(version_str='1.0')
         command_parser.register_deliver_command(self.set_parsed_args)
         self.assertEqual(['deliver'], list(command_parser.subparsers.choices.keys()))
         command_parser.run_command(['deliver', '-p', 'someproject', '--user', 'joe123'])
@@ -57,7 +57,7 @@ class TestCommandParser(TestCase):
         self.assertEqual(None, self.parsed_args.project_id)
 
     def test_deliver_with_msg(self):
-        command_parser = CommandParser()
+        command_parser = CommandParser(version_str='1.0')
         command_parser.register_deliver_command(self.set_parsed_args)
         self.assertEqual(['deliver'], list(command_parser.subparsers.choices.keys()))
         command_parser.run_command(['deliver', '-i', '123', '--user', 'joe123', '--msg-file', 'setup.py'])
@@ -66,7 +66,7 @@ class TestCommandParser(TestCase):
         self.assertEqual('123', self.parsed_args.project_id)
 
     def test_share_no_msg(self):
-        command_parser = CommandParser()
+        command_parser = CommandParser(version_str='1.0')
         command_parser.register_share_command(self.set_parsed_args)
         self.assertEqual(['share'], list(command_parser.subparsers.choices.keys()))
         command_parser.run_command(['share', '-p', 'someproject2', '--user', 'joe123'])
@@ -75,7 +75,7 @@ class TestCommandParser(TestCase):
         self.assertEqual(None, self.parsed_args.project_id)
 
     def test_share_with_msg(self):
-        command_parser = CommandParser()
+        command_parser = CommandParser(version_str='1.0')
         command_parser.register_share_command(self.set_parsed_args)
         self.assertEqual(['share'], list(command_parser.subparsers.choices.keys()))
         command_parser.run_command(['share', '-i', '456', '--user', 'joe123', '--msg-file', 'setup.py'])
@@ -85,7 +85,7 @@ class TestCommandParser(TestCase):
 
     def test_list_command(self):
         func = Mock()
-        command_parser = CommandParser()
+        command_parser = CommandParser(version_str='1.0')
         command_parser.register_list_command(func)
         self.assertEqual(['list'], list(command_parser.subparsers.choices.keys()))
 
@@ -113,7 +113,7 @@ class TestCommandParser(TestCase):
         self.assertEqual(args[0].project_name, None)
 
     def test_list_command_long(self):
-        command_parser = CommandParser()
+        command_parser = CommandParser(version_str='1.0')
         command_parser.register_list_command(self.set_parsed_args)
         command_parser.run_command(['list'])
         self.assertEqual(False, self.parsed_args.long_format)
@@ -144,3 +144,8 @@ class TestCommandParser(TestCase):
         self.assertEqual(True, self.parsed_args.long_format)
         self.assertEqual('mouse', self.parsed_args.project_name)
         self.assertEqual(None, self.parsed_args.project_id)
+
+    def test_description(self):
+        expected_description = 'DukeDSClient (1.0) Manage projects/folders/files in the duke-data-service'
+        command_parser = CommandParser(version_str='1.0')
+        self.assertEqual(expected_description, command_parser.parser.description)
