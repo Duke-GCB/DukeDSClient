@@ -6,7 +6,7 @@ import argparse
 import six
 from builtins import str
 
-
+DESCRIPTION_STR = "DukeDSClient ({}) Manage projects/folders/files in the duke-data-service"
 INVALID_PATH_CHARS = (':', '/', '\\')
 
 
@@ -321,8 +321,8 @@ class CommandParser(object):
     You must register external functions to called for the various commands.
     Commands must be registered to appear in help.
     """
-    def __init__(self):
-        self.parser = argparse.ArgumentParser()
+    def __init__(self, version_str):
+        self.parser = argparse.ArgumentParser(description=DESCRIPTION_STR.format(version_str))
         _skip_config_file_permission_check(self.parser)
         self.subparsers = self.parser.add_subparsers()
         self.upload_func = None
