@@ -11,7 +11,7 @@ from ddsc.cmdparser import CommandParser, path_does_not_exist_or_is_empty, repla
 from ddsc.core.download import ProjectDownload
 from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
-from ddsc.versioncheck import check_version, VersionException
+from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
 from ddsc.config import create_config
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
@@ -38,7 +38,7 @@ class DDSClient(object):
         Create a parser hooking up the command methods below to be run when chosen.
         :return: CommandParser parser with commands attached.
         """
-        parser = CommandParser()
+        parser = CommandParser(get_internal_version_str())
         parser.register_list_command(self._setup_run_command(ListCommand))
         parser.register_upload_command(self._setup_run_command(UploadCommand))
         parser.register_add_user_command(self._setup_run_command(AddUserCommand))
