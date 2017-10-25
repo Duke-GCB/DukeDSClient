@@ -147,51 +147,62 @@ def _add_follow_symlinks_arg(arg_parser):
                             dest='follow_symlinks')
 
 
-def add_user_or_email_arg(arg_parser, help_msg, nargs=None):
+def add_user_or_email_arg(arg_parser, help_msg, allow_multiple=False):
     """
     Adds mutually exclusive user and email arguments to a parser.
     :param arg_parser: ArgumentParser parser to add these arguments to.
     :param help_msg: short help str to add to our help message
-    :param nargs:argparse nargs value
+    :param allow_multiple: boolean: True user can specify multiple users or emails
     """
+    nargs = None
+    user_arg_dest = 'username'
+    email_arg_dest = 'email'
+    if allow_multiple:
+        nargs = '+'
+        user_arg_dest = 'usernames'
+        email_arg_dest = 'emails'
     user_or_email = arg_parser.add_mutually_exclusive_group(required=True)
     help_suffix = "You must specify either --email or this flag."
     add_user_arg(user_or_email,
                  help_str="Username(NetID) to {}. {}".format(help_msg, help_suffix),
+                 dest=user_arg_dest,
                  nargs=nargs)
     add_email_arg(user_or_email,
                   help_str="Email of the person to {}. {}".format(help_msg, help_suffix),
+                  dest=email_arg_dest,
                   nargs=nargs)
 
 
-def add_user_arg(arg_parser, help_str, nargs=None):
+def add_user_arg(arg_parser, help_str, dest, nargs):
     """
     Adds username parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     :param help_str: str help text
+    :param dest: destination variable name
     :param nargs: argparse nargs value
     """
 
     arg_parser.add_argument("--user",
                             metavar='Username',
                             type=to_unicode,
-                            dest='username',
+                            dest=dest,
                             help=help_str,
                             nargs=nargs)
 
 
-def add_email_arg(arg_parser, help_str, nargs=None):
+def add_email_arg(arg_parser, help_str, dest, nargs):
     """
     Adds user_email parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     :param help_str: str help text
+    :param dest: destination variable name
     :param nargs: argparse nargs value
     """
     help = "{} You must specify either --user or this flag.".format(help_str)
     arg_parser.add_argument("--email",
                             metavar='UserEmail',
                             type=to_unicode,
-                            dest='email',
+                            dest=dest,
                             help=help_str,
                             nargs=nargs)
 
@@ -414,7 +425,7 @@ class CommandParser(object):
                       "If not specified this command gives user download permissions."
         share_parser = self.subparsers.add_parser('share', description=description)
         add_project_name_or_id_arg(share_parser)
-        add_user_or_email_arg(share_parser, help_msg="share project with", nargs='+')
+        add_user_or_email_arg(share_parser, help_msg="share project with", allow_multiple=True)
         _add_auth_role_arg(share_parser, default_permissions='file_downloader')
         _add_resend_arg(share_parser, "Resend share")
         _add_message_file(share_parser, "Filename containing a message to be sent with the share. "
@@ -431,7 +442,7 @@ class CommandParser(object):
                       "access to the copy of the project once user acknowledges receiving the data."
         deliver_parser = self.subparsers.add_parser('deliver', description=description)
         add_project_name_or_id_arg(deliver_parser)
-        add_user_or_email_arg(deliver_parser, help_msg="deliver project to", nargs='+')
+        add_user_or_email_arg(deliver_parser, help_msg="deliver project to", allow_multiple=True)
         _add_copy_project_arg(deliver_parser)
         _add_resend_arg(deliver_parser, "Resend delivery")
         include_or_exclude = deliver_parser.add_mutually_exclusive_group(required=False)

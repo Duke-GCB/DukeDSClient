@@ -121,7 +121,7 @@ class TestShareCommand(TestCase):
             Mock(username='joe123', id='123', email='joe@joe.joe')
         ]
         cmd = ShareCommand(MagicMock())
-        myargs = Mock(project_name='mouse', email=None, username=['joe123'], force_send=False,
+        myargs = Mock(project_name='mouse', emails=None, usernames=['joe123'], force_send=False,
                       auth_role='project_viewer', msg_file=None)
         cmd.run(myargs)
         args, kwargs = mock_d4s2_project().share.call_args
@@ -140,7 +140,7 @@ class TestShareCommand(TestCase):
         ]
         with open('setup.py') as message_infile:
             cmd = ShareCommand(MagicMock())
-            myargs = Mock(project_name=None, project_id='123', email=None, username=['joe123'], force_send=False,
+            myargs = Mock(project_name=None, project_id='123', emails=None, usernames=['joe123'], force_send=False,
                           auth_role='project_viewer', msg_file=message_infile)
             cmd.run(myargs)
             args, kwargs = mock_d4s2_project().share.call_args
@@ -162,9 +162,9 @@ class TestDeliverCommand(TestCase):
         cmd = DeliverCommand(MagicMock())
         myargs = Mock(project_name='mouse',
                       project_id=None,
-                      email=None,
+                      emails=None,
                       resend=False,
-                      username=['joe123'],
+                      usernames=['joe123'],
                       skip_copy_project=True,
                       include_paths=None,
                       exclude_paths=None,
@@ -189,8 +189,8 @@ class TestDeliverCommand(TestCase):
             myargs = Mock(project_name=None,
                           project_id='456',
                           resend=False,
-                          email=None,
-                          username=['joe123'],
+                          emails=None,
+                          usernames=['joe123'],
                           skip_copy_project=True,
                           include_paths=None,
                           exclude_paths=None,

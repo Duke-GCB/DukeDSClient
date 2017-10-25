@@ -269,8 +269,8 @@ class ShareCommand(BaseCommand):
         Gives user permission based on auth_role arg and sends email to that user.
         :param args Namespace arguments parsed from the command line
         """
-        emails = args.email                 # emails of people to send email to
-        usernames = args.username           # usernames of people to send email to, will be None if email is specified
+        emails = args.emails                # emails of people to send email to
+        usernames = args.usernames          # usernames of people to send email to, will be None if email is specified
         force_send = args.resend            # is this a resend so we should force sending
         auth_role = args.auth_role          # authorization role(project permissions) to give to the user
         msg_file = args.msg_file            # message file who's contents will be sent with the share
@@ -308,8 +308,8 @@ class DeliverCommand(BaseCommand):
         When user accepts delivery they receive access and we lose admin privileges.
         :param args Namespace arguments parsed from the command line
         """
-        emails = args.email                 # emails of people to deliver to
-        usernames = args.username           # usernames of people to deliver to, will be None if email is specified
+        emails = args.emails                # emails of people to deliver to
+        usernames = args.usernames          # usernames of people to deliver to, will be None if email is specified
         skip_copy_project = args.skip_copy_project  # should we skip the copy step
         force_send = args.resend            # is this a resend so we should force sending
         msg_file = args.msg_file            # message file who's contents will be sent with the delivery
