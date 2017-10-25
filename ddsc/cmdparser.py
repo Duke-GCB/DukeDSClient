@@ -198,7 +198,6 @@ def add_email_arg(arg_parser, help_str, dest, nargs):
     :param dest: destination variable name
     :param nargs: argparse nargs value
     """
-    help = "{} You must specify either --user or this flag.".format(help_str)
     arg_parser.add_argument("--email",
                             metavar='UserEmail',
                             type=to_unicode,
