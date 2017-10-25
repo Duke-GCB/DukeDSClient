@@ -263,7 +263,7 @@ class D4S2Project(object):
         :param to_users: RemoteUser user we are sharing with
         :param auth_role: str project role eg 'project_admin' email is customized based on this setting.
         :param user_message: str message to be sent with the share
-        :return: the email addresses that should receive a message on soon
+        :return: [str]: the email addresses that should receive a message on soon
         """
         from_user = self.remote_store.get_current_user()
         item = D4S2Item(destination=destination,
@@ -274,7 +274,7 @@ class D4S2Project(object):
                         auth_role=auth_role,
                         user_message=user_message)
         item.send(self.api, force_send)
-        return to_user.email
+        return [to_user.email for to_user in to_users]
 
     def _copy_project(self, project, new_project_name, path_filter):
         """

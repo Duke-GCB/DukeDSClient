@@ -117,8 +117,11 @@ class TestShareCommand(TestCase):
     @patch('ddsc.ddsclient.RemoteStore')
     @patch('ddsc.ddsclient.D4S2Project')
     def test_run_no_message(self, mock_d4s2_project, mock_remote_store):
+        mock_remote_store.return_value.fetch_all_users.return_value = [
+            Mock(username='joe123', id='123', email='joe@joe.joe')
+        ]
         cmd = ShareCommand(MagicMock())
-        myargs = Mock(project_name='mouse', email=None, username='joe123', force_send=False,
+        myargs = Mock(project_name='mouse', email=None, username=['joe123'], force_send=False,
                       auth_role='project_viewer', msg_file=None)
         cmd.run(myargs)
         args, kwargs = mock_d4s2_project().share.call_args
@@ -132,9 +135,12 @@ class TestShareCommand(TestCase):
     @patch('ddsc.ddsclient.RemoteStore')
     @patch('ddsc.ddsclient.D4S2Project')
     def test_run_message(self, mock_d4s2_project, mock_remote_store):
+        mock_remote_store.return_value.fetch_all_users.return_value = [
+            Mock(username='joe123', id='123', email='joe@joe.joe')
+        ]
         with open('setup.py') as message_infile:
             cmd = ShareCommand(MagicMock())
-            myargs = Mock(project_name=None, project_id='123', email=None, username='joe123', force_send=False,
+            myargs = Mock(project_name=None, project_id='123', email=None, username=['joe123'], force_send=False,
                           auth_role='project_viewer', msg_file=message_infile)
             cmd.run(myargs)
             args, kwargs = mock_d4s2_project().share.call_args
@@ -150,12 +156,15 @@ class TestDeliverCommand(TestCase):
     @patch('ddsc.ddsclient.RemoteStore')
     @patch('ddsc.ddsclient.D4S2Project')
     def test_run_no_message(self, mock_d4s2_project, mock_remote_store):
+        mock_remote_store.return_value.fetch_all_users.return_value = [
+            Mock(username='joe123', id='123', email='joe@joe.joe')
+        ]
         cmd = DeliverCommand(MagicMock())
         myargs = Mock(project_name='mouse',
                       project_id=None,
                       email=None,
                       resend=False,
-                      username='joe123',
+                      username=['joe123'],
                       skip_copy_project=True,
                       include_paths=None,
                       exclude_paths=None,
@@ -173,12 +182,15 @@ class TestDeliverCommand(TestCase):
     @patch('ddsc.ddsclient.D4S2Project')
     def test_run_message(self, mock_d4s2_project, mock_remote_store):
         with open('setup.py') as message_infile:
+            mock_remote_store.return_value.fetch_all_users.return_value = [
+                Mock(username='joe123', id='123', email='joe@joe.joe')
+            ]
             cmd = DeliverCommand(MagicMock())
             myargs = Mock(project_name=None,
                           project_id='456',
                           resend=False,
                           email=None,
-                          username='joe123',
+                          username=['joe123'],
                           skip_copy_project=True,
                           include_paths=None,
                           exclude_paths=None,
