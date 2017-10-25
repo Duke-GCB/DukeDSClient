@@ -147,30 +147,53 @@ def _add_follow_symlinks_arg(arg_parser):
                             dest='follow_symlinks')
 
 
-def add_user_arg(arg_parser):
+def add_user_or_email_arg(arg_parser, help_msg, nargs=None):
+    """
+    Adds mutually exclusive user and email arguments to a parser.
+    :param arg_parser: ArgumentParser parser to add these arguments to.
+    :param help_msg: short help str to add to our help message
+    :param nargs:argparse nargs value
+    """
+    user_or_email = arg_parser.add_mutually_exclusive_group(required=True)
+    help_suffix = "You must specify either --email or this flag."
+    add_user_arg(user_or_email,
+                 help_str="Username(NetID) to {}. {}".format(help_msg, help_suffix),
+                 nargs=nargs)
+    add_email_arg(user_or_email,
+                  help_str="Email of the person to {}. {}".format(help_msg, help_suffix),
+                  nargs=nargs)
+
+
+def add_user_arg(arg_parser, help_str, nargs=None):
     """
     Adds username parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
+    :param help_str: str help text
+    :param nargs: argparse nargs value
     """
+
     arg_parser.add_argument("--user",
                             metavar='Username',
                             type=to_unicode,
                             dest='username',
-                            help="Username(NetID) to update permissions on. "
-                                 "You must specify either --email or this flag.")
+                            help=help_str,
+                            nargs=nargs)
 
 
-def add_email_arg(arg_parser):
+def add_email_arg(arg_parser, help_str, nargs=None):
     """
     Adds user_email parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
+    :param help_str: str help text
+    :param nargs: argparse nargs value
     """
+    help = "{} You must specify either --user or this flag.".format(help_str)
     arg_parser.add_argument("--email",
                             metavar='UserEmail',
                             type=to_unicode,
                             dest='email',
-                            help="Email of the person you want to update permissions on."
-                                 " You must specify either --user or this flag.")
+                            help=help_str,
+                            nargs=nargs)
 
 
 def _add_auth_role_arg(arg_parser, default_permissions):
@@ -352,9 +375,7 @@ class CommandParser(object):
         description = "Gives user permission to access a remote project."
         add_user_parser = self.subparsers.add_parser('add-user', description=description)
         add_project_name_or_id_arg(add_user_parser, help_text_suffix="add a user to")
-        user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
-        add_user_arg(user_or_email)
-        add_email_arg(user_or_email)
+        add_user_or_email_arg(add_user_parser, help_msg="update permissions on")
         _add_auth_role_arg(add_user_parser, default_permissions='project_admin')
         add_user_parser.set_defaults(func=add_user_func)
 
@@ -366,9 +387,7 @@ class CommandParser(object):
         description = "Removes user permission to access a remote project."
         remove_user_parser = self.subparsers.add_parser('remove-user', description=description)
         add_project_name_or_id_arg(remove_user_parser, help_text_suffix="remove a user from")
-        user_or_email = remove_user_parser.add_mutually_exclusive_group(required=True)
-        add_user_arg(user_or_email)
-        add_email_arg(user_or_email)
+        add_user_or_email_arg(remove_user_parser, help_msg="remove permissions from")
         remove_user_parser.set_defaults(func=remove_user_func)
 
     def register_download_command(self, download_func):
@@ -395,9 +414,7 @@ class CommandParser(object):
                       "If not specified this command gives user download permissions."
         share_parser = self.subparsers.add_parser('share', description=description)
         add_project_name_or_id_arg(share_parser)
-        user_or_email = share_parser.add_mutually_exclusive_group(required=True)
-        add_user_arg(user_or_email)
-        add_email_arg(user_or_email)
+        add_user_or_email_arg(share_parser, help_msg="share project with", nargs='+')
         _add_auth_role_arg(share_parser, default_permissions='file_downloader')
         _add_resend_arg(share_parser, "Resend share")
         _add_message_file(share_parser, "Filename containing a message to be sent with the share. "
@@ -414,9 +431,7 @@ class CommandParser(object):
                       "access to the copy of the project once user acknowledges receiving the data."
         deliver_parser = self.subparsers.add_parser('deliver', description=description)
         add_project_name_or_id_arg(deliver_parser)
-        user_or_email = deliver_parser.add_mutually_exclusive_group(required=True)
-        add_user_arg(user_or_email)
-        add_email_arg(user_or_email)
+        add_user_or_email_arg(deliver_parser, help_msg="deliver project to", nargs='+')
         _add_copy_project_arg(deliver_parser)
         _add_resend_arg(deliver_parser, "Resend delivery")
         include_or_exclude = deliver_parser.add_mutually_exclusive_group(required=False)
