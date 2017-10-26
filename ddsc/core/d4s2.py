@@ -218,7 +218,8 @@ class D4S2Project(object):
         :param user_message: str message to be sent with the share
         :return: [str] the email addresses we will email share message to soon
         """
-        self.set_user_project_permission(project, to_users, auth_role)
+        for to_user in to_users:
+            self.set_user_project_permission(project, to_user, auth_role)
         return self._share_project(D4S2Api.SHARE_DESTINATION, project, to_users, force_send, auth_role, user_message)
 
     def set_user_project_permission(self, project, user, auth_role):
