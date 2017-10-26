@@ -114,6 +114,30 @@ class BaseCommand(object):
             print("Done fetching list of files.".format(project_name_or_id.value))
         return project
 
+    def make_user_list(self, emails, usernames):
+        """
+        Given a list of emails and usernames fetch DukeDS user info.
+        Parameters that are None will be skipped.
+        :param emails: [str]: list of emails (can be null)
+        :param usernames:  [str]: list of usernames(netid)
+        :return: [RemoteUser]: details about any users referenced the two parameters
+        """
+        to_users = []
+        remaining_emails = [] if not emails else list(emails)
+        remaining_usernames = [] if not usernames else list(usernames)
+        for user in self.remote_store.fetch_all_users():
+            if user.email in remaining_emails:
+                to_users.append(user)
+                remaining_emails.remove(user.email)
+            elif user.username in remaining_usernames:
+                to_users.append(user)
+                remaining_usernames.remove(user.username)
+        if remaining_emails or remaining_usernames:
+            unable_to_find_users = ','.join(remaining_emails + remaining_usernames)
+            msg = "Unable to find users for the following email/usernames: {}".format(unable_to_find_users)
+            raise ValueError(msg)
+        return to_users
+
 
 class UploadCommand(BaseCommand):
     """
@@ -245,18 +269,19 @@ class ShareCommand(BaseCommand):
         Gives user permission based on auth_role arg and sends email to that user.
         :param args Namespace arguments parsed from the command line
         """
-        email = args.email                  # email of person to send email to
-        username = args.username            # username of person to send email to, will be None if email is specified
+        emails = args.emails                # emails of people to send email to
+        usernames = args.usernames          # usernames of people to send email to, will be None if email is specified
         force_send = args.resend            # is this a resend so we should force sending
         auth_role = args.auth_role          # authorization role(project permissions) to give to the user
         msg_file = args.msg_file            # message file who's contents will be sent with the share
         message = read_argument_file_contents(msg_file)
         print("Sharing project.")
-        to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
+        to_users = self.make_user_list(emails, usernames)
         try:
             project = self.fetch_project(args, must_exist=True, include_children=False)
-            dest_email = self.service.share(project, to_user, force_send, auth_role, message)
-            print("Share email message sent to " + dest_email)
+            dest_emails = self.service.share(project, to_users, force_send, auth_role, message)
+            dest_emails_str = ', '.join(dest_emails)
+            print("Share email message sent to {}".format(dest_emails_str))
         except D4S2Error as ex:
             if ex.warning:
                 print(ex.message)
@@ -283,8 +308,8 @@ class DeliverCommand(BaseCommand):
         When user accepts delivery they receive access and we lose admin privileges.
         :param args Namespace arguments parsed from the command line
         """
-        email = args.email                  # email of person to deliver to, will be None if username is specified
-        username = args.username            # username of person to deliver to, will be None if email is specified
+        emails = args.emails                 # emails of people to deliver to
+        usernames = args.usernames           # usernames of people to deliver to, will be None if email is specified
         skip_copy_project = args.skip_copy_project  # should we skip the copy step
         force_send = args.resend            # is this a resend so we should force sending
         msg_file = args.msg_file            # message file who's contents will be sent with the delivery
@@ -294,11 +319,12 @@ class DeliverCommand(BaseCommand):
         new_project_name = None
         if not skip_copy_project:
             new_project_name = self.get_new_project_name(project.name)
-        to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
+        to_users = self.make_user_list(emails, usernames)
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
-            dest_email = self.service.deliver(project, new_project_name, to_user, force_send, path_filter, message)
-            print("Delivery email message sent to " + dest_email)
+            dest_emails = self.service.deliver(project, new_project_name, to_users, force_send, path_filter, message)
+            dest_emails_str = ', '.join(dest_emails)
+            print("Delivery email message sent to {}".format(dest_emails_str))
         except D4S2Error as ex:
             if ex.warning:
                 print(ex.message)
@@ -311,7 +337,6 @@ class DeliverCommand(BaseCommand):
         :param project_name: str: name of project we will copy
         :return: str
         """
-        self.remote_store.fetch_remote_project_by_id()
         timestamp_str = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')
         return "{} {}".format(project_name, timestamp_str)
 

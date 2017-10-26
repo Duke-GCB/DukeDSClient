@@ -13,14 +13,32 @@ class TestD4S2Project(TestCase):
         mock_d4s2api().get_existing_item.return_value = Mock(json=Mock(return_value=[]))
         project = D4S2Project(config=MagicMock(), remote_store=MagicMock(), print_func=MagicMock())
         project.share(project=Mock(name='mouserna'),
-                      to_user=MagicMock(id='123'),
+                      to_users=[MagicMock(id='123')],
                       force_send=False,
                       auth_role='project_viewer',
                       user_message='This is a test.')
         args, kwargs = mock_d4s2api().create_item.call_args
         item = args[0]
         self.assertEqual(mock_d4s2api.SHARE_DESTINATION, item.destination)
-        self.assertEqual('123', item.to_user_id)
+        self.assertEqual(['123'], item.to_user_ids)
+        self.assertEqual('project_viewer', item.auth_role)
+        self.assertEqual('This is a test.', item.user_message)
+        mock_d4s2api().send_item.assert_called()
+
+    @patch('ddsc.core.d4s2.D4S2Api')
+    @patch('ddsc.core.d4s2.requests')
+    def test_share_multiple_users(self, mock_requests, mock_d4s2api):
+        mock_d4s2api().get_existing_item.return_value = Mock(json=Mock(return_value=[]))
+        project = D4S2Project(config=MagicMock(), remote_store=MagicMock(), print_func=MagicMock())
+        project.share(project=Mock(name='mouserna'),
+                      to_users=[MagicMock(id='123'), MagicMock(id='456')],
+                      force_send=False,
+                      auth_role='project_viewer',
+                      user_message='This is a test.')
+        args, kwargs = mock_d4s2api().create_item.call_args
+        item = args[0]
+        self.assertEqual(mock_d4s2api.SHARE_DESTINATION, item.destination)
+        self.assertEqual(['123', '456'], item.to_user_ids)
         self.assertEqual('project_viewer', item.auth_role)
         self.assertEqual('This is a test.', item.user_message)
         mock_d4s2api().send_item.assert_called()
@@ -32,14 +50,32 @@ class TestD4S2Project(TestCase):
         project = D4S2Project(config=MagicMock(), remote_store=MagicMock(), print_func=MagicMock())
         project.deliver(project=Mock(name='mouserna'),
                         new_project_name=None,
-                        to_user=MagicMock(id='456'),
+                        to_users=[MagicMock(id='456')],
                         force_send=False,
                         path_filter='',
                         user_message='Yet Another Message.')
         args, kwargs = mock_d4s2api().create_item.call_args
         item = args[0]
         self.assertEqual(mock_d4s2api.DELIVER_DESTINATION, item.destination)
-        self.assertEqual('456', item.to_user_id)
+        self.assertEqual(['456'], item.to_user_ids)
+        self.assertEqual('Yet Another Message.', item.user_message)
+        mock_d4s2api().send_item.assert_called()
+
+    @patch('ddsc.core.d4s2.D4S2Api')
+    @patch('ddsc.core.d4s2.requests')
+    def test_deliver_multiple_users(self, mock_requests, mock_d4s2api):
+        mock_d4s2api().get_existing_item.return_value = Mock(json=Mock(return_value=[]))
+        project = D4S2Project(config=MagicMock(), remote_store=MagicMock(), print_func=MagicMock())
+        project.deliver(project=Mock(name='mouserna'),
+                        new_project_name=None,
+                        to_users=[MagicMock(id='456'), MagicMock(id='789')],
+                        force_send=False,
+                        path_filter='',
+                        user_message='Yet Another Message.')
+        args, kwargs = mock_d4s2api().create_item.call_args
+        item = args[0]
+        self.assertEqual(mock_d4s2api.DELIVER_DESTINATION, item.destination)
+        self.assertEqual(['456', '789'], item.to_user_ids)
         self.assertEqual('Yet Another Message.', item.user_message)
         mock_d4s2api().send_item.assert_called()
 
