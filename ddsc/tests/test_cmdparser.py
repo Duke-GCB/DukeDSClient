@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from ddsc.cmdparser import CommandParser
-from mock import Mock
+from ddsc.cmdparser import CommandParser, add_user_or_email_arg
+from mock import Mock, MagicMock, call
 
 
 def no_op():
@@ -149,3 +149,47 @@ class TestCommandParser(TestCase):
         expected_description = 'DukeDSClient (1.0) Manage projects/folders/files in the duke-data-service'
         command_parser = CommandParser(version_str='1.0')
         self.assertEqual(expected_description, command_parser.parser.description)
+
+    def test_add_user_or_email_arg_no_multiple(self):
+        mock_arg_parser = MagicMock()
+        add_user_or_email_arg(mock_arg_parser, 'some details', allow_multiple=False)
+        mock_arg_parser.add_mutually_exclusive_group.assert_called_with(required=True)
+        group = mock_arg_parser.add_mutually_exclusive_group.return_value
+        call_args_list = group.add_argument.call_args_list
+        self.assertEqual(2, len(call_args_list))
+
+        call_args = call_args_list[0]
+        self.assertEqual(('--user',), call_args[0])
+        self.assertEqual('username', call_args[1]['dest'])
+        self.assertEqual('Username(NetID) to some details. You must specify either --email or this flag.',
+                         call_args[1]['help'])
+        self.assertEqual(None, call_args[1]['nargs'])
+
+        call_args = call_args_list[1]
+        self.assertEqual(('--email',), call_args[0])
+        self.assertEqual('email', call_args[1]['dest'])
+        self.assertEqual('Email of the person to some details. You must specify either --email or this flag.',
+                         call_args[1]['help'])
+        self.assertEqual(None, call_args[1]['nargs'])
+
+    def test_add_user_or_email_arg_multiple(self):
+        mock_arg_parser = MagicMock()
+        add_user_or_email_arg(mock_arg_parser, 'some details', allow_multiple=True)
+        mock_arg_parser.add_mutually_exclusive_group.assert_called_with(required=True)
+        group = mock_arg_parser.add_mutually_exclusive_group.return_value
+        call_args_list = group.add_argument.call_args_list
+        self.assertEqual(2, len(call_args_list))
+
+        call_args = call_args_list[0]
+        self.assertEqual(('--user',), call_args[0])
+        self.assertEqual('usernames', call_args[1]['dest'])
+        self.assertEqual('Username(NetID) to some details. You must specify either --email or this flag.',
+                         call_args[1]['help'])
+        self.assertEqual('+', call_args[1]['nargs'])
+
+        call_args = call_args_list[1]
+        self.assertEqual(('--email',), call_args[0])
+        self.assertEqual('emails', call_args[1]['dest'])
+        self.assertEqual('Email of the person to some details. You must specify either --email or this flag.',
+                         call_args[1]['help'])
+        self.assertEqual('+', call_args[1]['nargs'])

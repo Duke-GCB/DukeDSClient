@@ -81,7 +81,8 @@ class TestFileUploadOperations(TestCase):
         fop.send_file_external(url_json, chunk='DATADATADATA')
         self.assertEqual(1, data_service.send_external.call_count)
 
-    def test_send_file_external_retry_put(self):
+    @patch('ddsc.core.fileuploader.time')
+    def test_send_file_external_retry_put(self, mock_time):
         data_service = MagicMock()
         data_service.send_external.side_effect = [requests.exceptions.ConnectionError, Mock(status_code=201)]
         fop = FileUploadOperations(data_service, MagicMock())
