@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.cmdparser import CommandParser, add_user_or_email_arg
-from mock import Mock, MagicMock, call
+from mock import Mock, MagicMock
 
 
 def no_op():
