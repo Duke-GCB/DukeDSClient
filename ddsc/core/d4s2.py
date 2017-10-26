@@ -243,7 +243,8 @@ class D4S2Project(object):
         :param user_message: str message to be sent with the share
         :return: [str] the email addresses we will email delivery message to soon
         """
-        self.remove_user_permission(project, to_users)
+        for to_user in to_users:
+            self.remove_user_permission(project, to_user)
         if new_project_name:
             project = self._copy_project(project, new_project_name, path_filter)
         return self._share_project(D4S2Api.DELIVER_DESTINATION, project, to_users, force_send, user_message=user_message)
@@ -286,7 +287,8 @@ class D4S2Project(object):
         :return: RemoteProject new project we copied data to
         """
         temp_directory = tempfile.mkdtemp()
-        remote_project = self.remote_store.fetch_remote_project(new_project_name)
+        project_name_or_id = ProjectNameOrId.create_from_name(new_project_name)
+        remote_project = self.remote_store.fetch_remote_project(project_name_or_id)
         if remote_project:
             raise ValueError("A project with name '{}' already exists.".format(new_project_name))
         activity = CopyActivity(self.remote_store.data_service, project, new_project_name)
@@ -294,7 +296,7 @@ class D4S2Project(object):
         self._upload_project(activity, new_project_name, temp_directory)
         activity.finished()
         shutil.rmtree(temp_directory)
-        return self.remote_store.fetch_remote_project(new_project_name, must_exist=True)
+        return self.remote_store.fetch_remote_project(project_name_or_id, must_exist=True)
 
     def _download_project(self, activity, project, temp_directory, path_filter):
         """
@@ -305,8 +307,7 @@ class D4S2Project(object):
         :param path_filter: PathFilter: filters what files are shared
         """
         self.print_func("Downloading a copy of '{}'.".format(project.name))
-        project_name_or_id = project.get_project_name_or_id()
-        downloader = ProjectDownload(self.remote_store, project_name_or_id, temp_directory, path_filter,
+        downloader = ProjectDownload(self.remote_store, project, temp_directory, path_filter,
                                      file_download_pre_processor=DownloadedFileRelations(activity))
         downloader.run()
 

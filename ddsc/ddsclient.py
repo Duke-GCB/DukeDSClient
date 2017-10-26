@@ -308,8 +308,8 @@ class DeliverCommand(BaseCommand):
         When user accepts delivery they receive access and we lose admin privileges.
         :param args Namespace arguments parsed from the command line
         """
-        emails = args.emails                # emails of people to deliver to
-        usernames = args.usernames          # usernames of people to deliver to, will be None if email is specified
+        emails = args.emails                 # emails of people to deliver to
+        usernames = args.usernames           # usernames of people to deliver to, will be None if email is specified
         skip_copy_project = args.skip_copy_project  # should we skip the copy step
         force_send = args.resend            # is this a resend so we should force sending
         msg_file = args.msg_file            # message file who's contents will be sent with the delivery
@@ -337,7 +337,6 @@ class DeliverCommand(BaseCommand):
         :param project_name: str: name of project we will copy
         :return: str
         """
-        self.remote_store.fetch_remote_project_by_id()
         timestamp_str = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')
         return "{} {}".format(project_name, timestamp_str)
 
