@@ -230,13 +230,14 @@ class D4S2Project(object):
         """
         self.remote_store.set_user_project_permission(project, user, auth_role)
 
-    def deliver(self, project, new_project_name, to_user, force_send, path_filter, user_message):
+    def deliver(self, project, new_project_name, to_user, share_users, force_send, path_filter, user_message):
         """
         Remove access to project_name for to_user, copy to new_project_name if not None,
         send message to service to email user so they can have access.
         :param project: RemoteProject pre-existing project to be delivered
         :param new_project_name: str name of non-existing project to copy project_name to, if None we don't copy
         :param to_user: RemoteUser user we are handing over the project to
+        :param share_users: [RemoteUser] who will have project shared with them once to_user accepts the project
         :param force_send: boolean enables resending of email for existing projects
         :param path_filter: PathFilter: filters what files are shared
         :param user_message: str message to be sent with the share
@@ -245,7 +246,9 @@ class D4S2Project(object):
         self.remove_user_permission(project, to_user)
         if new_project_name:
             project = self._copy_project(project, new_project_name, path_filter)
-        return self._share_project(D4S2Api.DELIVER_DESTINATION, project, to_user, force_send, user_message=user_message)
+        # TODO pass share_users
+        return self._share_project(D4S2Api.DELIVER_DESTINATION, project, to_user,
+                                   force_send, user_message=user_message)
 
     def remove_user_permission(self, project, user):
         """

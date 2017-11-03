@@ -173,6 +173,24 @@ def add_email_arg(arg_parser):
                                  " You must specify either --user or this flag.")
 
 
+def add_share_usernames_arg(arg_parser):
+    arg_parser.add_argument("--share-users",
+                            metavar='ShareUsers',
+                            type=to_unicode,
+                            nargs='+',
+                            dest='share_usernames',
+                            help="Usernames(NetIDs) of the people you want to share with upon delivery acceptance.")
+
+
+def add_share_emails_arg(arg_parser):
+    arg_parser.add_argument("--share-email",
+                            metavar='ShareEmails',
+                            type=to_unicode,
+                            nargs='+',
+                            dest='share_emails',
+                            help="Email of the person you want to share with upon delivery acceptance.")
+
+
 def _add_auth_role_arg(arg_parser, default_permissions):
     """
     Adds optional auth_role parameter to a parser.
@@ -417,6 +435,8 @@ class CommandParser(object):
         user_or_email = deliver_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
+        add_share_usernames_arg(deliver_parser)
+        add_share_emails_arg(deliver_parser)
         _add_copy_project_arg(deliver_parser)
         _add_resend_arg(deliver_parser, "Resend delivery")
         include_or_exclude = deliver_parser.add_mutually_exclusive_group(required=False)

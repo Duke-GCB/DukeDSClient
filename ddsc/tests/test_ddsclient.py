@@ -156,13 +156,15 @@ class TestDeliverCommand(TestCase):
                       email=None,
                       resend=False,
                       username='joe123',
+                      share_usernames=[],
+                      share_emails=[],
                       skip_copy_project=True,
                       include_paths=None,
                       exclude_paths=None,
                       msg_file=None)
         cmd.run(myargs)
         args, kwargs = mock_d4s2_project().deliver.call_args
-        project, new_project_name, to_user, force_send, path_filter, message = args
+        project, new_project_name, to_user, share_users, force_send, path_filter, message = args
         self.assertEqual(project, mock_remote_store.return_value.fetch_remote_project.return_value)
         self.assertEqual(False, force_send)
         self.assertEqual('', message)
@@ -179,13 +181,15 @@ class TestDeliverCommand(TestCase):
                           resend=False,
                           email=None,
                           username='joe123',
+                          share_emails=[],
+                          share_usernames=[],
                           skip_copy_project=True,
                           include_paths=None,
                           exclude_paths=None,
                           msg_file=message_infile)
             cmd.run(myargs)
             args, kwargs = mock_d4s2_project().deliver.call_args
-            project, new_project_name, to_user, force_send, path_filter, message = args
+            project, new_project_name, to_user, share_users, force_send, path_filter, message = args
             self.assertEqual(project, mock_remote_store.return_value.fetch_remote_project.return_value)
             self.assertEqual(False, force_send)
             self.assertIn('setup(', message)

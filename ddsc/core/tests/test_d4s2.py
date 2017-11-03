@@ -33,6 +33,7 @@ class TestD4S2Project(TestCase):
         project.deliver(project=Mock(name='mouserna'),
                         new_project_name=None,
                         to_user=MagicMock(id='456'),
+                        share_users=[],
                         force_send=False,
                         path_filter='',
                         user_message='Yet Another Message.')

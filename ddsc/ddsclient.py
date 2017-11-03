@@ -114,6 +114,30 @@ class BaseCommand(object):
             print("Done fetching list of files.".format(project_name_or_id.value))
         return project
 
+    def make_user_list(self, emails, usernames):
+        """
+        Given a list of emails and usernames fetch DukeDS user info.
+        Parameters that are None will be skipped.
+        :param emails: [str]: list of emails (can be null)
+        :param usernames:  [str]: list of usernames(netid)
+        :return: [RemoteUser]: details about any users referenced the two parameters
+        """
+        to_users = []
+        remaining_emails = [] if not emails else list(emails)
+        remaining_usernames = [] if not usernames else list(usernames)
+        for user in self.remote_store.fetch_all_users():
+            if user.email in remaining_emails:
+                to_users.append(user)
+                remaining_emails.remove(user.email)
+            elif user.username in remaining_usernames:
+                to_users.append(user)
+                remaining_usernames.remove(user.username)
+        if remaining_emails or remaining_usernames:
+            unable_to_find_users = ','.join(remaining_emails + remaining_usernames)
+            msg = "Unable to find users for the following email/usernames: {}".format(unable_to_find_users)
+            raise ValueError(msg)
+        return to_users
+
 
 class UploadCommand(BaseCommand):
     """
@@ -288,8 +312,11 @@ class DeliverCommand(BaseCommand):
         skip_copy_project = args.skip_copy_project  # should we skip the copy step
         force_send = args.resend            # is this a resend so we should force sending
         msg_file = args.msg_file            # message file who's contents will be sent with the delivery
+        share_usernames = args.share_usernames  # usernames who will have this project shared once it is accepted
+        share_emails = args.share_emails    # emails of users who will have this project shared once it is accepted
         message = read_argument_file_contents(msg_file)
         project = self.fetch_project(args, must_exist=True, include_children=False)
+        share_users = self.make_user_list(share_emails, share_usernames)
         print("Delivering project.")
         new_project_name = None
         if not skip_copy_project:
@@ -297,7 +324,8 @@ class DeliverCommand(BaseCommand):
         to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
-            dest_email = self.service.deliver(project, new_project_name, to_user, force_send, path_filter, message)
+            dest_email = self.service.deliver(project, new_project_name, to_user, share_users,
+                                              force_send, path_filter, message)
             print("Delivery email message sent to " + dest_email)
         except D4S2Error as ex:
             if ex.warning:
