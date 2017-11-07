@@ -85,13 +85,16 @@ class D4S2Api(object):
         :param item: D4S2Item data to use for creating a D4S2 item
         :return: requests.Response containing the successful result
         """
-        data = json.dumps({
+        item_dict = {
             'project_id': item.project_id,
             'from_user_id': item.from_user_id,
             'to_user_id': item.to_user_id,
             'role': item.auth_role,
             'user_message': item.user_message
-        })
+        }
+        if item.share_user_ids:
+            item_dict['share_user_ids'] = item.share_user_ids
+        data = json.dumps(item_dict)
         resp = requests.post(self.make_url(item.destination), headers=self.json_headers, data=data)
         self.check_response(resp)
         return resp
@@ -128,7 +131,8 @@ class D4S2Item(object):
     """
     Contains data for processing either share or deliver.
     """
-    def __init__(self, destination, from_user_id, to_user_id, project_id, project_name, auth_role, user_message):
+    def __init__(self, destination, from_user_id, to_user_id, project_id, project_name, auth_role, user_message,
+                 share_user_ids):
         """
         Save data for use with send method.
         :param destination: str type of message we are sending(SHARE_DESTINATION or DELIVER_DESTINATION)
@@ -138,6 +142,7 @@ class D4S2Item(object):
         :param project_name: str name of the project (sent for debugging purposes)
         :param auth_role: str authorization role to given to the user (determines which email to send)
         :param user_message: str user message to send with the share/delivery
+        :param share_user_ids: [str] users to share the project with once ownership is transferred (only for delivery)
         """
         self.destination = destination
         self.from_user_id = from_user_id
@@ -146,6 +151,7 @@ class D4S2Item(object):
         self.project_name = project_name
         self.auth_role = auth_role
         self.user_message = user_message
+        self.share_user_ids = share_user_ids
 
     def send(self, api, force_send):
         """
@@ -246,9 +252,8 @@ class D4S2Project(object):
         self.remove_user_permission(project, to_user)
         if new_project_name:
             project = self._copy_project(project, new_project_name, path_filter)
-        # TODO pass share_users
         return self._share_project(D4S2Api.DELIVER_DESTINATION, project, to_user,
-                                   force_send, user_message=user_message)
+                                   force_send, user_message=user_message, share_users=share_users)
 
     def remove_user_permission(self, project, user):
         """
@@ -258,7 +263,8 @@ class D4S2Project(object):
         """
         self.remote_store.revoke_user_project_permission(project, user)
 
-    def _share_project(self, destination, project, to_user, force_send, auth_role='', user_message=''):
+    def _share_project(self, destination, project, to_user, force_send, auth_role='', user_message='',
+                       share_users=None):
         """
         Send message to remove service to email/share project with to_user.
         :param destination: str which type of sharing we are doing (SHARE_DESTINATION or DELIVER_DESTINATION)
@@ -266,16 +272,21 @@ class D4S2Project(object):
         :param to_user: RemoteUser user we are sharing with
         :param auth_role: str project role eg 'project_admin' email is customized based on this setting.
         :param user_message: str message to be sent with the share
+        :param share_users: [RemoteUser] users to have this project shared with after delivery (delivery only)
         :return: the email the user should receive a message on soon
         """
         from_user = self.remote_store.get_current_user()
+        share_user_ids = None
+        if share_users:
+            share_user_ids = [share_user.id for share_user in share_users]
         item = D4S2Item(destination=destination,
                         from_user_id=from_user.id,
                         to_user_id=to_user.id,
                         project_id=project.id,
                         project_name=project.name,
                         auth_role=auth_role,
-                        user_message=user_message)
+                        user_message=user_message,
+                        share_user_ids=share_user_ids)
         item.send(self.api, force_send)
         return to_user.email
 
