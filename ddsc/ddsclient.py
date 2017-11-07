@@ -339,7 +339,6 @@ class DeliverCommand(BaseCommand):
         :param project_name: str: name of project we will copy
         :return: str
         """
-        self.remote_store.fetch_remote_project_by_id()
         timestamp_str = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')
         return "{} {}".format(project_name, timestamp_str)
 
