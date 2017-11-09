@@ -32,6 +32,33 @@ class TestBaseCommand(TestCase):
         self.assertEqual(True, kwargs['must_exist'])
         self.assertEqual(False, kwargs['include_children'])
 
+    @patch('ddsc.ddsclient.RemoteStore')
+    def test_make_user_list(self, mock_remote_store):
+        mock_config = MagicMock()
+        base_cmd = BaseCommand(mock_config)
+        mock_remote_store.return_value.fetch_all_users.return_value = [
+            Mock(username='joe', email='joe@joe.joe'),
+            Mock(username='bob', email='bob@bob.bob'),
+            Mock(username='tim', email='tim@tim.tim'),
+        ]
+
+        # Find users by username
+        results = base_cmd.make_user_list(emails=None, usernames=[
+            'joe',
+            'bob'
+        ])
+        self.assertEqual([user.email for user in results], ['joe@joe.joe', 'bob@bob.bob'])
+
+        # Find users by email
+        results = base_cmd.make_user_list(emails=['joe@joe.joe'], usernames=None)
+        self.assertEqual([user.username for user in results], ['joe'])
+
+        # Should get an error for invalid emails or usernames
+        with self.assertRaises(ValueError) as raisedError:
+            base_cmd.make_user_list(emails=['no@no.no'], usernames=['george'])
+        self.assertEqual('Unable to find users for the following email/usernames: no@no.no,george',
+                         str(raisedError.exception))
+
 
 class TestUploadCommand(TestCase):
     @patch("ddsc.ddsclient.ProjectUpload")
