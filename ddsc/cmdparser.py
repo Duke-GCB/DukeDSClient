@@ -183,7 +183,7 @@ def add_share_usernames_arg(arg_parser):
 
 
 def add_share_emails_arg(arg_parser):
-    arg_parser.add_argument("--share-email",
+    arg_parser.add_argument("--share-emails",
                             metavar='ShareEmails',
                             type=to_unicode,
                             nargs='+',
