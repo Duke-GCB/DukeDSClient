@@ -33,7 +33,7 @@ class TestD4S2Project(TestCase):
         project.deliver(project=Mock(name='mouserna'),
                         new_project_name=None,
                         to_user=MagicMock(id='456'),
-                        share_users=[],
+                        share_users=[Mock(id='777'), Mock(id='888')],
                         force_send=False,
                         path_filter='',
                         user_message='Yet Another Message.')
@@ -42,6 +42,7 @@ class TestD4S2Project(TestCase):
         self.assertEqual(mock_d4s2api.DELIVER_DESTINATION, item.destination)
         self.assertEqual('456', item.to_user_id)
         self.assertEqual('Yet Another Message.', item.user_message)
+        self.assertEqual(['777', '888'], item.share_user_ids)
         mock_d4s2api().send_item.assert_called()
 
     @patch('ddsc.core.d4s2.ProjectDownload')
