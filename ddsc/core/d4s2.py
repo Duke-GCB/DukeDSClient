@@ -266,7 +266,7 @@ class D4S2Project(object):
     def _share_project(self, destination, project, to_user, force_send, auth_role='', user_message='',
                        share_users=None):
         """
-        Send message to remove service to email/share project with to_user.
+        Send message to remote service to email/share project with to_user.
         :param destination: str which type of sharing we are doing (SHARE_DESTINATION or DELIVER_DESTINATION)
         :param project: RemoteProject project we are sharing
         :param to_user: RemoteUser user we are sharing with
