@@ -85,13 +85,16 @@ class D4S2Api(object):
         :param item: D4S2Item data to use for creating a D4S2 item
         :return: requests.Response containing the successful result
         """
-        data = json.dumps({
+        item_dict = {
             'project_id': item.project_id,
             'from_user_id': item.from_user_id,
             'to_user_id': item.to_user_id,
             'role': item.auth_role,
             'user_message': item.user_message
-        })
+        }
+        if item.share_user_ids:
+            item_dict['share_user_ids'] = item.share_user_ids
+        data = json.dumps(item_dict)
         resp = requests.post(self.make_url(item.destination), headers=self.json_headers, data=data)
         self.check_response(resp)
         return resp
@@ -128,7 +131,8 @@ class D4S2Item(object):
     """
     Contains data for processing either share or deliver.
     """
-    def __init__(self, destination, from_user_id, to_user_id, project_id, project_name, auth_role, user_message):
+    def __init__(self, destination, from_user_id, to_user_id, project_id, project_name, auth_role, user_message,
+                 share_user_ids):
         """
         Save data for use with send method.
         :param destination: str type of message we are sending(SHARE_DESTINATION or DELIVER_DESTINATION)
@@ -138,6 +142,7 @@ class D4S2Item(object):
         :param project_name: str name of the project (sent for debugging purposes)
         :param auth_role: str authorization role to given to the user (determines which email to send)
         :param user_message: str user message to send with the share/delivery
+        :param share_user_ids: [str] users to share the project with once ownership is transferred (only for delivery)
         """
         self.destination = destination
         self.from_user_id = from_user_id
@@ -146,6 +151,7 @@ class D4S2Item(object):
         self.project_name = project_name
         self.auth_role = auth_role
         self.user_message = user_message
+        self.share_user_ids = share_user_ids
 
     def send(self, api, force_send):
         """
@@ -230,13 +236,14 @@ class D4S2Project(object):
         """
         self.remote_store.set_user_project_permission(project, user, auth_role)
 
-    def deliver(self, project, new_project_name, to_user, force_send, path_filter, user_message):
+    def deliver(self, project, new_project_name, to_user, share_users, force_send, path_filter, user_message):
         """
         Remove access to project_name for to_user, copy to new_project_name if not None,
         send message to service to email user so they can have access.
         :param project: RemoteProject pre-existing project to be delivered
         :param new_project_name: str name of non-existing project to copy project_name to, if None we don't copy
         :param to_user: RemoteUser user we are handing over the project to
+        :param share_users: [RemoteUser] who will have project shared with them once to_user accepts the project
         :param force_send: boolean enables resending of email for existing projects
         :param path_filter: PathFilter: filters what files are shared
         :param user_message: str message to be sent with the share
@@ -245,7 +252,8 @@ class D4S2Project(object):
         self.remove_user_permission(project, to_user)
         if new_project_name:
             project = self._copy_project(project, new_project_name, path_filter)
-        return self._share_project(D4S2Api.DELIVER_DESTINATION, project, to_user, force_send, user_message=user_message)
+        return self._share_project(D4S2Api.DELIVER_DESTINATION, project, to_user,
+                                   force_send, user_message=user_message, share_users=share_users)
 
     def remove_user_permission(self, project, user):
         """
@@ -255,24 +263,30 @@ class D4S2Project(object):
         """
         self.remote_store.revoke_user_project_permission(project, user)
 
-    def _share_project(self, destination, project, to_user, force_send, auth_role='', user_message=''):
+    def _share_project(self, destination, project, to_user, force_send, auth_role='', user_message='',
+                       share_users=None):
         """
-        Send message to remove service to email/share project with to_user.
+        Send message to remote service to email/share project with to_user.
         :param destination: str which type of sharing we are doing (SHARE_DESTINATION or DELIVER_DESTINATION)
         :param project: RemoteProject project we are sharing
         :param to_user: RemoteUser user we are sharing with
         :param auth_role: str project role eg 'project_admin' email is customized based on this setting.
         :param user_message: str message to be sent with the share
+        :param share_users: [RemoteUser] users to have this project shared with after delivery (delivery only)
         :return: the email the user should receive a message on soon
         """
         from_user = self.remote_store.get_current_user()
+        share_user_ids = None
+        if share_users:
+            share_user_ids = [share_user.id for share_user in share_users]
         item = D4S2Item(destination=destination,
                         from_user_id=from_user.id,
                         to_user_id=to_user.id,
                         project_id=project.id,
                         project_name=project.name,
                         auth_role=auth_role,
-                        user_message=user_message)
+                        user_message=user_message,
+                        share_user_ids=share_user_ids)
         item.send(self.api, force_send)
         return to_user.email
 
@@ -285,7 +299,8 @@ class D4S2Project(object):
         :return: RemoteProject new project we copied data to
         """
         temp_directory = tempfile.mkdtemp()
-        remote_project = self.remote_store.fetch_remote_project(new_project_name)
+        new_project_name_or_id = ProjectNameOrId.create_from_name(new_project_name)
+        remote_project = self.remote_store.fetch_remote_project(new_project_name_or_id)
         if remote_project:
             raise ValueError("A project with name '{}' already exists.".format(new_project_name))
         activity = CopyActivity(self.remote_store.data_service, project, new_project_name)
@@ -293,7 +308,7 @@ class D4S2Project(object):
         self._upload_project(activity, new_project_name, temp_directory)
         activity.finished()
         shutil.rmtree(temp_directory)
-        return self.remote_store.fetch_remote_project(new_project_name, must_exist=True)
+        return self.remote_store.fetch_remote_project(new_project_name_or_id, must_exist=True)
 
     def _download_project(self, activity, project, temp_directory, path_filter):
         """
@@ -304,8 +319,7 @@ class D4S2Project(object):
         :param path_filter: PathFilter: filters what files are shared
         """
         self.print_func("Downloading a copy of '{}'.".format(project.name))
-        project_name_or_id = project.get_project_name_or_id()
-        downloader = ProjectDownload(self.remote_store, project_name_or_id, temp_directory, path_filter,
+        downloader = ProjectDownload(self.remote_store, project, temp_directory, path_filter,
                                      file_download_pre_processor=DownloadedFileRelations(activity))
         downloader.run()
 
