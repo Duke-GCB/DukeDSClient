@@ -113,7 +113,7 @@ class TestProjectContent(TestCase):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder')
         child_names = [child.name for child in content.children[0].children]
-        self.assertEqual(['note.txt', 'emptyfolder', 'results', 'scripts'], child_names)
+        self.assertEqual(set(['note.txt', 'emptyfolder', 'results', 'scripts']), set(child_names))
         self.assertEqual(('project: [folder:DukeDsClientTestFolder ['
                           'file:note.txt, '
                           'folder:emptyfolder [], '
@@ -146,7 +146,7 @@ class TestProjectContent(TestCase):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder')
         child_names = [child.name for child in content.children[0].children]
-        self.assertEqual(['.ddsignore', 'note.txt', 'results', 'scripts'], child_names)
+        self.assertEqual(set(['.ddsignore', 'note.txt', 'results', 'scripts']), set(child_names))
 
 
 class TestLocalFile(TestCase):
