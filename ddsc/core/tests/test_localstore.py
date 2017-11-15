@@ -112,6 +112,8 @@ class TestProjectContent(TestCase):
     def test_big_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder')
+        child_names = [child.name for child in content.children[0].children]
+        self.assertEqual(['note.txt', 'emptyfolder', 'results', 'scripts'], child_names)
         self.assertEqual(('project: [folder:DukeDsClientTestFolder ['
                           'file:note.txt, '
                           'folder:emptyfolder [], '
@@ -134,6 +136,17 @@ class TestProjectContent(TestCase):
         content = LocalProject(False, file_exclude_regex='^\.')
         content.add_path('test_scripts')
         self.assertNotIn('.hidden_file', str(content))
+
+    def test_ignore_one_dir(self):
+        with open("/tmp/DukeDsClientTestFolder/.ddsignore", "w") as text_file:
+            text_file.write("emptyfolder")
+        content = LocalProject(False, file_exclude_regex='^\.')
+        content.add_path('test_scripts')
+        self.assertNotIn('.hidden_file', str(content))
+        content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
+        content.add_path('/tmp/DukeDsClientTestFolder')
+        child_names = [child.name for child in content.children[0].children]
+        self.assertEqual(['.ddsignore', 'note.txt', 'results', 'scripts'], child_names)
 
 
 class TestLocalFile(TestCase):
