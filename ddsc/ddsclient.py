@@ -1,7 +1,6 @@
 """ Runs the appropriate command for a user based on arguments. """
 from __future__ import print_function, unicode_literals
 from builtins import input
-import os
 import sys
 import datetime
 import time
