@@ -7,16 +7,23 @@ from mock import MagicMock, Mock, patch
 class TestProjectDownload(TestCase):
     @patch('ddsc.core.download.FileDownloader')
     @patch('ddsc.core.download.ProjectDownload.check_file_size')
-    def test_visit_file_download_pre_processor_off(self, mock_file_downloader, mock_check_file_size):
+    @patch('ddsc.core.download.os')
+    @patch('ddsc.core.download.PathData')
+    def test_visit_file_download_pre_processor_off(self, mock_path_data, mock_os, mock_file_downloader,
+                                                   mock_check_file_size):
         project_download = ProjectDownload(remote_store=MagicMock(),
                                            project=Mock(name='test'),
                                            dest_directory='/tmp/fakedir',
                                            path_filter=MagicMock())
+        project_download.watcher = Mock()
         project_download.visit_file(Mock(), None)
 
     @patch('ddsc.core.download.FileDownloader')
     @patch('ddsc.core.download.ProjectDownload.check_file_size')
-    def test_visit_file_download_pre_processor_on(self, mock_file_downloader, mock_check_file_size):
+    @patch('ddsc.core.download.os')
+    @patch('ddsc.core.download.PathData')
+    def test_visit_file_download_pre_processor_on(self, mock_path_data, mock_os, mock_file_downloader,
+                                                  mock_check_file_size):
         pre_processor_run = MagicMock()
         pre_processor = Mock(run=pre_processor_run)
         project_download = ProjectDownload(remote_store=MagicMock(),
@@ -24,6 +31,7 @@ class TestProjectDownload(TestCase):
                                            dest_directory='/tmp/fakedir',
                                            path_filter=MagicMock(),
                                            file_download_pre_processor=pre_processor)
+        project_download.watcher = Mock()
         fake_file = MagicMock()
         project_download.visit_file(fake_file, None)
         pre_processor_run.assert_called()
