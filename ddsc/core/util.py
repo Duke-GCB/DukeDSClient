@@ -367,8 +367,3 @@ def mode_allows_group_or_other(st_mode):
     :return: bool: true when group or other has some permissions
     """
     return (st_mode & stat.S_IRWXO or st_mode & stat.S_IRWXG) != 0
-
-
-def format_destination_path(path):
-
-    return path

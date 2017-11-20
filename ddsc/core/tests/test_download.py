@@ -38,3 +38,28 @@ class TestProjectDownload(TestCase):
         args, kwargs = pre_processor_run.call_args
         # args[0] is data_service
         self.assertEqual(fake_file, args[1])
+
+    @patch('ddsc.core.download.os')
+    @patch('ddsc.core.download.PathData')
+    def test_file_exists_with_same_hash(self, mock_path_data, mock_os):
+        item = Mock(hash_alg='md5', file_hash='f@ncyh@shvalue')
+        path = '/tmp/somepath/data.txt'
+
+        # Case where file doesn't exist
+        mock_os.path.exists.return_value = False
+        self.assertEqual(False, ProjectDownload.file_exists_with_same_hash(item, path))
+        mock_path_data.reset_mock()
+
+        # Case where file exists with same file hash
+        mock_os.path.exists.return_value = True
+        mock_path_data.return_value.get_hash.return_value.matches.return_value = True
+        self.assertEqual(True, ProjectDownload.file_exists_with_same_hash(item, path))
+        mock_path_data.return_value.get_hash.return_value.matches.assert_called_with('md5', 'f@ncyh@shvalue')
+        mock_path_data.reset_mock()
+
+        # Case where file exists with different file hash
+        mock_os.path.exists.return_value = True
+        mock_path_data.return_value.get_hash.return_value.matches.return_value = False
+        self.assertEqual(False, ProjectDownload.file_exists_with_same_hash(item, path))
+        mock_path_data.return_value.get_hash.return_value.matches.assert_called_with('md5', 'f@ncyh@shvalue')
+        mock_path_data.reset_mock()

@@ -84,7 +84,7 @@ class ProjectDownload(object):
         if self.file_download_pre_processor:
             self.file_download_pre_processor.run(self.remote_store.data_service, item)
         path = os.path.join(self.dest_directory, item.remote_path)
-        if self._file_exists_with_same_hash(item, path):
+        if self.file_exists_with_same_hash(item, path):
             # Update progress bar skipping this file
             self.watcher.transferring_item(item, increment_amt=item.size)
         else:
@@ -93,16 +93,11 @@ class ProjectDownload(object):
             ProjectDownload.check_file_size(item, path)
 
     @staticmethod
-    def _file_exists_with_same_hash(item, path):
+    def file_exists_with_same_hash(item, path):
         if os.path.exists(path):
             hash_data = PathData(path).get_hash()
             return hash_data.matches(item.hash_alg, item.file_hash)
         return False
-
-    def _download_item(self, item, path):
-        downloader = FileDownloader(self.remote_store.config, item, path, self.watcher)
-        downloader.run()
-        ProjectDownload.check_file_size(item, path)
 
     @staticmethod
     def check_file_size(item, path):

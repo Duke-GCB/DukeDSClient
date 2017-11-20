@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from ddsc.cmdparser import CommandParser
-from mock import Mock
+import argparse
+from ddsc.cmdparser import CommandParser, format_destination_path, DESTINATION_PATH_EXISTS_FMT
+from mock import Mock, patch
 
 
 def no_op():
@@ -164,3 +165,33 @@ class TestCommandParser(TestCase):
         expected_description = 'DukeDSClient (1.0) Manage projects/folders/files in the duke-data-service'
         command_parser = CommandParser(version_str='1.0')
         self.assertEqual(expected_description, command_parser.parser.description)
+
+    def test_register_download_command(self):
+        command_parser = CommandParser(version_str='1.0')
+        command_parser.register_download_command(self.set_parsed_args)
+        self.assertEqual(['download'], list(command_parser.subparsers.choices.keys()))
+        command_parser.run_command(['download', '-p', 'mouse'])
+        self.assertEqual('mouse', self.parsed_args.project_name)
+        self.assertEqual(False, self.parsed_args.resume)
+
+    def test_register_download_command_resume(self):
+        command_parser = CommandParser(version_str='1.0')
+        command_parser.register_download_command(self.set_parsed_args)
+        self.assertEqual(['download'], list(command_parser.subparsers.choices.keys()))
+        command_parser.run_command(['download', '-p', 'mouse', '--resume'])
+        self.assertEqual('mouse', self.parsed_args.project_name)
+        self.assertEqual(True, self.parsed_args.resume)
+
+    @patch("ddsc.cmdparser.os")
+    def test_format_destination_path_raises_when_must_be_empty(self, mock_os):
+        mock_os.path.exists.return_value = True
+        mock_os.listdir.return_value = ['stuff']
+        with self.assertRaises(argparse.ArgumentTypeError) as raisedException:
+            format_destination_path(path='/tmp/somepath', must_be_empty=True)
+        self.assertEqual(DESTINATION_PATH_EXISTS_FMT.format('/tmp/somepath'), str(raisedException.exception))
+
+    @patch("ddsc.cmdparser.os")
+    def test_format_destination_path_ok_when_can_be_empty(self, mock_os):
+        mock_os.path.exists.return_value = True
+        mock_os.listdir.return_value = ['stuff']
+        format_destination_path(path='/tmp/somepath', must_be_empty=False)
