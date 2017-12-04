@@ -8,8 +8,6 @@ from builtins import str
 
 DESCRIPTION_STR = "DukeDSClient ({}) Manage projects/folders/files in the duke-data-service"
 INVALID_PATH_CHARS = (':', '/', '\\')
-DESTINATION_PATH_EXISTS_FMT = """Directory {} already exists and is not empty.
-To restart a failed download you can add the --resume flag."""
 
 
 def replace_invalid_path_chars(path):
@@ -87,16 +85,12 @@ def _paths_must_exists(path):
     return path
 
 
-def format_destination_path(path, must_be_empty):
+def format_destination_path(path):
     """
-    Raises error if the directory the path exists and contains any files.
+    Formats command line destination path.
     :param path: str path to check
-    :param resume: boolean path can exist
     :return: str path
     """
-    if must_be_empty and os.path.exists(path):
-        if os.listdir(path):
-            raise argparse.ArgumentTypeError(DESTINATION_PATH_EXISTS_FMT.format(path))
     path = to_unicode(path)
     return _path_has_ok_chars(path)
 
@@ -334,18 +328,6 @@ def _add_long_format_option(arg_parser, help_text):
                             dest='long_format')
 
 
-def _add_resume_arg(arg_parser, help_text):
-    """
-    Adds resume argument to a parser.
-    :param arg_parser: ArgumentParser parser to add this argument to.
-    :param help_text: str: help text to show for this option
-    """
-    arg_parser.add_argument("-r", '--resume',
-                            help=help_text,
-                            action='store_true',
-                            dest='resume')
-
-
 class CommandParser(object):
     """
     Root command line parser. Supports the following commands: upload and add_user.
@@ -404,7 +386,8 @@ class CommandParser(object):
 
     def register_download_command(self, download_func):
         """
-        Add 'download' command for downloading a project to a non-existing or empty directory.
+        Add 'download' command for downloading a project to a directory.
+        For non empty directories it will download remote files replacing local files.
         :param download_func: function to run when user choses this option
         """
         description = "Download the contents of a remote remote project to a local folder."
@@ -414,7 +397,6 @@ class CommandParser(object):
         include_or_exclude = download_parser.add_mutually_exclusive_group(required=False)
         _add_include_arg(include_or_exclude)
         _add_exclude_arg(include_or_exclude)
-        _add_resume_arg(download_parser, help_text='Resume download. Destination directory can exist.')
         download_parser.set_defaults(func=download_func)
 
     def register_share_command(self, share_func):

@@ -193,11 +193,10 @@ class DownloadCommand(BaseCommand):
         """
         project_name_or_id = self.create_project_name_or_id_from_args(args)
         folder = args.folder                # path to a folder to download data into
-        resume = args.resume                # are we resuming a download
         # Default to project name with spaces replaced with '_' if not specified
         if not folder:
             folder = replace_invalid_path_chars(project_name_or_id.value.replace(' ', '_'))
-        destination_path = format_destination_path(folder, must_be_empty=(not resume))
+        destination_path = format_destination_path(folder)
         path_filter = PathFilter(args.include_paths, args.exclude_paths)
         project = self.fetch_project(args, must_exist=True, include_children=True)
         project_download = ProjectDownload(self.remote_store, project, destination_path, path_filter)
