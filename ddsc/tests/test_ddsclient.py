@@ -134,7 +134,6 @@ class TestDownloadCommand(TestCase):
         args.include_paths = None
         args.exclude_paths = None
         args.folder = '/tmp/stuff'
-        args.resume = False
         cmd.run(args)
         mock_remote_store.return_value.fetch_remote_project.assert_called()
         args, kwargs = mock_remote_store.return_value.fetch_remote_project.call_args
