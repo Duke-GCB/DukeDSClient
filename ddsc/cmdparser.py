@@ -85,15 +85,12 @@ def _paths_must_exists(path):
     return path
 
 
-def path_does_not_exist_or_is_empty(path):
+def format_destination_path(path):
     """
-    Raises error if the directory the path exists and contains any files.
+    Formats command line destination path.
     :param path: str path to check
     :return: str path
     """
-    if os.path.exists(path):
-        if os.listdir(path):
-            raise argparse.ArgumentTypeError("{} already exists and is not an empty directory.".format(path))
     path = to_unicode(path)
     return _path_has_ok_chars(path)
 
@@ -130,9 +127,7 @@ def _add_folder_positional_arg(arg_parser):
     arg_parser.add_argument("folder",
                             metavar='Folder',
                             help="Name of the folder to download the project contents into. "
-                                 "If not specified it will use the name of the project with spaces translated to '_'. "
-                                 "This folder must be empty or not exist(will be created).",
-                            type=path_does_not_exist_or_is_empty,
+                                 "If not specified it will use the name of the project with spaces translated to '_'. ",
                             nargs='?')
 
 
@@ -391,7 +386,8 @@ class CommandParser(object):
 
     def register_download_command(self, download_func):
         """
-        Add 'download' command for downloading a project to a non-existing or empty directory.
+        Add 'download' command for downloading a project to a directory.
+        For non empty directories it will download remote files replacing local files.
         :param download_func: function to run when user choses this option
         """
         description = "Download the contents of a remote remote project to a local folder."

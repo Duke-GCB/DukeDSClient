@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from ddsc.cmdparser import CommandParser
-from mock import Mock
+from ddsc.cmdparser import CommandParser, format_destination_path
+from mock import Mock, patch
 
 
 def no_op():
@@ -164,3 +164,16 @@ class TestCommandParser(TestCase):
         expected_description = 'DukeDSClient (1.0) Manage projects/folders/files in the duke-data-service'
         command_parser = CommandParser(version_str='1.0')
         self.assertEqual(expected_description, command_parser.parser.description)
+
+    def test_register_download_command(self):
+        command_parser = CommandParser(version_str='1.0')
+        command_parser.register_download_command(self.set_parsed_args)
+        self.assertEqual(['download'], list(command_parser.subparsers.choices.keys()))
+        command_parser.run_command(['download', '-p', 'mouse'])
+        self.assertEqual('mouse', self.parsed_args.project_name)
+
+    @patch("ddsc.cmdparser.os")
+    def test_format_destination_path_ok_when_dir_empty(self, mock_os):
+        mock_os.path.exists.return_value = True
+        mock_os.listdir.return_value = ['stuff']
+        format_destination_path(path='/tmp/somepath')
