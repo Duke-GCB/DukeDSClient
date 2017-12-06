@@ -3,7 +3,6 @@ Downloads a file based on ranges.
 """
 import math
 import time
-import tempfile
 import requests
 from multiprocessing import Process, Queue
 from ddsc.core.util import ProgressQueue, wait_for_processes
@@ -36,7 +35,6 @@ class FileDownloader(object):
         self.file_size = remote_file.size
         self.path = path
         self.watcher = watcher
-        self.file_parts = []
 
     def make_ranges(self):
         """
@@ -75,14 +73,11 @@ class FileDownloader(object):
         """
         Download a file using separate processes.
         """
-        self.file_parts = []
         ranges = self.make_ranges()
         processes = []
         progress_queue = ProgressQueue(Queue())
         self.make_big_empty_file()
         for range_start, range_end in ranges:
-            (temp_handle, temp_path) = tempfile.mkstemp()
-            self.file_parts.append(temp_path)
             processes.append(self.make_and_start_process(range_start, range_end, progress_queue))
         wait_for_processes(processes, int(self.file_size), progress_queue, self.watcher, self.remote_file)
 
@@ -134,6 +129,7 @@ def download_async(config, remote_file_id, range_headers, path, seek_amt, bytes_
     :param progress_queue: ProgressQueue: queue of tuples we will add progress/errors to
     """
     partial_download_failures = 0
+    downloader = None
     remote_store = RemoteStore(config)
     while True:
         try:
@@ -145,7 +141,8 @@ def download_async(config, remote_file_id, range_headers, path, seek_amt, bytes_
             # partial downloads can be due to flaky connections so we should retry a few times
             partial_download_failures += 1
             if partial_download_failures <= PARTIAL_DOWNLOAD_RETRY_TIMES:
-                downloader.revert_progress()  # Notify progress monitor to undo our current progress
+                if downloader:
+                    downloader.revert_progress()  # Notify progress monitor to undo our current progress
                 time.sleep(PARTIAL_DOWNLOAD_RETRY_SECONDS)
                 # loop will call ChunkDownloader run again
             else:
