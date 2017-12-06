@@ -129,6 +129,7 @@ def download_async(config, remote_file_id, range_headers, path, seek_amt, bytes_
     :param progress_queue: ProgressQueue: queue of tuples we will add progress/errors to
     """
     partial_download_failures = 0
+    downloader = None
     remote_store = RemoteStore(config)
     while True:
         try:
@@ -140,7 +141,8 @@ def download_async(config, remote_file_id, range_headers, path, seek_amt, bytes_
             # partial downloads can be due to flaky connections so we should retry a few times
             partial_download_failures += 1
             if partial_download_failures <= PARTIAL_DOWNLOAD_RETRY_TIMES:
-                downloader.revert_progress()  # Notify progress monitor to undo our current progress
+                if downloader:
+                    downloader.revert_progress()  # Notify progress monitor to undo our current progress
                 time.sleep(PARTIAL_DOWNLOAD_RETRY_SECONDS)
                 # loop will call ChunkDownloader run again
             else:
