@@ -72,8 +72,8 @@ class Config(object):
     FILE_EXCLUDE_REGEX = 'file_exclude_regex'          # allows customization of which filenames will be uploaded
     GET_PAGE_SIZE = 'get_page_size'                    # page size used for GET pagination requests
 
-    def __init__(self):
-        self.values = {}
+    def __init__(self, base_values={}):
+        self.values = base_values
 
     def add_properties(self, filename):
         """

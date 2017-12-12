@@ -408,6 +408,14 @@ class DataServiceApi(object):
         }
         return self._post("/folders", data)
 
+    def delete_folder(self, folder_id):
+        """
+        Send DELETE request to the url for this folder.
+        :param project_id: str uuid of the folder
+        :return: requests.Response containing the successful result
+        """
+        return self._delete("/folders/" + folder_id, {})
+
     def get_project_children(self, project_id, name_contains, exclude_response_fields=None):
         """
         Send GET to /projects/{project_id} filtering by a name.
@@ -520,6 +528,14 @@ class DataServiceApi(object):
             }
         }
         return self._post("/files/", data)
+
+    def delete_file(self, file_id):
+        """
+        Send DELETE request to the url for this file.
+        :param project_id: str uuid of the file
+        :return: requests.Response containing the successful result
+        """
+        return self._delete("/files/" + file_id, {})
 
     def update_file(self, file_id, upload_id):
         """
