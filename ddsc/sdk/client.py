@@ -2,8 +2,8 @@
 from __future__ import unicode_literals
 import os
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
-from ddsc.config import DUKE_DATA_SERVICE_URL, Config, create_config
-from ddsc.core.remotestore import PROJECT_LIST_EXCLUDE_RESPONSE_FIELDS, DOWNLOAD_FILE_CHUNK_SIZE
+from ddsc.config import create_config
+from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
 from ddsc.core.util import KindType
