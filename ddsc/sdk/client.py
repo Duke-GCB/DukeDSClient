@@ -131,12 +131,6 @@ class DukeDS(object):
             File
         )
 
-    def get_file_versions(self, file_id):
-        return self._create_array_response(
-            self.data_service.get_versions_for_file_id(file_id),
-            FileVersion
-        )
-
 
 class BaseResponseItem(object):
     def __init__(self, duke_ds, data_dict):
