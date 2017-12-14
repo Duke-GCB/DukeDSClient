@@ -32,6 +32,12 @@ class Client(object):
     def create_project(self, name, description):
         return self.duke_ds.create_project(name, description)
 
+    def get_folder_by_id(self, folder_id):
+        return self.duke_ds.get_folder_by_id(folder_id)
+
+    def get_file_by_id(self, file_id):
+        return self.duke_ds.get_file_by_id(file_id)
+
 
 class DukeDS(object):
     def __init__(self, config):
@@ -113,6 +119,24 @@ class DukeDS(object):
         elif data_dict['kind'] == KindType.file_str:
             return File(duke_ds, data_dict)
 
+    def get_folder_by_id(self, folder_id):
+        return self._create_item_response(
+            self.data_service.get_folder(folder_id),
+            Folder
+        )
+
+    def get_file_by_id(self, file_id):
+        return self._create_item_response(
+            self.data_service.get_file(file_id),
+            File
+        )
+
+    def get_file_versions(self, file_id):
+        return self._create_array_response(
+            self.data_service.get_versions_for_file_id(file_id),
+            FileVersion
+        )
+
 
 class BaseResponseItem(object):
     def __init__(self, duke_ds, data_dict):
@@ -123,7 +147,8 @@ class BaseResponseItem(object):
         try:
             return self._data_dict[key]
         except KeyError:
-            raise AttributeError
+            msg = "'{}' object has no attribute '{}'".format(self.__class__.__name__, key)
+            raise AttributeError(msg)
 
 
 @python_2_unicode_compatible

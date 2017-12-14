@@ -408,6 +408,14 @@ class DataServiceApi(object):
         }
         return self._post("/folders", data)
 
+    def get_folder(self, folder_id):
+        """
+        Send GET request to /folders/{folder_id} to retrieve folder info.
+        :param folder_id: str uuid of the folder we want info about
+        :return: requests.Response containing the successful result
+        """
+        return self._get_single_item('/folders/' + folder_id, {})
+
     def delete_folder(self, folder_id):
         """
         Send DELETE request to the url for this folder.
