@@ -229,6 +229,9 @@ class DukeDS(object):
             File
         )
 
+    def delete_file(self, file_id):
+        self.data_service.delete_file(file_id)
+
 
 class BaseResponseItem(object):
     """
