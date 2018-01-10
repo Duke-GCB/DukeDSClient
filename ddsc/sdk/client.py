@@ -403,7 +403,7 @@ class File(BaseResponseItem):
         """
         parent_data = ParentData(self.parent['kind'], self.parent['id'])
         return self.dds_connection.upload_file(file_path, project_id=self.project_id, parent_data=parent_data,
-                                        existing_file_id=self.id)
+                                               existing_file_id=self.id)
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
