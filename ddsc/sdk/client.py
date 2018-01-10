@@ -9,85 +9,6 @@ from ddsc.core.util import KindType
 from future.utils import python_2_unicode_compatible
 
 
-class DukeDS(object):
-    @staticmethod
-    def list_projects():
-        return Session().list_projects()
-
-    @staticmethod
-    def list_files(project_name):
-        return Session().list_files(project_name)
-
-    @staticmethod
-    def download_file(project_name, remote_path, local_path=None):
-        return Session().download_file(project_name, remote_path, local_path)
-
-    @staticmethod
-    def upload_file(local_path, project_name, remote_path):
-        return Session().upload_file(local_path, project_name, remote_path)
-
-
-class Session(object):
-    def __init__(self, config=create_config()):
-        self.client = Client(config)
-        self.projects = None
-
-    def list_projects(self):
-        self._cache_project_list_once()
-        return [project.name for project in self.projects]
-
-    def create_project(self, name, description):
-        self.client.create_project(name, description)
-        self.clear_project_cache()
-        return name
-
-    def list_files(self, project_name):
-        project = self._get_project_for_name(project_name)
-        file_path_dict = self._get_file_path_dict_for_project(project)
-        return file_path_dict.keys()
-
-    def download_file(self, project_name, remote_path, local_path=None):
-        project = self._get_project_for_name(project_name)
-        file = project.get_child_for_path(remote_path)
-        file.download_to_path(local_path)
-
-    def upload_file(self, local_path, project_name, remote_path):
-        project = self._get_or_create_project(project_name)
-        file_upload = FileUpload(self.client, project, remote_path, local_path)
-        file_upload.run()
-
-    def _get_or_create_project(self, project_name):
-        try:
-            return self._get_project_for_name(project_name)
-        except ItemNotFound:
-            project_description = project_name
-            project = self.client.create_project(project_name, project_description)
-            self.clear_project_cache()
-            return project
-
-    def _cache_project_list_once(self):
-        if not self.projects:
-            self.projects = self.client.get_projects()
-
-    def clear_project_cache(self):
-        self.projects = None
-
-    def _get_project_for_name(self, project_name):
-        self._cache_project_list_once()
-        projects = [project for project in self.projects if project.name == project_name]
-        if not projects:
-            raise ItemNotFound("No project found with name {}".format(project_name))
-        if len(projects) == 1:
-            return projects[0]
-        raise DuplicateNameError("Multiple projects found with name {}".format(project_name))
-
-    @staticmethod
-    def _get_file_path_dict_for_project(project):
-        path_to_nodes = PathToFiles()
-        path_to_nodes.add_paths_for_children_of_node(project)
-        return path_to_nodes.paths
-
-
 class Client(object):
     """
     Client that connects to the DDSConnection base on ~/.ddsclient configuration.
@@ -255,19 +176,21 @@ class DDSConnection(object):
             FileDownload
         )
 
-    def upload_file(self, local_path, project_id, parent_data, existing_file_id=None):
+    def upload_file(self, local_path, project_id, parent_data, existing_file_id=None, remote_filename=None):
         """
         Upload a file under a specific location in DDSConnection possibly replacing an existing file.
         :param local_path: str: path to a local file to upload
         :param project_id: str: uuid of the project to add this file to
         :param parent_data: ParentData: info about the parent of this file
         :param existing_file_id: str: uuid of file to create a new version of (or None to create a new file)
+        :param remote_filename: str: name to use for our remote file (defaults to local_path basename otherwise)
         :return: File
         """
         path_data = PathData(local_path)
         hash_data = path_data.get_hash()
         file_upload_operations = FileUploadOperations(self.data_service, None)
-        upload_id = file_upload_operations.create_upload(project_id, path_data, hash_data)
+        upload_id = file_upload_operations.create_upload(project_id, path_data, hash_data,
+                                                         remote_filename=remote_filename)
         context = UploadContext(self.config, self.data_service, upload_id, path_data)
         ParallelChunkProcessor(context).run()
         remote_file_data = file_upload_operations.finish_upload(upload_id, hash_data, parent_data, existing_file_id)
@@ -372,14 +295,16 @@ class Project(BaseResponseItem):
         """
         return self.dds_connection.create_folder(folder_name, KindType.project_str, self.id)
 
-    def upload_file(self, local_path):
+    def upload_file(self, local_path, remote_filename=None):
         """
         Upload a new file based on a file on the file system as a top level child of this project.
         :param local_path: str: path to a file to upload
+        :param remote_filename: str: name to use for our remote file (defaults to local_path basename otherwise)
         :return: File
         """
         parent_data = ParentData(self.kind, self.id)
-        return self.dds_connection.upload_file(local_path, project_id=self.id, parent_data=parent_data)
+        return self.dds_connection.upload_file(local_path, project_id=self.id, parent_data=parent_data,
+                                               remote_filename=remote_filename)
 
     def delete(self):
         """
@@ -419,14 +344,16 @@ class Folder(BaseResponseItem):
         """
         return self.dds_connection.create_folder(folder_name, KindType.folder_str, self.id)
 
-    def upload_file(self, local_path):
+    def upload_file(self, local_path, remote_filename=None):
         """
         Upload a new file based on a file on the file system as a top level child of this folder.
         :param local_path: str: path to a file to upload
+        :param remote_filename: str: name to use for our remote file (defaults to local_path basename otherwise)
         :return: File
         """
         parent_data = ParentData(self.kind, self.id)
-        return self.dds_connection.upload_file(local_path, project_id=self.project_id, parent_data=parent_data)
+        return self.dds_connection.upload_file(local_path, project_id=self.project_id, parent_data=parent_data,
+                                               remote_filename=remote_filename)
 
     def delete(self):
         """
@@ -531,13 +458,12 @@ class FileUpload(object):
             self._upload_to_parent(parent)
 
     def _upload_to_parent(self, parent):
-        child = self._try_get_child(parent, os.path.basename(self.remote_path))
+        remote_filename = os.path.basename(self.remote_path)
+        child = self._try_get_child(parent, remote_filename)
         if child:
-            print("New version" + parent.id)
             child.upload_new_version(self.local_path)
         else:
-            print("upload file" + parent.id)
-            parent.upload_file(self.local_path)
+            parent.upload_file(self.local_path, remote_filename=remote_filename)
 
     @staticmethod
     def _try_get_child(parent, child_name):
