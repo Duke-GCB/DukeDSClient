@@ -67,7 +67,7 @@ class DukeDS(object):
     @staticmethod
     def delete_file(project_name, remote_path):
         """
-        Delete a file from a project
+        Delete a file or folder from a project
         :param project_name: str: name of the project containing a file we will delete
         :param remote_path: str: remote path specifying file to delete
         """
@@ -75,34 +75,74 @@ class DukeDS(object):
 
 
 class Session(object):
+    """
+    Contains methods for interacting with DukeDS using standard ddsclient config file and environment variables
+    Same functionality as DukeDS but caches project list to improve performance.
+    """
     def __init__(self, config=create_config()):
+        """
+        :param config:  ddsc.config.Config: configuration specifying DukeDS endpoint and credential to use
+        """
         self.client = Client(config)
         self.projects = None
 
     def list_projects(self):
+        """
+        Return a list of project names
+        :return: [str]: list of project names
+        """
         self._cache_project_list_once()
         return [project.name for project in self.projects]
 
     def create_project(self, name, description):
+        """
+        Create a project with the specified name and description
+        :param name: str: unique name for this project
+        :param description: str: long description of this project
+        :return: str: name of the project
+        """
         self.client.create_project(name, description)
         self.clear_project_cache()
         return name
 
     def delete_project(self, project_name):
+        """
+        Delete a project with the specified name. Raises ItemNotFound if no such project exists
+        :param project_name: str: name of the project to delete
+        :return:
+        """
         project = self._get_project_for_name(project_name)
         project.delete()
 
     def list_files(self, project_name):
+        """
+        Return a list of file paths that make up project_name
+        :param project_name: str: specifies the name of the project to list contents of
+        :return: [str]: returns a list of remote paths for all files part of the specified project qq
+        """
         project = self._get_project_for_name(project_name)
         file_path_dict = self._get_file_path_dict_for_project(project)
         return file_path_dict.keys()
 
     def download_file(self, project_name, remote_path, local_path=None):
+        """
+        Download a file from a project
+        When local_path is None the file will be downloaded to the base filename
+        :param project_name: str: name of the project to download a file from
+        :param remote_path: str: remote path specifying which file to download
+        :param local_path: str: optional argument to customize where the file will be downloaded to
+        """
         project = self._get_project_for_name(project_name)
         file = project.get_child_for_path(remote_path)
         file.download_to_path(local_path)
 
     def upload_file(self, local_path, project_name, remote_path):
+        """
+        Upload a file into project creating a new version if it already exists
+        :param local_path: str: path to download the file into
+        :param project_name: str: name of the project to upload a file to
+        :param remote_path: str: remote path specifying file to upload to
+        """
         project = self._get_or_create_project(project_name)
         file_upload = FileUpload(self.client, project, remote_path, local_path)
         file_upload.run()
@@ -121,6 +161,9 @@ class Session(object):
             self.projects = self.client.get_projects()
 
     def clear_project_cache(self):
+        """
+        Empty project cache so successive methods will re-fetch the list when it is needed
+        """
         self.projects = None
 
     def _get_project_for_name(self, project_name):
@@ -139,6 +182,11 @@ class Session(object):
         return path_to_nodes.paths
 
     def delete_file(self, project_name, remote_path):
+        """
+        Delete a file or folder from a project
+        :param project_name: str: name of the project containing a file we will delete
+        :param remote_path: str: remote path specifying file to delete
+        """
         project = self._get_or_create_project(project_name)
         remote_file = project.get_child_for_path(remote_path)
         remote_file.delete()
