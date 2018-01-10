@@ -1,4 +1,3 @@
 from __future__ import absolute_import
-from ddsc.sdk.dukeds import DukeDS
-from ddsc.sdk.client import Client
-__all__ = ['DukeDS', 'Client']
+from ddsc.sdk.dukeds import DukeDS, Session
+__all__ = ['DukeDS', 'Session']
