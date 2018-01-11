@@ -1,5 +1,5 @@
 from unittest import TestCase
-from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project
+from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File
 from ddsc.core.util import KindType
 from mock import patch, Mock
 
@@ -323,6 +323,9 @@ class TestBaseResponseItem(TestCase):
 
 
 class TestProject(TestCase):
+    def setUp(self):
+        self.project_dict = {'id': '123', 'kind': KindType.project_str}
+
     def test_get_children(self):
         mock_dds_connection = Mock()
         response_children = [
@@ -330,7 +333,7 @@ class TestProject(TestCase):
         ]
         mock_dds_connection.get_project_children.return_value = response_children
 
-        project = Project(mock_dds_connection, {'id': '123'})
+        project = Project(mock_dds_connection, self.project_dict)
         children = project.get_children()
 
         mock_dds_connection.get_project_children.assert_called_with('123')
@@ -342,7 +345,7 @@ class TestProject(TestCase):
         mock_child = Mock()
         mock_child_finder.return_value.get_child.return_value = mock_child
 
-        project = Project(mock_dds_connection, {'id': '123'})
+        project = Project(mock_dds_connection, self.project_dict)
         child = project.get_child_for_path('data/file1.dat')
 
         mock_child_finder.assert_called_with('data/file1.dat', project)
@@ -353,7 +356,7 @@ class TestProject(TestCase):
         mock_folder = Mock()
         mock_dds_connection.create_folder.return_value = mock_folder
 
-        project = Project(mock_dds_connection, {'id': '123'})
+        project = Project(mock_dds_connection, self.project_dict)
         my_folder = project.create_folder('results')
 
         mock_dds_connection.create_folder.assert_called_with('results', 'dds-project', '123')
@@ -365,17 +368,106 @@ class TestProject(TestCase):
         mock_file = Mock()
         mock_dds_connection.upload_file.return_value = mock_file
 
-        project = Project(mock_dds_connection, {'id': '123', 'kind': KindType.project_str})
+        project = Project(mock_dds_connection, self.project_dict)
         my_file = project.upload_file('data.txt')
 
         mock_dds_connection.upload_file.assert_called_with('data.txt', project_id='123', remote_filename=None,
                                                            parent_data=mock_parent_data.return_value)
+        mock_parent_data.assert_called_with('dds-project', '123')
         self.assertEqual(my_file, mock_file)
 
     def test_delete(self):
         mock_dds_connection = Mock()
 
-        project = Project(mock_dds_connection, {'id': '123', 'kind': KindType.project_str})
+        project = Project(mock_dds_connection, self.project_dict)
         project.delete()
 
         mock_dds_connection.delete_project.assert_called_with('123')
+
+
+class TestFolder(TestCase):
+    def setUp(self):
+        self.folder_dict = {
+            'id': '456',
+            'kind': KindType.folder_str,
+            'project': {'id': '123'}
+        }
+
+    def test_get_children(self):
+        mock_dds_connection = Mock()
+        response_children = [
+            Mock()
+        ]
+        mock_dds_connection.get_folder_children.return_value = response_children
+
+        folder = Folder(mock_dds_connection, self.folder_dict)
+        children = folder.get_children()
+
+        mock_dds_connection.get_folder_children.assert_called_with('456')
+        self.assertEqual(children, response_children)
+
+    def test_create_folder(self):
+        mock_dds_connection = Mock()
+        mock_folder = Mock()
+        mock_dds_connection.create_folder.return_value = mock_folder
+
+        folder = Folder(mock_dds_connection, self.folder_dict)
+        sub_folder = folder.create_folder('results')
+
+        mock_dds_connection.create_folder.assert_called_with('results', 'dds-folder', '456')
+        self.assertEqual(sub_folder, mock_folder)
+
+    @patch('ddsc.sdk.client.ParentData')
+    def test_upload_file(self, mock_parent_data):
+        mock_dds_connection = Mock()
+        mock_file = Mock()
+        mock_dds_connection.upload_file.return_value = mock_file
+
+        folder = Folder(mock_dds_connection, self.folder_dict)
+        my_file = folder.upload_file('data.txt')
+
+        mock_dds_connection.upload_file.assert_called_with('data.txt', project_id='123', remote_filename=None,
+                                                           parent_data=mock_parent_data.return_value)
+        mock_parent_data.assert_called_with('dds-folder', '456')
+        self.assertEqual(my_file, mock_file)
+
+
+class TestFile(TestCase):
+    def setUp(self):
+        self.file_dict = {
+            'id': '456',
+            'kind': KindType.file_str,
+            'project': {'id': '123'},
+            'parent': {
+                'id': '123',
+                'kind': KindType.project_str
+            }
+        }
+
+    def test_download_to_path(self):
+        mock_dds_connection = Mock()
+
+        file = File(mock_dds_connection, self.file_dict)
+        file.download_to_path('/tmp/data.dat')
+
+        mock_dds_connection.get_file_download.assert_called_with('456')
+        mock_dds_connection.get_file_download.return_value.save_to_path('/tmp/data.dat')
+
+    def test_delete(self):
+        mock_dds_connection = Mock()
+
+        file = File(mock_dds_connection, self.file_dict)
+        file.delete()
+
+        mock_dds_connection.delete_file.assert_called_with('456')
+
+    @patch('ddsc.sdk.client.ParentData')
+    def test_upload_new_version(self, mock_parent_data):
+        mock_dds_connection = Mock()
+
+        file = File(mock_dds_connection, self.file_dict)
+        file.upload_new_version('/tmp/data2.dat')
+
+        mock_dds_connection.upload_file.assert_called_with('/tmp/data2.dat', project_id='123',
+                                                           parent_data=mock_parent_data.return_value,
+                                                           existing_file_id='456')
