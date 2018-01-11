@@ -52,7 +52,9 @@ class TestMultiJSONResponse(TestCase):
 
 class TestDataServiceApi(TestCase):
     def create_mock_auth(self, config_page_size):
-        return MagicMock(set_status_msg=print, config=Mock(page_size=config_page_size))
+        mock_auth = MagicMock(set_status_msg=print, config=Mock(page_size=config_page_size))
+        mock_auth.get_auth.return_value = 'authkey'
+        return mock_auth
 
     def test_get_collection_one_page(self):
         mock_requests = MagicMock()
@@ -453,6 +455,39 @@ class TestDataServiceApi(TestCase):
         params = kwargs['params']
         self.assertEqual('test', params['name_contains'])
         self.assertEqual('this that', params['exclude_response_fields'])
+
+    def test_get_folder(self):
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response(status_code=200, json_return_value={})
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="base/v1", http=mock_requests)
+        api.get_folder(folder_id='1023aef')
+        mock_requests.get.assert_called()
+        args, kw = mock_requests.get.call_args
+        self.assertEqual(args[0], 'base/v1/folders/1023aef')
+
+    def test_delete_folder(self):
+        mock_requests = MagicMock()
+        mock_requests.delete.side_effect = [
+            fake_response(status_code=200, json_return_value={})
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="base/v1", http=mock_requests)
+        api.delete_folder(folder_id='1023cde')
+        mock_requests.delete.assert_called()
+        args, kw = mock_requests.delete.call_args
+        self.assertEqual(args[0], 'base/v1/folders/1023cde')
+
+    def test_delete_file(self):
+        mock_requests = MagicMock()
+        mock_requests.delete.side_effect = [
+            fake_response(status_code=200, json_return_value={})
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="base/v1", http=mock_requests)
+        api.delete_file(file_id='1023cde')
+        mock_requests.delete.assert_called()
+        args, kw = mock_requests.delete.call_args
+        self.assertEqual(args[0], 'base/v1/files/1023cde')
 
 
 class TestDataServiceAuth(TestCase):
