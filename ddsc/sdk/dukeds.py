@@ -147,7 +147,7 @@ class Session(object):
          (defaults to local_path basename)
         """
         project = self._get_or_create_project(project_name)
-        file_upload = FileUpload(self.client, project, remote_path, local_path)
+        file_upload = FileUpload(project, remote_path, local_path)
         file_upload.run()
 
     def _get_or_create_project(self, project_name):

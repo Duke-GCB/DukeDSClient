@@ -437,8 +437,7 @@ class FileDownload(BaseResponseItem):
 
 
 class FileUpload(object):
-    def __init__(self, client, project, remote_path, local_path):
-        self.client = client
+    def __init__(self, project, remote_path, local_path):
         self.project = project
         self.remote_path = remote_path
         if not self.remote_path:

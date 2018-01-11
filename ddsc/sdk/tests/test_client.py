@@ -1,5 +1,5 @@
 from unittest import TestCase
-from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File
+from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File, FileDownload, FileUpload
 from ddsc.core.util import KindType
 from mock import patch, Mock
 
@@ -471,3 +471,48 @@ class TestFile(TestCase):
         mock_dds_connection.upload_file.assert_called_with('/tmp/data2.dat', project_id='123',
                                                            parent_data=mock_parent_data.return_value,
                                                            existing_file_id='456')
+
+
+class TestFileDownload(TestCase):
+    @patch('ddsc.sdk.client.open')
+    def test_save_to_path(self, mock_open):
+        mock_dds_connection = Mock()
+        response = Mock()
+        response.iter_content.return_value = ['my', 'data']
+        mock_dds_connection.data_service.receive_external.return_value = response
+
+        file_download = FileDownload(mock_dds_connection, {
+            'http_verb': 'GET',
+            'host': 'somehost',
+            'url': 'v1/get_file',
+            'http_headers': ''
+        })
+        file_download.save_to_path('/tmp/data.out')
+
+        mock_dds_connection.data_service.receive_external.assert_called_with('GET', 'somehost', 'v1/get_file', '')
+
+
+class TestFileUpload(TestCase):
+    def test_run_create_folder_new_file(self):
+        mock_project = Mock()
+        mock_project.get_children.return_value = []
+        mock_folder = Mock()
+        mock_folder.get_children.return_value = []
+        mock_project.create_folder.return_value = mock_folder
+
+        file_upload = FileUpload(mock_project, remote_path='results/data.txt', local_path='/tmp/data.txt')
+        file_upload.run()
+
+        mock_project.create_folder.assert_called_with('results')
+        mock_folder.upload_file.assert_called_with('/tmp/data.txt', remote_filename='data.txt')
+
+    def test_run_existing_file_no_parent_folder(self):
+        mock_project = Mock()
+        mock_file = Mock()
+        mock_file.name = 'data.txt'
+        mock_project.get_children.return_value = [mock_file]
+
+        file_upload = FileUpload(mock_project, remote_path='data.txt', local_path='/tmp/data.txt')
+        file_upload.run()
+
+        mock_file.upload_new_version.assert_called_with('/tmp/data.txt')
