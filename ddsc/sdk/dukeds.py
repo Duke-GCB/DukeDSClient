@@ -57,7 +57,8 @@ class DukeDS(object):
     @staticmethod
     def upload_file(local_path, project_name, remote_path):
         """
-        Upload a file into project creating a new version if it already exists
+        Upload a file into project creating a new version if it already exists.
+        Will also create project and parent folders if they do not exist.
         :param local_path: str: path to download the file into
         :param project_name: str: name of the project to upload a file to
         :param remote_path: str: remote path specifying file to upload to
@@ -113,6 +114,7 @@ class Session(object):
         """
         project = self._get_project_for_name(project_name)
         project.delete()
+        self.clear_project_cache()
 
     def list_files(self, project_name):
         """
@@ -138,7 +140,8 @@ class Session(object):
 
     def upload_file(self, local_path, project_name, remote_path):
         """
-        Upload a file into project creating a new version if it already exists
+        Upload a file into project creating a new version if it already exists.
+        Will also create project and parent folders if they do not exist.
         :param local_path: str: path to download the file into
         :param project_name: str: name of the project to upload a file to
         :param remote_path: str: remote path specifying file to upload to
