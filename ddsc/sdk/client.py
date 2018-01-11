@@ -441,6 +441,8 @@ class FileUpload(object):
         self.client = client
         self.project = project
         self.remote_path = remote_path
+        if not self.remote_path:
+            self.remote_path = os.path.basename(local_path)
         self.local_path = local_path
 
     def run(self):

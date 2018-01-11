@@ -122,6 +122,17 @@ class TestDukeDS(TestCase):
         mock_file1.upload_new_version.assert_called_with('/tmp/file1.dat')
 
     @patch('ddsc.sdk.dukeds.Client')
+    def test_upload_file_default_dest_is_local_basename(self, mock_client):
+        self.mouse_rna_project.get_children.return_value = []
+        mock_client.return_value.get_projects.return_value = [
+            self.mouse_rna_project
+        ]
+
+        DukeDS.upload_file('/tmp/file1.dat', 'mouse_rna')
+
+        self.mouse_rna_project.upload_file.assert_called_with('/tmp/file1.dat', remote_filename='file1.dat')
+
+    @patch('ddsc.sdk.dukeds.Client')
     def test_delete_file(self, mock_client):
         mock_client.return_value.get_projects.return_value = [
             self.bat_dna_project,
