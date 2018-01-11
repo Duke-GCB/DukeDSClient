@@ -1,5 +1,6 @@
 from unittest import TestCase
-from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File, FileDownload, FileUpload
+from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File, FileDownload, FileUpload, \
+    ChildFinder, PathToFiles, ItemNotFound
 from ddsc.core.util import KindType
 from mock import patch, Mock
 
@@ -516,3 +517,71 @@ class TestFileUpload(TestCase):
         file_upload.run()
 
         mock_file.upload_new_version.assert_called_with('/tmp/data.txt')
+
+
+class TestChildFinder(TestCase):
+    def test_direct_children(self):
+        mock_project = Mock()
+        mock_folder = Mock()
+        mock_file = Mock()
+        mock_file.name = 'data.txt'
+        mock_project.get_children.return_value = [
+            mock_folder,
+            mock_file
+        ]
+        child_finder = ChildFinder('data.txt', mock_project)
+        found_child = child_finder.get_child()
+        self.assertEqual(found_child, mock_file)
+
+    def test_grand_children(self):
+        mock_project = Mock()
+        mock_folder = Mock()
+        mock_file = Mock()
+        mock_folder.name = 'results'
+        mock_folder.get_children.return_value = [
+            mock_file
+        ]
+        mock_file.name = 'data.txt'
+        mock_project.get_children.return_value = [
+            mock_folder,
+        ]
+        child_finder = ChildFinder('results/data.txt', mock_project)
+        found_child = child_finder.get_child()
+        self.assertEqual(found_child, mock_file)
+
+    def test_child_not_found(self):
+        mock_project = Mock()
+        mock_folder = Mock()
+        mock_project.get_children.return_value = [
+            mock_folder,
+        ]
+        child_finder = ChildFinder('data.txt', mock_project)
+        with self.assertRaises(ItemNotFound):
+            child_finder.get_child()
+
+
+class TestPathToFiles(TestCase):
+    def test_path_creation(self):
+        path_to_files = PathToFiles()
+        mock_project = Mock(kind=KindType.project_str)
+        mock_project.name = 'myproject'
+        mock_folder = Mock(kind=KindType.folder_str)
+        mock_folder.name = 'myfolder'
+        mock_file1 = Mock(kind=KindType.file_str)
+        mock_file1.name = 'myfile1'
+        mock_file2 = Mock(kind=KindType.file_str)
+        mock_file2.name = 'myfile2'
+        mock_project.get_children.return_value = [
+            mock_folder
+        ]
+        mock_folder.get_children.return_value = [
+            mock_file1,
+            mock_file2
+        ]
+
+        path_to_files.add_paths_for_children_of_node(mock_project)
+
+        self.assertEqual({
+            'myfolder/myfile1': mock_file1,
+            'myfolder/myfile2': mock_file2
+        }, path_to_files.paths)
