@@ -1,5 +1,5 @@
 from unittest import TestCase
-from ddsc.sdk.client import Client, DDSConnection
+from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project
 from ddsc.core.util import KindType
 from mock import patch, Mock
 
@@ -216,7 +216,6 @@ class TestDDSConnection(TestCase):
         self.assertEqual(children[0].name, 'mouse')
         self.assertEqual(children[0].project_id, '123')
 
-
     @patch('ddsc.sdk.client.DataServiceApi')
     @patch('ddsc.sdk.client.DataServiceAuth')
     def test_get_file_download(self, mock_data_service_auth, mock_data_service_api):
@@ -311,3 +310,72 @@ class TestDDSConnection(TestCase):
         dds_connection.delete_file('456')
 
         mock_data_service_api.return_value.delete_file.assert_called_with('456')
+
+
+class TestBaseResponseItem(TestCase):
+    def test_get_attr(self):
+        item = BaseResponseItem(Mock(), {
+            'id': '123',
+            'name': 'data.dat'
+        })
+        self.assertEqual(item.id, '123')
+        self.assertEqual(item.name, 'data.dat')
+
+
+class TestProject(TestCase):
+    def test_get_children(self):
+        mock_dds_connection = Mock()
+        response_children = [
+            Mock()
+        ]
+        mock_dds_connection.get_project_children.return_value = response_children
+
+        project = Project(mock_dds_connection, {'id': '123'})
+        children = project.get_children()
+
+        mock_dds_connection.get_project_children.assert_called_with('123')
+        self.assertEqual(children, response_children)
+
+    @patch('ddsc.sdk.client.ChildFinder')
+    def test_get_child_for_path(self, mock_child_finder):
+        mock_dds_connection = Mock()
+        mock_child = Mock()
+        mock_child_finder.return_value.get_child.return_value = mock_child
+
+        project = Project(mock_dds_connection, {'id': '123'})
+        child = project.get_child_for_path('data/file1.dat')
+
+        mock_child_finder.assert_called_with('data/file1.dat', project)
+        self.assertEqual(child, mock_child)
+
+    def test_create_folder(self):
+        mock_dds_connection = Mock()
+        mock_folder = Mock()
+        mock_dds_connection.create_folder.return_value = mock_folder
+
+        project = Project(mock_dds_connection, {'id': '123'})
+        my_folder = project.create_folder('results')
+
+        mock_dds_connection.create_folder.assert_called_with('results', 'dds-project', '123')
+        self.assertEqual(my_folder, mock_folder)
+
+    @patch('ddsc.sdk.client.ParentData')
+    def test_upload_file(self, mock_parent_data):
+        mock_dds_connection = Mock()
+        mock_file = Mock()
+        mock_dds_connection.upload_file.return_value = mock_file
+
+        project = Project(mock_dds_connection, {'id': '123', 'kind': KindType.project_str})
+        my_file = project.upload_file('data.txt')
+
+        mock_dds_connection.upload_file.assert_called_with('data.txt', project_id='123', remote_filename=None,
+                                                           parent_data=mock_parent_data.return_value)
+        self.assertEqual(my_file, mock_file)
+
+    def test_delete(self):
+        mock_dds_connection = Mock()
+
+        project = Project(mock_dds_connection, {'id': '123', 'kind': KindType.project_str})
+        project.delete()
+
+        mock_dds_connection.delete_project.assert_called_with('123')
