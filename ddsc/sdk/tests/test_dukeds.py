@@ -63,7 +63,7 @@ class TestDukeDS(TestCase):
             self.bat_dna_project,
             self.mouse_rna_project
         ]
-        mock_path_to_files.return_value.paths.keys.return_value = [
+        mock_path_to_files.return_value.paths = [
             'README.txt',
             'data/file1.dat',
             'data/file2.dat'
