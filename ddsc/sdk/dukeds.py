@@ -55,15 +55,15 @@ class DukeDS(object):
         Session().download_file(project_name, remote_path, local_path)
 
     @staticmethod
-    def upload_file(local_path, project_name, remote_path=None):
+    def upload_file(project_name, local_path, remote_path=None):
         """
         Upload a file into project creating a new version if it already exists.
         Will also create project and parent folders if they do not exist.
-        :param local_path: str: path to download the file into
         :param project_name: str: name of the project to upload a file to
+        :param local_path: str: path to download the file into
         :param remote_path: str: remote path specifying file to upload to (defaults to local_path basename)
         """
-        return Session().upload_file(local_path, project_name, remote_path)
+        return Session().upload_file(project_name, local_path, remote_path)
 
     @staticmethod
     def delete_file(project_name, remote_path):
@@ -141,13 +141,13 @@ class Session(object):
         file = project.get_child_for_path(remote_path)
         file.download_to_path(local_path)
 
-    def upload_file(self, local_path, project_name, remote_path=None):
+    def upload_file(self, project_name, local_path, remote_path=None):
         """
         Upload a file into project creating a new version if it already exists.
         Will also create project and parent folders if they do not exist.
-        :param local_path: str: path to download the file into
         :param project_name: str: name of the project to upload a file to
-         (defaults to local_path basename)
+        :param local_path: str: path to download the file into
+        :param remote_path: str: remote path specifying file to upload to (defaults to local_path basename)
         """
         project = self._get_or_create_project(project_name)
         file_upload = FileUpload(project, remote_path, local_path)

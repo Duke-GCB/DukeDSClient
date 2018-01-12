@@ -93,7 +93,7 @@ class TestDukeDS(TestCase):
             self.mouse_rna_project
         ]
 
-        DukeDS.upload_file('/tmp/file1.dat', 'mouse_rna', 'file1.dat')
+        DukeDS.upload_file('mouse_rna', '/tmp/file1.dat', 'file1.dat')
 
         self.mouse_rna_project.upload_file.assert_called_with('/tmp/file1.dat', remote_filename='file1.dat')
 
@@ -108,7 +108,7 @@ class TestDukeDS(TestCase):
         mock_project.create_folder.return_value = mock_folder
         mock_client.return_value.create_project.return_value = mock_project
 
-        DukeDS.upload_file('/tmp/file1.dat', 'mouse_rna', 'data/file1.dat')
+        DukeDS.upload_file('mouse_rna', '/tmp/file1.dat', 'data/file1.dat')
 
         mock_client.return_value.create_project.assert_called_with('mouse_rna', 'mouse_rna')
         mock_project.create_folder.assert_called_with('data')
@@ -126,7 +126,7 @@ class TestDukeDS(TestCase):
             mock_file1
         ]
 
-        DukeDS.upload_file('/tmp/file1.dat', 'mouse_rna', 'file1.dat')
+        DukeDS.upload_file('mouse_rna', '/tmp/file1.dat', 'file1.dat')
         self.mouse_rna_project.upload_file.assert_not_called()
         mock_file1.upload_new_version.assert_called_with('/tmp/file1.dat')
 
@@ -137,7 +137,7 @@ class TestDukeDS(TestCase):
             self.mouse_rna_project
         ]
 
-        DukeDS.upload_file('/tmp/file1.dat', 'mouse_rna')
+        DukeDS.upload_file('mouse_rna', '/tmp/file1.dat')
 
         self.mouse_rna_project.upload_file.assert_called_with('/tmp/file1.dat', remote_filename='file1.dat')
 
