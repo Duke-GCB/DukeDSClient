@@ -1,5 +1,5 @@
 from unittest import TestCase
-from ddsc.sdk import DukeDS, ItemNotFound
+from ddsc import DukeDS, ItemNotFound
 from mock import patch, Mock
 
 
