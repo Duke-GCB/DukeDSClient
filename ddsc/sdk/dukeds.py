@@ -127,7 +127,7 @@ class Session(object):
         """
         project = self._get_project_for_name(project_name)
         file_path_dict = self._get_file_path_dict_for_project(project)
-        return file_path_dict.keys()
+        return list(file_path_dict)
 
     def download_file(self, project_name, remote_path, local_path=None):
         """
