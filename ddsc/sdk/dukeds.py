@@ -102,6 +102,9 @@ class Session(object):
         :param description: str: long description of this project
         :return: str: name of the project
         """
+        self._cache_project_list_once()
+        if name in [project.name for project in self.projects]:
+            raise DuplicateNameError("There is already a project named {}".format(name))
         self.client.create_project(name, description)
         self.clear_project_cache()
         return name

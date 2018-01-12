@@ -1,5 +1,5 @@
 from unittest import TestCase
-from ddsc import DukeDS, ItemNotFound
+from ddsc import DukeDS, ItemNotFound, DuplicateNameError
 from mock import patch, Mock
 
 
@@ -26,6 +26,15 @@ class TestDukeDS(TestCase):
         DukeDS.create_project('mouse', 'Mouse research project')
 
         mock_client.return_value.create_project.assert_called_with('mouse', 'Mouse research project')
+
+    @patch('ddsc.sdk.dukeds.Client')
+    def test_create_project_raises_for_duplicate_project_name(self, mock_client):
+        mock_existing_project = Mock()
+        mock_existing_project.name = 'mouse'
+        mock_client.return_value.get_projects.return_value = [mock_existing_project]
+
+        with self.assertRaises(DuplicateNameError):
+            DukeDS.create_project('mouse', 'Mouse research project')
 
     @patch('ddsc.sdk.dukeds.Client')
     def test_delete_project_not_found(self, mock_client):
