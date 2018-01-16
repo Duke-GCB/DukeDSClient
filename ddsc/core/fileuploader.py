@@ -96,20 +96,23 @@ class FileUploadOperations(object):
         self.data_service = data_service
         self.waiting_monitor = waiting_monitor
 
-    def create_upload(self, project_id, path_data, hash_data):
+    def create_upload(self, project_id, path_data, hash_data, remote_filename=None):
         """
         Create upload so we can send call further methods.
         :param project_id: str: uuid of the project
         :param path_data: PathData: holds file system data about the file we are uploading
         :param hash_data: HashData: contains hash alg and value for the file we are uploading
+        :param remote_filename: str: name to use for our remote file (defaults to path_data basename otherwise)
         :return: str: uuid for the upload
         """
-        name = path_data.name()
+        if not remote_filename:
+            remote_filename = path_data.name()
         mime_type = path_data.mime_type()
         size = path_data.size()
 
         def func():
-            return self.data_service.create_upload(project_id, name, mime_type, size, hash_data.value, hash_data.alg)
+            return self.data_service.create_upload(project_id, remote_filename, mime_type, size,
+                                                   hash_data.value, hash_data.alg)
 
         resp = retry_until_resource_is_consistent(func, self.waiting_monitor)
         return resp.json()['id']

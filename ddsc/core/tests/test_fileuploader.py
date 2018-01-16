@@ -201,3 +201,35 @@ class TestFileUploadOperations(TestCase):
         fop = FileUploadOperations(data_service, MagicMock())
         with self.assertRaises(DataServiceError):
             fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
+
+    def test_create_upload_default_remote_filename(self):
+        data_service = MagicMock()
+        response = Mock()
+        response.json.return_value = {'id': '123'}
+        data_service.create_upload.side_effect = [
+            response
+        ]
+        fop = FileUploadOperations(data_service, MagicMock())
+        path_data = MagicMock()
+        path_data.name.return_value = 'data.dat'
+        upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
+        self.assertEqual(upload_id, '123')
+        args, kwargs = data_service.create_upload.call_args
+        self.assertEqual(args[0], '12')
+        self.assertEqual(args[1], 'data.dat')
+
+    def test_create_upload_remote_filename(self):
+        data_service = MagicMock()
+        response = Mock()
+        response.json.return_value = {'id': '123'}
+        data_service.create_upload.side_effect = [
+            response
+        ]
+        fop = FileUploadOperations(data_service, MagicMock())
+        path_data = MagicMock()
+        path_data.name.return_value = 'data.dat'
+        upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock(), remote_filename='other.dat')
+        self.assertEqual(upload_id, '123')
+        args, kwargs = data_service.create_upload.call_args
+        self.assertEqual(args[0], '12')
+        self.assertEqual(args[1], 'other.dat')
