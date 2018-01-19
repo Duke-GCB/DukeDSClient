@@ -20,6 +20,12 @@ Please send an email to gcb-help@duke.edu titled 'D4S2 setup' so we can work wit
 
 """
 
+USER_WITHOUT_EMAIL_MESSAGE = """
+ERROR: The user you are trying to {} to has no email setup in DukeDS.
+We are unable to contact them to {} your project.
+
+"""
+
 
 class D4S2Error(Exception):
     def __init__(self, message, warning=False):
@@ -31,6 +37,17 @@ class D4S2Error(Exception):
         Exception.__init__(self, message)
         self.message = message
         self.warning = warning
+
+
+class UserMissingEmailError(Exception):
+    """
+    Raised when attempting to deliver or share with a DukeDS user that has a null email
+    """
+    def __init__(self, message):
+        """
+        :param message: str reason for the error
+        """
+        Exception.__init__(self, message)
 
 
 class D4S2Api(object):
@@ -224,6 +241,8 @@ class D4S2Project(object):
         :param user_message: str message to be sent with the share
         :return: str email we share the project with
         """
+        if not to_user.email:
+            self._raise_user_missing_email_exception("share")
         self.set_user_project_permission(project, to_user, auth_role)
         return self._share_project(D4S2Api.SHARE_DESTINATION, project, to_user, force_send, auth_role, user_message)
 
@@ -249,6 +268,8 @@ class D4S2Project(object):
         :param user_message: str message to be sent with the share
         :return: str email we sent deliver to
         """
+        if not to_user.email:
+            self._raise_user_missing_email_exception("deliver")
         self.remove_user_permission(project, to_user)
         if new_project_name:
             project = self._copy_project(project, new_project_name, path_filter)
@@ -336,6 +357,11 @@ class D4S2Project(object):
         project_upload = ProjectUpload(self.config, project_name_or_id, items_to_send,
                                        file_upload_post_processor=UploadedFileRelations(activity))
         project_upload.run()
+
+    @staticmethod
+    def _raise_user_missing_email_exception(cmd):
+        msg = USER_WITHOUT_EMAIL_MESSAGE.format(cmd, cmd)
+        raise UserMissingEmailError(msg)
 
 
 class CopyActivity(object):
