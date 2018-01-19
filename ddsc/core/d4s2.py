@@ -25,6 +25,12 @@ ERROR: You cannot {} a project to yourself.
 
 """
 
+USER_WITHOUT_EMAIL_MESSAGE = """
+ERROR: The user you are trying to {} to has no email setup in DukeDS.
+We are unable to contact them to {} your project.
+
+"""
+
 
 class D4S2Error(Exception):
     def __init__(self, message, warning=False):
@@ -41,6 +47,17 @@ class D4S2Error(Exception):
 class ShareWithSelfError(Exception):
     """
     Error raised whe user attempts to share/deliver a project just themselves
+    """
+    def __init__(self, message):
+        """
+        :param message: str reason for the error
+        """
+        Exception.__init__(self, message)
+
+
+class UserMissingEmailError(Exception):
+    """
+    Raised when attempting to deliver or share with a DukeDS user that has a null email
     """
     def __init__(self, message):
         """
@@ -242,6 +259,8 @@ class D4S2Project(object):
         """
         if self._is_current_user(to_user):
             raise ShareWithSelfError(SHARE_WITH_SELF_MESSAGE.format("share"))
+        if not to_user.email:
+            self._raise_user_missing_email_exception("share")
         self.set_user_project_permission(project, to_user, auth_role)
         return self._share_project(D4S2Api.SHARE_DESTINATION, project, to_user, force_send, auth_role, user_message)
 
@@ -269,6 +288,8 @@ class D4S2Project(object):
         """
         if self._is_current_user(to_user):
             raise ShareWithSelfError(SHARE_WITH_SELF_MESSAGE.format("deliver"))
+        if not to_user.email:
+            self._raise_user_missing_email_exception("deliver")
         self.remove_user_permission(project, to_user)
         if new_project_name:
             project = self._copy_project(project, new_project_name, path_filter)
@@ -365,6 +386,11 @@ class D4S2Project(object):
         """
         current_user = self.remote_store.get_current_user()
         return current_user.id == some_user.id
+
+    @staticmethod
+    def _raise_user_missing_email_exception(cmd):
+        msg = USER_WITHOUT_EMAIL_MESSAGE.format(cmd, cmd)
+        raise UserMissingEmailError(msg)
 
 
 class CopyActivity(object):
