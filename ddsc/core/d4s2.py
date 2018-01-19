@@ -20,6 +20,11 @@ Please send an email to gcb-help@duke.edu titled 'D4S2 setup' so we can work wit
 
 """
 
+SHARE_WITH_SELF_MESSAGE = """
+ERROR: You cannot {} a project to yourself.
+
+"""
+
 
 class D4S2Error(Exception):
     def __init__(self, message, warning=False):
@@ -31,6 +36,17 @@ class D4S2Error(Exception):
         Exception.__init__(self, message)
         self.message = message
         self.warning = warning
+
+
+class ShareWithSelfError(Exception):
+    """
+    Error raised whe user attempts to share/deliver a project just themselves
+    """
+    def __init__(self, message):
+        """
+        :param message: str reason for the error
+        """
+        Exception.__init__(self, message)
 
 
 class D4S2Api(object):
@@ -224,6 +240,8 @@ class D4S2Project(object):
         :param user_message: str message to be sent with the share
         :return: str email we share the project with
         """
+        if self._is_current_user(to_user):
+            raise ShareWithSelfError(SHARE_WITH_SELF_MESSAGE.format("share"))
         self.set_user_project_permission(project, to_user, auth_role)
         return self._share_project(D4S2Api.SHARE_DESTINATION, project, to_user, force_send, auth_role, user_message)
 
@@ -249,6 +267,8 @@ class D4S2Project(object):
         :param user_message: str message to be sent with the share
         :return: str email we sent deliver to
         """
+        if self._is_current_user(to_user):
+            raise ShareWithSelfError(SHARE_WITH_SELF_MESSAGE.format("deliver"))
         self.remove_user_permission(project, to_user)
         if new_project_name:
             project = self._copy_project(project, new_project_name, path_filter)
@@ -336,6 +356,15 @@ class D4S2Project(object):
         project_upload = ProjectUpload(self.config, project_name_or_id, items_to_send,
                                        file_upload_post_processor=UploadedFileRelations(activity))
         project_upload.run()
+
+    def _is_current_user(self, some_user):
+        """
+        Is the specified user the current user?
+        :param some_user: RemoteUser user we want to check against the current user
+        :return: boolean: True if the current user is the passed in user
+        """
+        current_user = self.remote_store.get_current_user()
+        return current_user.id == some_user.id
 
 
 class CopyActivity(object):
