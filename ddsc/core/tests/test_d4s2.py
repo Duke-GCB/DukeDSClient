@@ -37,8 +37,7 @@ class TestD4S2Project(TestCase):
                           force_send=False,
                           auth_role='project_viewer',
                           user_message='This is a test.')
-        self.assertEqual(raised_error.exception.message,
-                         USER_WITHOUT_EMAIL_MESSAGE.format('share', 'share'))
+        self.assertEqual(str(raised_error.exception), USER_WITHOUT_EMAIL_MESSAGE.format('share', 'share'))
 
     @patch('ddsc.core.d4s2.D4S2Api')
     @patch('ddsc.core.d4s2.requests')
@@ -73,8 +72,7 @@ class TestD4S2Project(TestCase):
                             force_send=False,
                             path_filter='',
                             user_message='Yet Another Message.')
-        self.assertEqual(raised_error.exception.message,
-                         USER_WITHOUT_EMAIL_MESSAGE.format('deliver', 'deliver'))
+        self.assertEqual(str(raised_error.exception), USER_WITHOUT_EMAIL_MESSAGE.format('deliver', 'deliver'))
 
     @patch('ddsc.core.d4s2.ProjectDownload')
     @patch('ddsc.core.d4s2.ProjectUpload')
