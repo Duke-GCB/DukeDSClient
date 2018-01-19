@@ -20,6 +20,11 @@ Please send an email to gcb-help@duke.edu titled 'D4S2 setup' so we can work wit
 
 """
 
+SHARE_WITH_SELF_MESSAGE = """
+ERROR: You cannot {} a project to yourself.
+
+"""
+
 USER_WITHOUT_EMAIL_MESSAGE = """
 ERROR: The user you are trying to {} to has no email setup in DukeDS.
 We are unable to contact them to {} your project.
@@ -37,6 +42,17 @@ class D4S2Error(Exception):
         Exception.__init__(self, message)
         self.message = message
         self.warning = warning
+
+
+class ShareWithSelfError(Exception):
+    """
+    Error raised whe user attempts to share/deliver a project just themselves
+    """
+    def __init__(self, message):
+        """
+        :param message: str reason for the error
+        """
+        Exception.__init__(self, message)
 
 
 class UserMissingEmailError(Exception):
@@ -241,6 +257,8 @@ class D4S2Project(object):
         :param user_message: str message to be sent with the share
         :return: str email we share the project with
         """
+        if self._is_current_user(to_user):
+            raise ShareWithSelfError(SHARE_WITH_SELF_MESSAGE.format("share"))
         if not to_user.email:
             self._raise_user_missing_email_exception("share")
         self.set_user_project_permission(project, to_user, auth_role)
@@ -268,6 +286,8 @@ class D4S2Project(object):
         :param user_message: str message to be sent with the share
         :return: str email we sent deliver to
         """
+        if self._is_current_user(to_user):
+            raise ShareWithSelfError(SHARE_WITH_SELF_MESSAGE.format("deliver"))
         if not to_user.email:
             self._raise_user_missing_email_exception("deliver")
         self.remove_user_permission(project, to_user)
@@ -357,6 +377,15 @@ class D4S2Project(object):
         project_upload = ProjectUpload(self.config, project_name_or_id, items_to_send,
                                        file_upload_post_processor=UploadedFileRelations(activity))
         project_upload.run()
+
+    def _is_current_user(self, some_user):
+        """
+        Is the specified user the current user?
+        :param some_user: RemoteUser user we want to check against the current user
+        :return: boolean: True if the current user is the passed in user
+        """
+        current_user = self.remote_store.get_current_user()
+        return current_user.id == some_user.id
 
     @staticmethod
     def _raise_user_missing_email_exception(cmd):

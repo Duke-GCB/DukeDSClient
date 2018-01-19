@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.core.d4s2 import D4S2Project, CopyActivity, DownloadedFileRelations, UploadedFileRelations, \
-    UserMissingEmailError, USER_WITHOUT_EMAIL_MESSAGE
+    ShareWithSelfError, SHARE_WITH_SELF_MESSAGE, UserMissingEmailError, USER_WITHOUT_EMAIL_MESSAGE
 from ddsc.core.util import KindType
 from ddsc.core.pathfilter import PathFilter
 from mock import patch, MagicMock, Mock
@@ -25,6 +25,26 @@ class TestD4S2Project(TestCase):
         self.assertEqual('project_viewer', item.auth_role)
         self.assertEqual('This is a test.', item.user_message)
         mock_d4s2api().send_item.assert_called()
+
+    @patch('ddsc.core.d4s2.D4S2Api')
+    @patch('ddsc.core.d4s2.requests')
+    def test_share_with_self(self, mock_requests, mock_d4s2api):
+        mock_d4s2api.return_value.get_existing_item.return_value = Mock(json=Mock(return_value=[]))
+        mock_requests.get.return_value = None
+        mock_remote_store = MagicMock()
+        mock_current_user = MagicMock()
+        mock_current_user.id = '123'
+        mock_to_user = MagicMock()
+        mock_to_user.id = '123'
+        mock_remote_store.get_current_user.return_value = mock_current_user
+        project = D4S2Project(config=MagicMock(), remote_store=mock_remote_store, print_func=MagicMock())
+        with self.assertRaises(ShareWithSelfError) as raised_error:
+            project.share(project=Mock(name='mouserna'),
+                          to_user=mock_to_user,
+                          force_send=False,
+                          auth_role='project_viewer',
+                          user_message='This is a test.')
+        self.assertEqual(str(raised_error.exception), SHARE_WITH_SELF_MESSAGE.format('share'))
 
     @patch('ddsc.core.d4s2.D4S2Api')
     @patch('ddsc.core.d4s2.requests')
@@ -58,6 +78,27 @@ class TestD4S2Project(TestCase):
         self.assertEqual('Yet Another Message.', item.user_message)
         self.assertEqual(['777', '888'], item.share_user_ids)
         mock_d4s2api().send_item.assert_called()
+
+    @patch('ddsc.core.d4s2.D4S2Api')
+    @patch('ddsc.core.d4s2.requests')
+    def test_deliver_with_self(self, mock_requests, mock_d4s2api):
+        mock_requests.get.return_value = None
+        mock_remote_store = MagicMock()
+        mock_current_user = MagicMock()
+        mock_current_user.id = '123'
+        mock_to_user = MagicMock()
+        mock_to_user.id = '123'
+        mock_remote_store.get_current_user.return_value = mock_current_user
+        project = D4S2Project(config=MagicMock(), remote_store=mock_remote_store, print_func=MagicMock())
+        with self.assertRaises(ShareWithSelfError) as raised_error:
+            project.deliver(project=Mock(name='mouserna'),
+                            new_project_name=None,
+                            to_user=mock_to_user,
+                            share_users=[Mock(id='777'), Mock(id='888')],
+                            force_send=False,
+                            path_filter='',
+                            user_message='Yet Another Message.')
+        self.assertEqual(str(raised_error.exception), SHARE_WITH_SELF_MESSAGE.format('deliver'))
 
     @patch('ddsc.core.d4s2.D4S2Api')
     @patch('ddsc.core.d4s2.requests')
