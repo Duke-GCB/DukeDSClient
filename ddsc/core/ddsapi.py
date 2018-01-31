@@ -724,6 +724,13 @@ class DataServiceApi(object):
         """
         return self._get_single_item("/project_transfers/" + transfer_id, {})
 
+    def get_all_project_transfers(self):
+        """
+        Send GET request to get all available project transfers
+        :return: requests.Response containing the successful result
+        """
+        return self._get_collection("/project_transfers", {})
+
     def _process_project_transfer(self, action, transfer_id, status_comment):
         """
         Send PUT request to one of the project transfer action endpoints

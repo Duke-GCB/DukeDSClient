@@ -288,6 +288,24 @@ class TestDataServiceApi(TestCase):
         self.assertEqual(1, len(resp.json()['results']))
         self.assertEqual("1234", resp.json()['results'][0]['id'])
 
+    def test_get_all_project_transfers(self):
+        return_value = {
+            "results": [
+                {"id": "abcd"},
+                {"id": "efgh"}
+            ]
+        }
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=return_value, num_pages=1)
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1/",
+                             http=mock_requests)
+        resp = api.get_all_project_transfers()
+        self.assertEqual(2, len(resp.json()['results']))
+        self.assertEqual("abcd", resp.json()['results'][0]['id'])
+        self.assertEqual("efgh", resp.json()['results'][1]['id'])
+
     def test_relations_methods(self):
         api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="base/v1/", http=MagicMock())
         api._get_collection = MagicMock()
