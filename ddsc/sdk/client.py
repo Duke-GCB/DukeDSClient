@@ -4,7 +4,7 @@ from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.config import create_config
 from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
-from ddsc.core.localstore import PathData
+from ddsc.core.localstore import PathData, HashData
 from ddsc.core.util import KindType
 from future.utils import python_2_unicode_compatible
 
@@ -151,6 +151,16 @@ class DDSConnection(object):
             DDSConnection._folder_or_file_constructor
         )
 
+    def get_project_file_urls(self, project_id):
+        """
+        Get list of all files/download links in a project
+        :param project_id:
+        :return: [ProjectFileUrl]: list of file urls (contains details about file as well)
+        """
+        return self._create_array_response(
+            self.data_service.get_project_files(project_id),
+            ProjectFileUrl)
+
     def get_folder_children(self, folder_id, name_contains=None):
         """
         Get direct files and folders of a folder.
@@ -277,6 +287,14 @@ class Project(BaseResponseItem):
         :return: [File|Folder]
         """
         return self.dds_connection.get_project_children(self.id)
+
+    def get_file_urls(self):
+        """
+        Fetch list of file urls and associated file data.
+        This is the fastest method to get urls for downloading files from a project
+        :return: [ProjectFileUrl]
+        """
+        return self.dds_connection.get_project_file_urls(self.id)
 
     def get_child_for_path(self, path):
         """
@@ -434,6 +452,58 @@ class FileDownload(BaseResponseItem):
             for chunk in response.iter_content(chunk_size=chunk_size):
                 if chunk:  # filter out keep-alive new chunks
                     f.write(chunk)
+
+
+class ProjectFileUrl(BaseResponseItem):
+    """
+    Contains details about a file and a download url.
+    """
+    def __init__(self, dds_connection, data):
+        """
+        :param dds_connection: DDSConnection
+        :param data: dict: dictionary response from DDSConnection API in file download url format
+        """
+        super(ProjectFileUrl, self).__init__(dds_connection, data)
+
+    def get_remote_path(self):
+        names = self._get_remote_parent_folder_names()
+        names.append(self.name)
+        return os.sep.join(names)
+
+    def get_remote_parent_path(self):
+        return os.sep.join(self._get_remote_parent_folder_names())
+
+    def _get_remote_parent_folder_names(self):
+        return [item['name'] for item in self.ancestors if item['kind'] == KindType.folder_str]
+
+    def version_exists_in_directory(self, directory_path):
+        remote_path = self.get_remote_path()
+        local_path = os.path.join(directory_path, remote_path)
+        if os.path.exists(local_path):
+            hash_data = HashData.create_from_path(local_path)
+            return hash_data.value == self.get_hash_for_algorithm(hash_data.alg)
+        return False
+
+    def get_local_path(self, directory_path):
+        remote_path = self.get_remote_path()
+        return os.path.join(directory_path, remote_path)
+
+
+    def get_hash_for_algorithm(self, hash_algorithm):
+        for file_hash in self.hashes:
+            if file_hash['algorithm'] == hash_algorithm:
+                return file_hash['value']
+        return None
+
+    def get_data_dict(self):
+        """
+        Get data dictionary use to create this object (the returned value will be safe to pass to another process)
+        :return: dict: data used to build this object
+        """
+        return self._data_dict
+
+    def get_file_download(self):
+        return FileDownload(self.dds_connection, self.file_url)
 
 
 class FileUpload(object):
