@@ -14,7 +14,6 @@ FETCH_EXTERNAL_RETRY_SECONDS = 20
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
 MIN_DOWNLOAD_CHUNK_SIZE = DOWNLOAD_FILE_CHUNK_SIZE
-# = 100000
 
 
 class DownloadSettings(object):
@@ -103,6 +102,7 @@ class ProjectDownload(object):
         """
         pass
 
+
 class FileUrlDownloader(object):
     def __init__(self, settings, file_urls):
         """
@@ -113,8 +113,7 @@ class FileUrlDownloader(object):
         self.file_urls = file_urls
         self.task_runner = TaskRunner(TaskExecutor(settings.config.download_workers))
         self.dest_directory = settings.dest_directory
-        #self.bytes_per_chunk = self.settings.config.upload_bytes_per_chunk
-        self.bytes_per_chunk = 100000
+        self.bytes_per_chunk = self.settings.config.download_bytes_per_chunk
 
     def _get_parent_remote_paths(self):
         """
@@ -310,13 +309,12 @@ class RetryChunkDownloader(object):
                 url, headers = self.get_url_and_headers_for_range(file_download)
                 self.download_chunk(url, headers)
                 break
-            except DownloadInconsistentError:
+            except (DownloadInconsistentError, PartialChunkDownloadError, requests.exceptions.ConnectionError):
                 if self.retry_times < self.max_retry_times:
                     self.retry_times += 1
                     file_download = self.get_file_download(fetch_from_server=True)
                     # continue loop and try downloading again
                 else:
-                    print("HAD ERRRO")
                     raise  # run will send the error back to the main process
 
     def get_url_and_headers_for_range(self, file_download):
