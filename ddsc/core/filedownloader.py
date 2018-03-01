@@ -271,3 +271,10 @@ class TooLargeChunkDownloadError(Exception):
         self.message = "Received too many bytes downloading part of a file. " \
                        "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
         super(TooLargeChunkDownloadError, self).__init__(self.message)
+
+
+class DownloadURLInvalidError(Exception):
+    """
+    Raised when we tried to fetch the contents of a file, but the URL was already expired or otherwise invalid.
+    """
+    pass

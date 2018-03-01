@@ -472,7 +472,10 @@ class FileDownload(BaseResponseItem):
         super(FileDownload, self).__init__(dds_connection, data)
 
     def _get_download_response(self):
-        return self.dds_connection.data_service.receive_external(self.http_verb, self.host, self.url, self.http_headers)
+        response = self.dds_connection.data_service.receive_external(self.http_verb, self.host, self.url,
+                                                                     self.http_headers)
+        response.raise_for_status()
+        return response
 
     def save_to_path(self, file_path, chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
         """
@@ -498,7 +501,8 @@ class ProjectFileUrl(BaseResponseItem):
         """
         super(ProjectFileUrl, self).__init__(dds_connection, data)
 
-    def get_remote_path(self):
+    @property
+    def path(self):
         names = self._get_remote_parent_folder_names()
         names.append(self.name)
         return os.sep.join(names)
@@ -510,17 +514,14 @@ class ProjectFileUrl(BaseResponseItem):
         return [item['name'] for item in self.ancestors if item['kind'] == KindType.folder_str]
 
     def version_exists_in_directory(self, directory_path):
-        remote_path = self.get_remote_path()
-        local_path = os.path.join(directory_path, remote_path)
+        local_path = os.path.join(directory_path, self.path)
         if os.path.exists(local_path):
             hash_data = HashData.create_from_path(local_path)
             return hash_data.value == self.get_hash_for_algorithm(hash_data.alg)
         return False
 
     def get_local_path(self, directory_path):
-        remote_path = self.get_remote_path()
-        return os.path.join(directory_path, remote_path)
-
+        return os.path.join(directory_path, self.path)
 
     def get_hash_for_algorithm(self, hash_algorithm):
         for file_hash in self.hashes:
@@ -535,8 +536,16 @@ class ProjectFileUrl(BaseResponseItem):
         """
         return self._data_dict
 
-    def get_file_download(self):
-        return FileDownload(self.dds_connection, self.file_url)
+    def get_file_download(self, fetch_from_server=False):
+        """
+        Return a FileDownload object that can be used to download this file.
+        :param fetch_from_server: when true fetch from server otherwise return cached value
+        :return: FileDownload
+        """
+        if fetch_from_server:
+            return self.dds_connection.get_file_download(self.id)
+        else:
+            return FileDownload(self.dds_connection, self.file_url)
 
 
 class FileUpload(object):
