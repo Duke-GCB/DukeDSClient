@@ -29,11 +29,27 @@ class Client(object):
 
     def get_project_by_id(self, project_id):
         """
-        Retrieve a single project.
+        Retrieve a single project with specified uuid.
         :param project_id:
         :return: Project
         """
         return self.dds_connection.get_project_by_id(project_id)
+
+    def get_project_by_name(self, project_name):
+        """
+        Retrieve a single project project with the specified name
+        :param project_name: str: uuid of the project to fetch
+        :return: Project or raises DuplicateNameError/ItemNotFound
+        """
+        projects = self.get_projects()
+        projects_with_name = [project for project in projects if project.name == project_name]
+        if projects_with_name:
+            if len(projects_with_name) == 1:
+                return projects_with_name[0]
+            else:
+                raise DuplicateNameError("Multiple projects found with name {}".format(project_name))
+        else:
+            raise ItemNotFound("No project with name {} found.".format(project_name))
 
     def create_project(self, name, description):
         """
