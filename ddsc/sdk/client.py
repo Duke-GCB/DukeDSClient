@@ -65,12 +65,15 @@ class DDSConnection(object):
     """
     Contains methods for accessing various DDSConnection API functionality
     """
-    def __init__(self, config):
+    def __init__(self, config, data_service=None):
         """
         :param config: ddsc.config.Config: settings used to connect to DDSConnection
         """
         self.config = config
-        self.data_service = DataServiceApi(DataServiceAuth(config), config.url)
+        if data_service:
+            self.data_service = data_service
+        else:
+            self.data_service = DataServiceApi(DataServiceAuth(config), config.url)
 
     def _create_array_response(self, resp, array_item_constructor):
         items = resp.json()['results']
@@ -244,6 +247,20 @@ class DDSConnection(object):
 
     def delete_file(self, file_id):
         self.data_service.delete_file(file_id)
+
+    def get_auth_data(self):
+        """
+        Serialize data_service auth settings into something that can be passed to another process.
+        :return: tuple of data service settings
+        """
+        return self.data_service.auth.get_auth_data()
+
+    @staticmethod
+    def create_from_auth_data(config, auth_data):
+        auth = DataServiceAuth(config)
+        auth.set_auth_data(auth_data)
+        data_service = DataServiceApi(auth, config.url)
+        return DDSConnection(config, data_service)
 
 
 class BaseResponseItem(object):

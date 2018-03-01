@@ -1,13 +1,21 @@
 from __future__ import print_function
 import os
 from ddsc.core.parallel import TaskExecutor, TaskRunner
-from ddsc.sdk.client import DDSConnection, ProjectFileUrl
+from ddsc.sdk.client import Client, DDSConnection, ProjectFileUrl
 
 
 class DownloadSettings(object):
-    def __init__(self, config, dest_directory):
-        self.config = config
+    def __init__(self, client, dest_directory):
+        self.client = client
+        self.config = client.dds_connection.config
         self.dest_directory = dest_directory
+
+    def get_data_service_auth_data(self):
+        """
+        Serialize data_service setup into something that can be passed to another process.
+        :return: tuple of data service settings
+        """
+        return self.client.dds_connection.get_auth_data()
 
 
 class DownloadContext(object):
@@ -23,14 +31,14 @@ class DownloadContext(object):
         :param message_queue: Queue: queue background process can send messages to us on
         :param task_id: int: id of this command's task so message will be routed correctly
         """
-        #self.data_service_auth_data = settings.get_data_service_auth_data()
+        self.data_service_auth_data = settings.get_data_service_auth_data()
         self.config = settings.config
         self.params = params
         self.message_queue = message_queue
         self.task_id = task_id
 
     def create_dds_connection(self):
-        return DDSConnection(self.config)
+        return DDSConnection.create_from_auth_data(self.config, self.data_service_auth_data)
 
 
 class ProjectDownload(object):
