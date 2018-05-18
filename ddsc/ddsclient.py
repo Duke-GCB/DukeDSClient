@@ -13,7 +13,7 @@ from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
 from ddsc.config import create_config
-import ddsc.core.projectdownloader
+from ddsc.core.projectdownloader import DownloadSettings, ProjectDownload
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 TWO_SECONDS = 2
@@ -204,8 +204,8 @@ class DownloadCommand(BaseCommand):
             project = client.get_project_by_name(project_name_or_id.value)
         else:
             project = client.get_project_by_id(project_name_or_id.value)
-        download_settings = ddsc.core.projectdownloader.DownloadSettings(client, destination_path)
-        project_download = ddsc.core.projectdownloader.ProjectDownload(download_settings, project, path_filter)
+        download_settings = DownloadSettings(client, destination_path)
+        project_download = ProjectDownload(download_settings, project, path_filter)
         project_download.run()
 
 
