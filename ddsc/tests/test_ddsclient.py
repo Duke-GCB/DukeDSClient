@@ -115,6 +115,7 @@ class TestDownloadCommand(TestCase):
         args.project_id = None
         args.include_paths = None
         args.exclude_paths = None
+        args.folder = None
         cmd.run(args)
         mock_client.return_value.get_project_by_name.assert_called_with('mouse')
         mock_project_download.return_value.run.assert_called()
