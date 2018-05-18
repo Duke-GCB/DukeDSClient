@@ -6,7 +6,7 @@ import requests
 import math
 from ddsc.sdk.client import DDSConnection, ProjectFileUrl
 from ddsc.core.parallel import TaskExecutor, TaskRunner
-from ddsc.core.util import ProgressQueue
+# from ddsc.core.util import ProgressQueue - TODO
 from ddsc.core.filedownloader import PartialChunkDownloadError, TooLargeChunkDownloadError
 
 FETCH_EXTERNAL_PUT_RETRY_TIMES = 5
@@ -73,10 +73,11 @@ class ProjectDownload(object):
     """
     Creates local version of remote content.
     """
-    def __init__(self, settings, project):
+    def __init__(self, settings, project, path_filter):
         self.settings = settings
         self.project = project
         self.dest_directory = settings.dest_directory
+        self.path_filter = path_filter
 
     def run(self):
         file_url_downloader = self._get_file_url_downloader()
@@ -86,13 +87,15 @@ class ProjectDownload(object):
 
     def _get_file_url_downloader(self):
         """
-        Create FileUrlDownloader that contains data for each remote file that is different from those in dest_directory.
+        Create FileUrlDownloader that contains data for each remote file that is different from those in dest_directory
+        and is included by path_filter passed into the constructor.
         :return: FileUrlDownloader
         """
         file_urls_to_download = []
         for file_url in self.project.get_file_urls():
-            if not file_url.version_exists_in_directory(self.dest_directory):
-                file_urls_to_download.append(file_url)
+            if self.path_filter.include_path(file_url.path):
+                if not file_url.version_exists_in_directory(self.dest_directory):
+                    file_urls_to_download.append(file_url)
         return FileUrlDownloader(self.settings, file_urls_to_download)
 
     def _get_non_local_file_urls(self):

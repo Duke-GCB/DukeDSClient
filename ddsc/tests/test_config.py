@@ -12,7 +12,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.user_key, None)
         self.assertEqual(config.agent_key, None)
         self.assertEqual(config.auth, None)
-        self.assertEqual(config.upload_bytes_per_chunk, ddsc.config.DDS_DEFAULT_UPLOAD_CHUNKS)
+        self.assertEqual(config.upload_bytes_per_chunk, ddsc.config.DDS_DEFAULT_UPLOAD_CHUNK_SIZE)
         self.assertEqual(config.upload_workers, min(multiprocessing.cpu_count(), ddsc.config.MAX_DEFAULT_WORKERS))
 
     def test_global_then_local(self):

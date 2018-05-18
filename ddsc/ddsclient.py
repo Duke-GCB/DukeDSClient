@@ -1,7 +1,6 @@
 """ Runs the appropriate command for a user based on arguments. """
 from __future__ import print_function, unicode_literals
 from builtins import input
-import os
 import sys
 import datetime
 import time
@@ -10,7 +9,6 @@ from ddsc.core.d4s2 import D4S2Project, D4S2Error
 from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, format_destination_path, replace_invalid_path_chars
-from ddsc.core.download import ProjectDownload
 from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
@@ -200,25 +198,14 @@ class DownloadCommand(BaseCommand):
         if not folder:
             folder = replace_invalid_path_chars(project_name_or_id.value.replace(' ', '_'))
         destination_path = format_destination_path(folder)
-
-        if os.environ.get('FASTDOWNLOAD') == 'yes':
-            print("NEW download method.")
-            self.fast_run(project_name_or_id, destination_path)
-        else:
-            print("OLD download method.")
-            path_filter = PathFilter(args.include_paths, args.exclude_paths)
-            project = self.fetch_project(args, must_exist=True, include_children=True)
-            project_download = ProjectDownload(self.remote_store, project, destination_path, path_filter)
-            project_download.run()
-
-    def fast_run(self, project_name_or_id, destination_path):
+        path_filter = PathFilter(args.include_paths, args.exclude_paths)
         client = Client(self.config)
         if project_name_or_id.is_name:
             project = client.get_project_by_name(project_name_or_id.value)
         else:
             project = client.get_project_by_id(project_name_or_id.value)
         download_settings = ddsc.core.projectdownloader.DownloadSettings(client, destination_path)
-        project_download = ddsc.core.projectdownloader.ProjectDownload(download_settings, project)
+        project_download = ddsc.core.projectdownloader.ProjectDownload(download_settings, project, path_filter)
         project_download.run()
 
 

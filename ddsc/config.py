@@ -68,7 +68,7 @@ class Config(object):
     UPLOAD_BYTES_PER_CHUNK = 'upload_bytes_per_chunk'  # bytes per chunk we will upload
     UPLOAD_WORKERS = 'upload_workers'                  # how many worker processes used for uploading
     DOWNLOAD_WORKERS = 'download_workers'              # how many worker processes used for downloading
-    DOWNLOAD_BYTES_PER_CHUNK = 'download_bytes_per_chunk' # TODO do we need this?
+    DOWNLOAD_BYTES_PER_CHUNK = 'download_bytes_per_chunk'  # bytes per chunk we will download
     DEBUG_MODE = 'debug'                               # show stack traces
     D4S2_URL = 'd4s2_url'                              # url for use with the D4S2 (share/deliver service)
     FILE_EXCLUDE_REGEX = 'file_exclude_regex'          # allows customization of which filenames will be uploaded
@@ -166,6 +166,7 @@ class Config(object):
     @property
     def download_bytes_per_chunk(self):
         return self.values.get(Config.DOWNLOAD_BYTES_PER_CHUNK, DDS_DEFAULT_DOWNLOAD_CHUNK_SIZE)
+
     @property
     def debug_mode(self):
         """
