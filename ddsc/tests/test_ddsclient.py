@@ -106,27 +106,23 @@ class TestUploadCommand(TestCase):
 
 
 class TestDownloadCommand(TestCase):
-    @patch('ddsc.ddsclient.RemoteStore')
+    @patch("ddsc.ddsclient.Client")
     @patch("ddsc.ddsclient.ProjectDownload")
-    def test_run_project_name(self, mock_project_download, mock_remote_store):
-        @patch('ddsc.ddsclient.RemoteStore')
-        @patch('ddsc.ddsclient.ProjectDownload')
-        def test_run_project_id(self, mock_project_download, mock_remote_store):
-            cmd = DownloadCommand(MagicMock())
-            args = Mock()
-            args.project_name = 'mouse'
-            args.project_id = None
-            args.include_paths = None
-            args.exclude_paths = None
-            cmd.run(args)
-            mock_remote_store.return_value.fetch_remote_project.assert_called()
-            args, kwargs = mock_remote_store.return_value.fetch_remote_project.call_args
-            self.assertEqual('mouse', args[0].get_name_or_raise())
-            mock_project_download.return_value.run.assert_called()
+    def test_run_project_name(self, mock_project_download, mock_client):
+        cmd = DownloadCommand(MagicMock())
+        args = Mock()
+        args.project_name = 'mouse'
+        args.project_id = None
+        args.include_paths = None
+        args.exclude_paths = None
+        args.folder = None
+        cmd.run(args)
+        mock_client.return_value.get_project_by_name.assert_called_with('mouse')
+        mock_project_download.return_value.run.assert_called()
 
-    @patch('ddsc.ddsclient.RemoteStore')
-    @patch('ddsc.ddsclient.ProjectDownload')
-    def test_run_project_id(self, mock_project_download, mock_remote_store):
+    @patch("ddsc.ddsclient.Client")
+    @patch("ddsc.ddsclient.ProjectDownload")
+    def test_run_project_id(self, mock_project_download, mock_client):
         cmd = DownloadCommand(MagicMock())
         args = Mock()
         args.project_name = None
@@ -135,9 +131,7 @@ class TestDownloadCommand(TestCase):
         args.exclude_paths = None
         args.folder = '/tmp/stuff'
         cmd.run(args)
-        mock_remote_store.return_value.fetch_remote_project.assert_called()
-        args, kwargs = mock_remote_store.return_value.fetch_remote_project.call_args
-        self.assertEqual('123', args[0].get_id_or_raise())
+        mock_client.return_value.get_project_by_id.assert_called_with('123')
         mock_project_download.return_value.run.assert_called()
 
 

@@ -4,15 +4,16 @@ from builtins import input
 import sys
 import datetime
 import time
+from ddsc.sdk.client import Client
 from ddsc.core.d4s2 import D4S2Project, D4S2Error
 from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, format_destination_path, replace_invalid_path_chars
-from ddsc.core.download import ProjectDownload
 from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
 from ddsc.config import create_config
+from ddsc.core.projectdownloader import DownloadSettings, ProjectDownload
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 TWO_SECONDS = 2
@@ -198,8 +199,13 @@ class DownloadCommand(BaseCommand):
             folder = replace_invalid_path_chars(project_name_or_id.value.replace(' ', '_'))
         destination_path = format_destination_path(folder)
         path_filter = PathFilter(args.include_paths, args.exclude_paths)
-        project = self.fetch_project(args, must_exist=True, include_children=True)
-        project_download = ProjectDownload(self.remote_store, project, destination_path, path_filter)
+        client = Client(self.config)
+        if project_name_or_id.is_name:
+            project = client.get_project_by_name(project_name_or_id.value)
+        else:
+            project = client.get_project_by_id(project_name_or_id.value)
+        download_settings = DownloadSettings(client, destination_path)
+        project_download = ProjectDownload(download_settings, project, path_filter)
         project_download.run()
 
 

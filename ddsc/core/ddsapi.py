@@ -434,6 +434,17 @@ class DataServiceApi(object):
         """
         return self._get_children('projects', project_id, name_contains, exclude_response_fields)
 
+    def get_project_files(self, project_id):
+        """
+        Send GET to /projects/{project_id}/files
+        :param project_id: str uuid of the project
+        :param name_contains: str name to filter folders by (if not None this method works recursively)
+        :param exclude_response_fields: [str]: list of fields to exclude in the response items
+        :return: requests.Response containing the successful result
+        """
+        url = '/projects/{}/files'.format(project_id)
+        return self._get_collection(url, {})
+
     def get_folder_children(self, folder_id, name_contains):
         """
         Send GET to /folders/{folder_id} filtering by a name.
