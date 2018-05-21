@@ -1,5 +1,6 @@
 import json
 from unittest import TestCase
+from ddsc.core.util import KindType
 from mock import MagicMock, Mock
 from mock.mock import patch
 from ddsc.core.remotestore import RemoteProject, RemoteFolder, RemoteFile, RemoteUser
@@ -8,6 +9,7 @@ from ddsc.core.remotestore import RemoteAuthRole
 from ddsc.core.remotestore import RemoteProjectChildren
 from ddsc.core.remotestore import RemoteAuthProvider
 from ddsc.core.remotestore import ProjectNameOrId
+from ddsc.core.remotestore import ProjectFile, RemoteFileUrl
 
 
 class TestProjectFolderFile(TestCase):
@@ -471,6 +473,44 @@ class TestRemoteStore(TestCase):
         remote_store.fetch_remote_project(project_name_or_id, must_exist=True, include_children=True)
         mock_data_service_api.return_value.get_project_children.assert_called_with('123', '', exclude_response_fields)
 
+    @patch("ddsc.core.remotestore.DataServiceApi")
+    def test_get_project_files(self, mock_data_service_api):
+        file_dict = {
+                    'id': '123',
+                    'name': 'somefile',
+                    'size': 100,
+                    'file_url': 'someurl',
+                    'hashes': [],
+                    'ancestors': [],
+                }
+        files_resp = Mock()
+        files_resp.json.return_value = {
+            'results': [
+                file_dict,
+            ]
+        }
+        mock_data_service_api.return_value.get_project_files.return_value = files_resp
+
+        remote_store = RemoteStore(config=MagicMock())
+        project_files = remote_store.get_project_files(Mock())
+
+        self.assertEqual(len(project_files), 1)
+        self.assertEqual(project_files[0].id, '123')
+        self.assertEqual(project_files[0].name, 'somefile')
+        self.assertEqual(project_files[0].size, 100)
+
+    @patch("ddsc.core.remotestore.DataServiceApi")
+    def test_constructor(self, mock_data_service_api):
+        mock_data_serivce = Mock()
+        mock_config = Mock()
+
+        remote_store = RemoteStore(config=mock_config, data_service=mock_data_serivce)
+        self.assertFalse(mock_data_service_api.called)
+        self.assertEqual(remote_store.data_service, mock_data_serivce)
+
+        remote_store = RemoteStore(config=mock_config)
+        self.assertTrue(mock_data_service_api.called)
+
 
 class TestRemoteProjectChildren(TestCase):
     def test_simple_case(self):
@@ -729,3 +769,50 @@ class TestProjectNameOrId(TestCase):
         item = ProjectNameOrId(value='576', is_name=False)
         self.assertEqual(False, item.contained_in_dict({'id': '123'}))
         self.assertEqual(True, item.contained_in_dict({'id': '576'}))
+
+
+class TestProjectFile(TestCase):
+    def setUp(self):
+        self.project_file_dict = {
+            'id': '123',
+            'name': 'somefile',
+            'size': 100,
+            'file_url': 'someurl',
+            'hashes': [],
+            'ancestors': [
+                {
+                    'name': 'data',
+                    'kind': KindType.folder_str
+                },
+                {
+                    'name': 'docs',
+                    'kind': KindType.folder_str
+                },
+            ],
+        }
+
+    def test_get_remote_parent_path(self):
+        project_file = ProjectFile(self.project_file_dict)
+        self.assertEqual('data/docs', project_file.get_remote_parent_path())
+
+    def test_path(self):
+        project_file = ProjectFile(self.project_file_dict)
+        self.assertEqual('data/docs/somefile', project_file.path)
+
+    def test_get_local_path(self):
+        project_file = ProjectFile(self.project_file_dict)
+        self.assertEqual('/tmp/data/docs/somefile', project_file.get_local_path('/tmp/'))
+
+
+class TestRemoteFileUrl(TestCase):
+    def test_constructor(self):
+        remote_file_url = RemoteFileUrl({
+            'http_verb': 'GET',
+            'host': 'somehost',
+            'url': 'someurl',
+            'http_headers': []
+        })
+        self.assertEqual(remote_file_url.http_verb, 'GET')
+        self.assertEqual(remote_file_url.host, 'somehost')
+        self.assertEqual(remote_file_url.url, 'someurl')
+        self.assertEqual(remote_file_url.http_headers, [])
