@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
-    PartialChunkDownloadError, TooLargeChunkDownloadError
+    PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings
 from mock import MagicMock, Mock, patch
 
 
@@ -236,3 +236,13 @@ class TestRetryChunkDownloader(TestCase):
 
         with self.assertRaises(PartialChunkDownloadError):
             downloader._verify_download_complete()
+
+
+class TestDownloadSettings(TestCase):
+    def test_get_data_service_auth_data(self):
+        mock_remote_store = Mock()
+        mock_remote_store.data_service.auth.get_auth_data.return_value = 'auth data'
+
+        settings = DownloadSettings(remote_store=mock_remote_store, dest_directory='/tmp/data', watcher=Mock())
+
+        self.assertEqual(settings.get_data_service_auth_data(), 'auth data')

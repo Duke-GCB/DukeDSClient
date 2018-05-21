@@ -507,6 +507,26 @@ class TestDataServiceApi(TestCase):
         args, kw = mock_requests.delete.call_args
         self.assertEqual(args[0], 'base/v1/files/1023cde')
 
+    def test_get_project_files(self):
+        mock_requests = MagicMock()
+        page1 = {
+            "results": [
+                {
+                    "id": "1234"
+                }
+            ]
+        }
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=page1, num_pages=1),
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+
+        api.get_project_files(project_id='123')
+
+        args, kwargs = mock_requests.get.call_args
+        self.assertEqual(args[0], 'something.com/v1/projects/123/files')
+
 
 class TestDataServiceAuth(TestCase):
     @patch('ddsc.core.ddsapi.get_user_agent_str')
