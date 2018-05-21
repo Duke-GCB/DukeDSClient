@@ -55,7 +55,7 @@ class ProjectDownload(object):
         # create directory
         self.try_create_dir(self.project.remote_path)
 
-        settings = DownloadSettings(self.remote_store, self.dest_directory)
+        settings = DownloadSettings(self.remote_store, self.dest_directory, self.watcher)
         file_url_downloader = FileUrlDownloader(settings, files_to_download, self.watcher)
         file_url_downloader.make_local_directories()
         file_url_downloader.make_big_empty_files()
@@ -126,10 +126,11 @@ class DownloadSettings(object):
     """
     Settings used to download a project
     """
-    def __init__(self, remote_store, dest_directory):
+    def __init__(self, remote_store, dest_directory, watcher):
         self.remote_store = remote_store
         self.config = remote_store.config
         self.dest_directory = dest_directory
+        self.watcher = watcher
 
     def get_data_service_auth_data(self):
         """
@@ -339,7 +340,14 @@ class DownloadFilePartCommand(object):
         pass
 
     def on_message(self, params):
-        print("GOT MESSAGE", params)
+        message_type, message_value = params
+        if message_type == 'processed':
+            watcher = self.settings.watcher
+            watcher.transferring_item(self.file_url, message_value)
+        elif message_type == 'error':
+            raise ValueError(message_value)
+        else:
+            raise ValueError("Unknown message type {}".format(message_type, message_value))
 
 
 def download_file_part_run(download_context):
@@ -442,7 +450,7 @@ class RetryChunkDownloader(object):
         self.actual_bytes_read += num_bytes_read
         if self.actual_bytes_read > self.bytes_to_read:
             raise TooLargeChunkDownloadError(self.actual_bytes_read, self.bytes_to_read, self.local_path)
-            self.download_context.send_progress_message(num_bytes_read)
+        self.download_context.send_processed_message(num_bytes_read)
 
     def _verify_download_complete(self):
         """
@@ -458,7 +466,7 @@ class RetryChunkDownloader(object):
         Update progress monitor with negative number so it is accurate since this download failed.
         """
         undo_size = self.actual_bytes_read * -1
-        self.download_context.send_progress_message(undo_size)
+        self.download_context.send_processed_message(undo_size)
 
 
 class DownloadInconsistentError(Exception):

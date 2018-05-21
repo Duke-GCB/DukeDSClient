@@ -647,6 +647,7 @@ class ProjectFile(object):
         self.hashes = json_data['hashes']
         self.ancestors = json_data['ancestors']
         self.json_data = json_data
+        self.kind = KindType.file_str
 
     @property
     def path(self):
