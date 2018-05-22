@@ -4,7 +4,6 @@ import traceback
 import math
 import requests
 from ddsc.core.util import ProgressPrinter
-from ddsc.core.filedownloader import FileDownloader, PartialChunkDownloadError, TooLargeChunkDownloadError
 from ddsc.core.localstore import PathData
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
@@ -35,36 +34,41 @@ class ProjectDownload(object):
         self.dest_directory = dest_directory
         self.path_filter = path_filter
         self.file_download_pre_processor = file_download_pre_processor
-        self.watcher = None
 
     def run(self):
         """
         Download the contents of the specified project name or id to dest_directory.
         """
+        files_to_download = self.get_files_to_download()
+        total_files_size = self.get_total_files_size(files_to_download)
+
+        self.try_create_dir(self.dest_directory)
+        watcher = ProgressPrinter(total_files_size, msg_verb='downloading')
+        self.download_files(files_to_download, watcher)
+        watcher.finished()
+
+        warnings = self.check_warnings()
+        if warnings:
+            watcher.show_warning(warnings)
+
+    def get_files_to_download(self):
         files_to_download = []
         for project_file in self.remote_store.get_project_files(self.project):
             if self.path_filter.include_path(project_file.path):
+                # TODO compare hashes vs local file
                 files_to_download.append(project_file)
+        return files_to_download
 
-        total_files_size = 0
-        for project_file in files_to_download:
-            total_files_size += project_file.size
+    @staticmethod
+    def get_total_files_size(files_to_download):
+        return sum([project_file.size for project_file in files_to_download])
 
-        self.watcher = ProgressPrinter(total_files_size, msg_verb='downloading')
-
-        # create directory
-        self.try_create_dir(self.project.remote_path)
-
-        settings = DownloadSettings(self.remote_store, self.dest_directory, self.watcher)
-        file_url_downloader = FileUrlDownloader(settings, files_to_download, self.watcher)
+    def download_files(self, files_to_download, watcher):
+        settings = DownloadSettings(self.remote_store, self.dest_directory, watcher)
+        file_url_downloader = FileUrlDownloader(settings, files_to_download, watcher)
         file_url_downloader.make_local_directories()
         file_url_downloader.make_big_empty_files()
         file_url_downloader.download_files()
-
-        self.watcher.finished()
-        warnings = self.check_warnings()
-        if warnings:
-            self.watcher.show_warning(warnings)
 
     def try_create_dir(self, remote_path):
         """
@@ -72,48 +76,11 @@ class ProjectDownload(object):
         :param path: str path to the directory
         :param remote_path: str path as it exists on the remote server
         """
-        path = os.path.join(self.dest_directory, remote_path)
+
         if not os.path.exists(path):
             os.mkdir(path)
         elif not os.path.isdir(path):
             ValueError("Unable to create directory:" + path + " because a file already exists with the same name.")
-
-    def visit_file(self, item, parent):
-        """
-        Download the file associated with item and make sure we received all of it.
-        :param item: RemoteFile file we will download
-        :param parent: RemoteProject/RemoteFolder parent of item
-        """
-        if self.file_download_pre_processor:
-            self.file_download_pre_processor.run(self.remote_store.data_service, item)
-        path = os.path.join(self.dest_directory, item.remote_path)
-        if self.file_exists_with_same_hash(item, path):
-            # Update progress bar skipping this file
-            self.watcher.transferring_item(item, increment_amt=item.size)
-        else:
-            downloader = FileDownloader(self.remote_store.config, item, path, self.watcher)
-            downloader.run()
-            ProjectDownload.check_file_size(item, path)
-
-    @staticmethod
-    def file_exists_with_same_hash(item, path):
-        if os.path.exists(path):
-            hash_data = PathData(path).get_hash()
-            return hash_data.matches(item.hash_alg, item.file_hash)
-        return False
-
-    @staticmethod
-    def check_file_size(item, path):
-        """
-        Raise an error if we didn't get all of the file.
-        :param item: RemoteFile file we tried to download
-        :param path: str path where we downloaded the file to
-        """
-        stat_info = os.stat(path)
-        if stat_info.st_size != item.size:
-            format_str = "Error occurred downloading {}. Got a file size {}. Expected file size:{}"
-            msg = format_str.format(path, stat_info.st_size, item.size)
-            raise ValueError(msg)
 
     def check_warnings(self):
         unused_paths = self.path_filter.get_unused_paths()
@@ -332,11 +299,7 @@ class DownloadFilePartCommand(object):
         params = (self.settings.dest_directory, self.file_url.json_data, self.seek_amt, self.bytes_to_read)
         return DownloadContext(self.settings, params, message_queue, task_id)
 
-    def after_run(self, result_id):
-        """
-        Save uuid associated with project we just created.
-        :param result_id: str: uuid of the project
-        """
+    def after_run(self, result):
         pass
 
     def on_message(self, params):
@@ -471,3 +434,24 @@ class RetryChunkDownloader(object):
 
 class DownloadInconsistentError(Exception):
     pass
+
+
+class PartialChunkDownloadError(Exception):
+    """
+    Raised when we only received part of a file (possibly due to connection errors)
+    """
+
+    def __init__(self, actual_bytes, expected_bytes, path):
+        self.message = "Received too few bytes downloading part of a file. " \
+                       "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
+        super(PartialChunkDownloadError, self).__init__(self.message)
+
+
+class TooLargeChunkDownloadError(Exception):
+    """
+    Raised when we only received an unexpectedly large part of a file
+    """
+    def __init__(self, actual_bytes, expected_bytes, path):
+        self.message = "Received too many bytes downloading part of a file. " \
+                       "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
+        super(TooLargeChunkDownloadError, self).__init__(self.message)
