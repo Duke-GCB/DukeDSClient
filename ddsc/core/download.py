@@ -3,6 +3,7 @@ import sys
 import traceback
 import math
 import requests
+from ddsc.core.localstore import PathData
 from ddsc.core.util import ProgressPrinter
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
@@ -53,10 +54,23 @@ class ProjectDownload(object):
     def get_files_to_download(self):
         files_to_download = []
         for project_file in self.remote_store.get_project_files(self.project):
-            if self.path_filter.include_path(project_file.path):
-                # TODO compare hashes vs local file
+            if self.include_project_file(project_file):
                 files_to_download.append(project_file)
         return files_to_download
+
+    def include_project_file(self, project_file):
+        if not self.path_filter.include_path(project_file.path):
+            return False  # the file has been filtered out
+        if self.file_exists_with_same_hash(project_file):
+            return False  # the file is already local and has the same hash (no need to download)
+        return True
+
+    def file_exists_with_same_hash(self, project_file):
+        local_path = project_file.get_local_path(self.dest_directory)
+        if os.path.exists(local_path):
+            hash_data = PathData(local_path).get_hash()
+            return hash_data.value == project_file.get_hash()
+        return False
 
     @staticmethod
     def get_total_files_size(files_to_download):

@@ -23,7 +23,9 @@ class TestProjectDownload(TestCase):
     @patch('ddsc.core.download.FileUrlDownloader')
     @patch('ddsc.core.download.ProgressPrinter')
     @patch('ddsc.core.download.DownloadSettings')
-    def test_run(self, mock_download_settings, mock_progress_printer, mock_file_url_downloader):
+    @patch('ddsc.core.download.os')
+    @patch('ddsc.core.download.PathData')
+    def test_run(self, mock_path_data, mock_os, mock_download_settings, mock_progress_printer, mock_file_url_downloader):
         project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
                                            self.mock_path_filter)
 
@@ -55,6 +57,37 @@ class TestProjectDownload(TestCase):
         self.assertEqual(project_download.check_warnings(), None)
         project_download.path_filter.get_unused_paths.return_value = ["tmp/data.txt"]
         self.assertEqual(project_download.check_warnings().strip(), 'WARNING: Path(s) not found: tmp/data.txt.')
+
+    @patch('ddsc.core.download.os')
+    @patch('ddsc.core.download.PathData')
+    def test_include_project_file(self, mock_path_data, mock_os):
+        project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
+                                           self.mock_path_filter)
+
+        project_download.path_filter = Mock()
+
+        # File excluded by path filter
+        project_download.path_filter.include_path.return_value = False
+        self.assertEqual(False, project_download.include_project_file(Mock(path='/tmp/data.txt')))
+
+        # Local file doesn't exist
+        project_download.path_filter.include_path.return_value = True
+        mock_os.path.exists.return_value = False
+        self.assertEqual(True, project_download.include_project_file(Mock(path='/tmp/data.txt')))
+
+        # Local file has same hash as remote file
+        project_download.path_filter.include_path.return_value = True
+        mock_os.path.exists.return_value = True
+        mock_project_file = Mock(path='/tmp/data.txt')
+        mock_project_file.get_hash.return_value = 'abcd'
+        mock_path_data.return_value.get_hash.return_value = Mock(value='abcd')
+        self.assertEqual(False, project_download.include_project_file(mock_project_file))
+
+        # Local file has different hash than remote file
+        mock_project_file = Mock(path='/tmp/data.txt')
+        mock_project_file.get_hash.return_value = 'abcd'
+        mock_path_data.return_value.get_hash.return_value = Mock(value='abcd')
+        self.assertEqual(False, project_download.include_project_file(mock_project_file))
 
 
 class TestDownloadSettings(TestCase):
