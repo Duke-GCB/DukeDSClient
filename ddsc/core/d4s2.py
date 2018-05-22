@@ -8,7 +8,8 @@ import shutil
 import tempfile
 import requests
 from ddsc.core.upload import ProjectUpload
-from ddsc.core.download import ProjectDownload
+from ddsc.sdk.client import Client
+from ddsc.core.download import DownloadSettings, ProjectDownload
 from ddsc.core.ddsapi import DataServiceAuth
 from ddsc.core.util import KindType
 from ddsc.versioncheck import get_internal_version_str
@@ -360,9 +361,9 @@ class D4S2Project(object):
         :param path_filter: PathFilter: filters what files are shared
         """
         self.print_func("Downloading a copy of '{}'.".format(project.name))
-        downloader = ProjectDownload(self.remote_store, project, temp_directory, path_filter,
-                                     file_download_pre_processor=DownloadedFileRelations(activity))
-        downloader.run()
+        project_download = ProjectDownload(self.remote_store, project, temp_directory, path_filter,
+                                           file_download_pre_processor=DownloadedFileRelations(activity))
+        project_download.run()
 
     def _upload_project(self, activity, project_name, temp_directory):
         """
@@ -433,14 +434,15 @@ class DownloadedFileRelations(object):
         """
         self.activity = activity
 
-    def run(self, data_service, remote_file):
+    def run(self, data_service, project_file):
         """
         Attach a remote file to activity with used relationship.
         :param data_service: DataServiceApi: service used to attach relationship
-        :param remote_file: RemoteFile: contains current version of a file we will attach
+        :param project_file: ProjectFile: contains details about a file we will attach
         """
-        remote_path = remote_file.remote_path
-        file_version_id = remote_file.file_version_id
+        remote_path = project_file.path
+        file_dict = data_service.get_file(project_file.id).json()
+        file_version_id = file_dict['current_version']['id']
         data_service.create_used_relation(self.activity.id, KindType.file_str, file_version_id)
         self.activity.remote_path_to_file_version_id[remote_path] = file_version_id
 

@@ -4,7 +4,7 @@ import os
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
     download_file_part_run, DownloadFilePartCommand, FileUrlDownloader, MIN_DOWNLOAD_CHUNK_SIZE
-from mock import Mock, patch, mock_open
+from mock import Mock, patch, mock_open, call
 
 
 class TestProjectDownload(TestCase):
@@ -88,6 +88,20 @@ class TestProjectDownload(TestCase):
         mock_project_file.get_hash.return_value = 'abcd'
         mock_path_data.return_value.get_hash.return_value = Mock(value='abcd')
         self.assertEqual(False, project_download.include_project_file(mock_project_file))
+
+    @patch('ddsc.core.download.os')
+    @patch('ddsc.core.download.PathData')
+    def test_run_preprocessor(self, mock_path_data, mock_os):
+        mock_preprocessor = Mock()
+        project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
+                                           self.mock_path_filter, file_download_pre_processor=mock_preprocessor)
+        mock_file1 = Mock(path='file1.txt')
+        mock_file2 = Mock(path='file2.txt')
+        project_download.run_preprocessor([mock_file1, mock_file2])
+        mock_preprocessor.run.assert_has_calls([
+            call(mock_file1),
+            call(mock_file2)
+        ])
 
 
 class TestDownloadSettings(TestCase):

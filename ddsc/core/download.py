@@ -41,6 +41,8 @@ class ProjectDownload(object):
         """
         files_to_download = self.get_files_to_download()
         total_files_size = self.get_total_files_size(files_to_download)
+        if self.file_download_pre_processor:
+            self.run_preprocessor(files_to_download)
 
         self.try_create_dir(self.dest_directory)
         watcher = ProgressPrinter(total_files_size, msg_verb='downloading')
@@ -75,6 +77,15 @@ class ProjectDownload(object):
     @staticmethod
     def get_total_files_size(files_to_download):
         return sum([project_file.size for project_file in files_to_download])
+
+    def run_preprocessor(self, files_to_download):
+        """
+        Run file_download_pre_processor for each file we are about to download.
+        :param files_to_download: [ProjectFile]: files that will be downloaded
+        """
+        for project_file in files_to_download:
+            self.remote_store.get_f
+            self.file_download_pre_processor.run(project_file)
 
     def download_files(self, files_to_download, watcher):
         settings = DownloadSettings(self.remote_store, self.dest_directory, watcher)
