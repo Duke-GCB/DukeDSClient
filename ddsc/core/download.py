@@ -4,7 +4,6 @@ import traceback
 import math
 import requests
 from ddsc.core.util import ProgressPrinter
-from ddsc.core.localstore import PathData
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.remotestore import RemoteStore, ProjectFile, RemoteFileUrl
@@ -70,13 +69,11 @@ class ProjectDownload(object):
         file_url_downloader.make_big_empty_files()
         file_url_downloader.download_files()
 
-    def try_create_dir(self, remote_path):
+    def try_create_dir(self, path):
         """
         Try to create a directory if it doesn't exist and raise error if there is a non-directory with the same name.
         :param path: str path to the directory
-        :param remote_path: str path as it exists on the remote server
         """
-
         if not os.path.exists(path):
             os.mkdir(path)
         elif not os.path.isdir(path):

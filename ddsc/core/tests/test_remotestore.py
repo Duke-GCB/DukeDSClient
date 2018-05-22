@@ -476,13 +476,13 @@ class TestRemoteStore(TestCase):
     @patch("ddsc.core.remotestore.DataServiceApi")
     def test_get_project_files(self, mock_data_service_api):
         file_dict = {
-                    'id': '123',
-                    'name': 'somefile',
-                    'size': 100,
-                    'file_url': 'someurl',
-                    'hashes': [],
-                    'ancestors': [],
-                }
+            'id': '123',
+            'name': 'somefile',
+            'size': 100,
+            'file_url': 'someurl',
+            'hashes': [],
+            'ancestors': [],
+        }
         files_resp = Mock()
         files_resp.json.return_value = {
             'results': [

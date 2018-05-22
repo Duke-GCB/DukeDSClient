@@ -4,7 +4,7 @@ import os
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
     download_file_part_run, DownloadFilePartCommand, FileUrlDownloader, MIN_DOWNLOAD_CHUNK_SIZE
-from mock import Mock, patch, mock_open, call
+from mock import Mock, patch, mock_open
 
 
 class TestProjectDownload(TestCase):
@@ -228,9 +228,9 @@ class TestFileUrlDownloader(TestCase):
         size = 10
         self.assertEqual(downloader.determine_bytes_per_chunk(size), MIN_DOWNLOAD_CHUNK_SIZE)
         size = MIN_DOWNLOAD_CHUNK_SIZE * 4
-        self.assertEqual(downloader.determine_bytes_per_chunk(size), MIN_DOWNLOAD_CHUNK_SIZE*2)
+        self.assertEqual(downloader.determine_bytes_per_chunk(size), MIN_DOWNLOAD_CHUNK_SIZE * 2)
         size = MIN_DOWNLOAD_CHUNK_SIZE * 5
-        self.assertEqual(downloader.determine_bytes_per_chunk(size), MIN_DOWNLOAD_CHUNK_SIZE*2.5)
+        self.assertEqual(downloader.determine_bytes_per_chunk(size), MIN_DOWNLOAD_CHUNK_SIZE * 2.5)
 
     def test_split_file_urls_by_size(self):
         downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
