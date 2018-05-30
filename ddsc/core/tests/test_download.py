@@ -32,7 +32,7 @@ class TestProjectDownload(TestCase):
         project_download.try_create_dir = Mock()
         project_download.check_warnings = Mock()
         project_download.check_warnings.return_value = 'Things went wrong'
-        self.mock_file1.get_hash.return_value = {'value':'123'}
+        self.mock_file1.get_hash.return_value = {'value': '123'}
         self.mock_file2.get_hash.return_value = {'value': '123'}
 
         project_download.run()
