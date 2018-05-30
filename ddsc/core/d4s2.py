@@ -8,8 +8,7 @@ import shutil
 import tempfile
 import requests
 from ddsc.core.upload import ProjectUpload
-from ddsc.sdk.client import Client
-from ddsc.core.download import DownloadSettings, ProjectDownload
+from ddsc.core.download import ProjectDownload
 from ddsc.core.ddsapi import DataServiceAuth
 from ddsc.core.util import KindType
 from ddsc.versioncheck import get_internal_version_str
