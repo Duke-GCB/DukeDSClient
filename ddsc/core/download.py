@@ -74,7 +74,6 @@ class ProjectDownload(object):
             hash_data = PathData(local_path).get_hash()
             remote_hash_dict = project_file.get_hash()
             return hash_data.value == remote_hash_dict['value']
-        print("local_path {}  does not exist".format(local_path))
         return False
 
     @staticmethod
@@ -181,7 +180,6 @@ class FileUrlDownloader(object):
         """
         self.settings = settings
         self.file_urls = file_urls
-        self.task_runner = TaskRunner(TaskExecutor(settings.config.download_workers))
         self.dest_directory = settings.dest_directory
         self.bytes_per_chunk = self.settings.config.download_bytes_per_chunk
         self.watcher = watcher
@@ -221,20 +219,25 @@ class FileUrlDownloader(object):
         self.download_large_files(large_file_urls)
 
     def download_small_files(self, small_file_urls):
+        task_runner = self._create_task_runner()
         for file_url in small_file_urls:
             command = DownloadFilePartCommand(self.settings, file_url, seek_amt=0, bytes_to_read=file_url.size)
-            self.task_runner.add(parent_task_id=None, command=command)
-        self.task_runner.run()
+            task_runner.add(parent_task_id=None, command=command)
+        task_runner.run()
 
     def download_large_files(self, large_file_urls):
+        task_runner = self._create_task_runner()
         for file_url in large_file_urls:
             for start_range, end_range in self.make_ranges(file_url):
                 bytes_to_read = end_range - start_range + 1
                 command = DownloadFilePartCommand(self.settings, file_url,
                                                   seek_amt=start_range,
                                                   bytes_to_read=bytes_to_read)
-                self.task_runner.add(parent_task_id=None, command=command)
-        self.task_runner.run()
+                task_runner.add(parent_task_id=None, command=command)
+        task_runner.run()
+
+    def _create_task_runner(self):
+        return TaskRunner(TaskExecutor(self.settings.config.download_workers))
 
     def make_ranges(self, file_url):
         """
@@ -396,7 +399,6 @@ class RetryChunkDownloader(object):
             self.download_context.send_error_message(error_msg)
 
     def retry_download_loop(self):
-        print("\nRetry download loop {}\n".format(self.project_file.name))
         file_download = RemoteFileUrl(self.project_file.file_url)
         while True:
             try:
@@ -406,7 +408,6 @@ class RetryChunkDownloader(object):
             except (DownloadInconsistentError, PartialChunkDownloadError, requests.exceptions.ConnectionError):
                 if self.retry_times < self.max_retry_times:
                     self.retry_times += 1
-                    print("\nRetry it {}\n".format(self.project_file.name))
                     file_download = self.remote_store.get_file_url(self.project_file.id)
                     # continue loop and try downloading again
                 else:
