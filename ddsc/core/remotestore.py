@@ -490,6 +490,8 @@ class RemoteUser(object):
         self.username = json_data['username']
         self.full_name = json_data['full_name']
         self.email = json_data['email']
+        self.first_name = json_data['first_name']
+        self.last_name = json_data['last_name']
 
     def __str__(self):
         return 'id:{} username:{} full_name:{}'.format(self.id, self.username, self.full_name)

@@ -241,7 +241,9 @@ class TestRemoteUser(TestCase):
               "id": "12789123897123978",
               "username": "js123",
               "full_name": "John Smith",
-              "email": "john.smith@duke.edu"
+              "email": "john.smith@duke.edu",
+              "first_name" : "John",
+              "last_name" : "Smith"
             }
             ]
         }
@@ -252,6 +254,8 @@ class TestRemoteUser(TestCase):
         self.assertEqual('12789123897123978', user.id)
         self.assertEqual('js123', user.username)
         self.assertEqual('John Smith', user.full_name)
+        self.assertEqual('John', user.first_name)
+        self.assertEqual('Smith', user.last_name)
         self.assertEqual('id:12789123897123978 username:js123 full_name:John Smith', str(user))
 
 
@@ -702,6 +706,8 @@ class TestRemoteAuthProvider(TestCase):
             "username": "joe",
             "full_name": "Joe Shoe",
             "email": "",
+            "first_name": "Joe",
+            "last_name": "Shoe",
         }
         mock_data_service_api().get_auth_providers.return_value = providers_response
         mock_data_service_api().auth_provider_add_user.return_value = add_user_response
