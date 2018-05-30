@@ -69,9 +69,12 @@ class ProjectDownload(object):
 
     def file_exists_with_same_hash(self, project_file):
         local_path = project_file.get_local_path(self.dest_directory)
+
         if os.path.exists(local_path):
             hash_data = PathData(local_path).get_hash()
-            return hash_data.value == project_file.get_hash()
+            remote_hash_dict = project_file.get_hash()
+            return hash_data.value == remote_hash_dict['value']
+        print("local_path {}  does not exist".format(local_path))
         return False
 
     @staticmethod
@@ -393,6 +396,7 @@ class RetryChunkDownloader(object):
             self.download_context.send_error_message(error_msg)
 
     def retry_download_loop(self):
+        print("\nRetry download loop {}\n".format(self.project_file.name))
         file_download = RemoteFileUrl(self.project_file.file_url)
         while True:
             try:
@@ -402,7 +406,8 @@ class RetryChunkDownloader(object):
             except (DownloadInconsistentError, PartialChunkDownloadError, requests.exceptions.ConnectionError):
                 if self.retry_times < self.max_retry_times:
                     self.retry_times += 1
-                    file_download = self.remote_store.get_project_file(self.project_file.id)
+                    print("\nRetry it {}\n".format(self.project_file.name))
+                    file_download = self.remote_store.get_file_url(self.project_file.id)
                     # continue loop and try downloading again
                 else:
                     raise  # run will send the error back to the main process

@@ -32,6 +32,8 @@ class TestProjectDownload(TestCase):
         project_download.try_create_dir = Mock()
         project_download.check_warnings = Mock()
         project_download.check_warnings.return_value = 'Things went wrong'
+        self.mock_file1.get_hash.return_value = {'value':'123'}
+        self.mock_file2.get_hash.return_value = {'value': '123'}
 
         project_download.run()
 
@@ -79,13 +81,13 @@ class TestProjectDownload(TestCase):
         project_download.path_filter.include_path.return_value = True
         mock_os.path.exists.return_value = True
         mock_project_file = Mock(path='/tmp/data.txt')
-        mock_project_file.get_hash.return_value = 'abcd'
+        mock_project_file.get_hash.return_value = {'value': 'abcd'}
         mock_path_data.return_value.get_hash.return_value = Mock(value='abcd')
         self.assertEqual(False, project_download.include_project_file(mock_project_file))
 
         # Local file has different hash than remote file
         mock_project_file = Mock(path='/tmp/data.txt')
-        mock_project_file.get_hash.return_value = 'abcd'
+        mock_project_file.get_hash.return_value = {'value': 'abcd'}
         mock_path_data.return_value.get_hash.return_value = Mock(value='abcd')
         self.assertEqual(False, project_download.include_project_file(mock_project_file))
 
@@ -416,7 +418,7 @@ class TestRetryChunkDownloader(TestCase):
         downloader.retry_download_loop()
 
         self.assertEqual(downloader.get_url_and_headers_for_range.call_count, 2)
-        downloader.remote_store.get_project_file.assert_called_with(mock_project_file.id)
+        downloader.remote_store.get_file_url.assert_called_with(mock_project_file.id)
 
     @patch('ddsc.core.download.RemoteFileUrl')
     def test_retry_download_loop_raises_when_out_of_retries(self, mock_remote_file_url):
