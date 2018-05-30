@@ -84,7 +84,6 @@ class ProjectDownload(object):
         :param files_to_download: [ProjectFile]: files that will be downloaded
         """
         for project_file in files_to_download:
-            self.remote_store.get_f
             self.file_download_pre_processor.run(project_file)
 
     def download_files(self, files_to_download, watcher):
@@ -93,7 +92,7 @@ class ProjectDownload(object):
         file_url_downloader.make_local_directories()
         file_url_downloader.make_big_empty_files()
         file_url_downloader.download_files()
-        file_url_downloader.check_download_files_sizes()
+        file_url_downloader.check_downloaded_files_sizes()
 
     def try_create_dir(self, path):
         """
