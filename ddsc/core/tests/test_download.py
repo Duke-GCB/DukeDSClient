@@ -292,6 +292,31 @@ class TestFileUrlDownloader(TestCase):
         self.assertEqual(set([90, 99]), set([item.size for item in small_items]))
         self.assertEqual(set([200, 100, 400]), set([item.size for item in large_items]))
 
+    @patch('ddsc.core.download.os')
+    def test_check_file_size(self, mock_os):
+        mock_os.stat.return_value = Mock(st_size=100)
+        FileUrlDownloader.check_file_size(file_size=100, path='/tmp/fakepath.txt')
+
+        mock_os.stat.return_value = Mock(st_size=101)
+        with self.assertRaises(ValueError):
+            FileUrlDownloader.check_file_size(file_size=100, path='/tmp/fakepath.txt')
+
+        mock_os.stat.return_value = Mock(st_size=99)
+        with self.assertRaises(ValueError):
+            FileUrlDownloader.check_file_size(file_size=100, path='/tmp/fakepath.txt')
+
+    @patch('ddsc.core.download.os')
+    def test_check_downloaded_files_sizes(self, mock_os):
+        downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
+        downloader.file_urls = [Mock(size=90)]
+        mock_os.stat.return_value = Mock(st_size=100)
+        with self.assertRaises(ValueError):
+            downloader.check_downloaded_files_sizes()
+
+        downloader.file_urls = [Mock(size=100)]
+        mock_os.stat.return_value = Mock(st_size=100)
+        downloader.check_downloaded_files_sizes()
+
 
 class TestDownloadFilePartCommand(TestCase):
     @patch('ddsc.core.download.DownloadContext')

@@ -93,6 +93,7 @@ class ProjectDownload(object):
         file_url_downloader.make_local_directories()
         file_url_downloader.make_big_empty_files()
         file_url_downloader.download_files()
+        file_url_downloader.check_download_files_sizes()
 
     def try_create_dir(self, path):
         """
@@ -289,6 +290,28 @@ class FileUrlDownloader(object):
             else:
                 small_items.append(file_url)
         return large_items, small_items
+
+    def check_downloaded_files_sizes(self):
+        """
+        Make sure the files sizes are correct. Since we manually create the files this will only catch overruns.
+        Raises ValueError if there is a problematic file.
+        """
+        for file_url in self.file_urls:
+            local_path = file_url.get_local_path(self.dest_directory)
+            self.check_file_size(file_url.size, local_path)
+
+    @staticmethod
+    def check_file_size(file_size, path):
+        """
+        Raise an error if we didn't get all of the file.
+        :param file_size: int: size of this file
+        :param path: str path where we downloaded the file to
+        """
+        stat_info = os.stat(path)
+        if stat_info.st_size != file_size:
+            format_str = "Error occurred downloading {}. Got a file size {}. Expected file size:{}"
+            msg = format_str.format(path, stat_info.st_size, file_size)
+            raise ValueError(msg)
 
 
 class DownloadFilePartCommand(object):
