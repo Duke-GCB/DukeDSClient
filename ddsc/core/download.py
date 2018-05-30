@@ -231,7 +231,7 @@ class FileUrlDownloader(object):
                                                   seek_amt=start_range,
                                                   bytes_to_read=bytes_to_read)
                 self.task_runner.add(parent_task_id=None, command=command)
-            self.task_runner.run()
+        self.task_runner.run()
 
     def make_ranges(self, file_url):
         """

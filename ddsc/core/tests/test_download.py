@@ -197,19 +197,20 @@ class TestFileUrlDownloader(TestCase):
         downloader.split_file_urls_by_size = Mock()
         mock_small_file = Mock(size=100)
         mock_small_files = [mock_small_file]
-        mock_large_file = Mock(size=200)
-        mock_large_files = [mock_large_file]
+        mock_large_file1 = Mock(size=200)
+        mock_large_file2 = Mock(size=200)
+        mock_large_files = [mock_large_file1, mock_large_file2]
         downloader.split_file_urls_by_size.return_value = [mock_large_files, mock_small_files]
         downloader.make_ranges = Mock()
         downloader.make_ranges.return_value = [
             (0, 90),
-            (91, 200),
+            (91, 200)
         ]
         downloader.download_files()
 
         # Download small file in one command, large file in two commands).
         add_calls = mock_task_runner.return_value.add.call_args_list
-        self.assertEqual(3, len(add_calls))
+        self.assertEqual(5, len(add_calls))
         command = add_calls[0][1]['command']
         self.assertEqual(command.bytes_to_read, 100)
         self.assertEqual(command.seek_amt, 0)
@@ -219,8 +220,14 @@ class TestFileUrlDownloader(TestCase):
         command = add_calls[2][1]['command']
         self.assertEqual(command.bytes_to_read, 110)
         self.assertEqual(command.seek_amt, 91)
+        command = add_calls[3][1]['command']
+        self.assertEqual(command.bytes_to_read, 91)
+        self.assertEqual(command.seek_amt, 0)
+        command = add_calls[4][1]['command']
+        self.assertEqual(command.bytes_to_read, 110)
+        self.assertEqual(command.seek_amt, 91)
 
-        self.assertTrue(mock_task_runner.return_value.run.called)
+        self.assertEqual(mock_task_runner.return_value.run.call_count, 2)
 
     def test_make_ranges(self):
         # Only one worker because file size is too small
