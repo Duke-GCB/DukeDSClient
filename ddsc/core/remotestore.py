@@ -24,6 +24,7 @@ class RemoteStore(object):
         """
         Setup to allow fetching project tree.
         :param config: ddsc.config.Config settings to use for connecting to the dataservice.
+        :param data_service: DataServiceApi: optional param to specify an existing DataServiceApi object
         """
         self.config = config
         if data_service:
@@ -328,6 +329,11 @@ class RemoteStore(object):
         return result
 
     def get_project_files(self, project):
+        """
+        Returns a list of project files (files in the project including their download links)
+        :param project: RemoteProject
+        :return: [ProjectFile]: files in the specified project
+        """
         files = []
         result = self.data_service.get_project_files(project.id)
         user_list_json = result.json()
@@ -336,6 +342,11 @@ class RemoteStore(object):
         return files
 
     def get_file_url(self, file_id):
+        """
+        Given a file id return the RemoteFileUrl (file download url)
+        :param file_id: str: DukeDS file uuid
+        :return: RemoteFileUrl
+        """
         return RemoteFileUrl(self.data_service.get_file_url(file_id).json())
 
 
