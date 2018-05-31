@@ -3,7 +3,7 @@ from unittest import TestCase
 import os
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
-    download_file_part_run, DownloadFilePartCommand, FileUrlDownloader, MIN_DOWNLOAD_CHUNK_SIZE
+    download_file_part_run, DownloadFilePartCommand, FileUrlDownloader
 from mock import Mock, patch, mock_open, call
 
 
@@ -159,7 +159,8 @@ class TestDownloadContext(TestCase):
 
 class TestFileUrlDownloader(TestCase):
     def setUp(self):
-        self.mock_settings = Mock(dest_directory='/tmp/data2')
+        self.mock_config = Mock(download_bytes_per_chunk=1000)
+        self.mock_settings = Mock(dest_directory='/tmp/data2', config=self.mock_config)
         self.mock_file1 = Mock(path="data/file1.txt", size=200)
         self.mock_file1.get_remote_parent_path.return_value = 'data'
         self.mock_file1.get_local_path.return_value = '/tmp/data2/data/file1.txt'
@@ -282,11 +283,12 @@ class TestFileUrlDownloader(TestCase):
         downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
         downloader.settings.config.download_workers = 2
         size = 10
-        self.assertEqual(downloader.determine_bytes_per_chunk(size), MIN_DOWNLOAD_CHUNK_SIZE)
-        size = MIN_DOWNLOAD_CHUNK_SIZE * 4
-        self.assertEqual(downloader.determine_bytes_per_chunk(size), MIN_DOWNLOAD_CHUNK_SIZE * 2)
-        size = MIN_DOWNLOAD_CHUNK_SIZE * 5
-        self.assertEqual(downloader.determine_bytes_per_chunk(size), MIN_DOWNLOAD_CHUNK_SIZE * 2.5)
+        bytes_per_chunk = self.mock_config.download_bytes_per_chunk
+        self.assertEqual(downloader.determine_bytes_per_chunk(size), bytes_per_chunk)
+        size = bytes_per_chunk * 4
+        self.assertEqual(downloader.determine_bytes_per_chunk(size), bytes_per_chunk * 2)
+        size = bytes_per_chunk * 5
+        self.assertEqual(downloader.determine_bytes_per_chunk(size), bytes_per_chunk * 2.5)
 
     def test_split_file_urls_by_size(self):
         downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)

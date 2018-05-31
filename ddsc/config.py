@@ -18,7 +18,7 @@ DUKE_DATA_SERVICE_URL = 'https://api.dataservice.duke.edu/api/v1'
 D4S2_SERVICE_URL = 'https://datadelivery.genome.duke.edu/api/v1'
 MB_TO_BYTES = 1024 * 1024
 DDS_DEFAULT_UPLOAD_CHUNKS = 100 * MB_TO_BYTES
-DDS_DEFAULT_DOWNLOAD_CHUNK_SIZE = 100 * MB_TO_BYTES
+DDS_DEFAULT_DOWNLOAD_CHUNK_SIZE = 20 * MB_TO_BYTES
 AUTH_ENV_KEY_NAME = 'DUKE_DATA_SERVICE_AUTH'
 # when uploading skip .DS_Store, our key file, and ._ (resource fork metadata)
 FILE_EXCLUDE_REGEX_DEFAULT = '^\.DS_Store$|^\.ddsclient$|^\.\_'

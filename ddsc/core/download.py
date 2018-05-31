@@ -12,8 +12,6 @@ from ddsc.core.remotestore import RemoteStore, ProjectFile, RemoteFileUrl
 FETCH_EXTERNAL_PUT_RETRY_TIMES = 5
 FETCH_EXTERNAL_RETRY_SECONDS = 20
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
-DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
-MIN_DOWNLOAD_CHUNK_SIZE = DOWNLOAD_FILE_CHUNK_SIZE
 
 
 class ProjectDownload(object):
@@ -268,8 +266,8 @@ class FileUrlDownloader(object):
         if not workers or workers == 'None':
             workers = 1
         bytes_per_chunk = int(math.ceil(size / float(workers)))
-        if bytes_per_chunk < MIN_DOWNLOAD_CHUNK_SIZE:
-            bytes_per_chunk = MIN_DOWNLOAD_CHUNK_SIZE
+        if bytes_per_chunk < self.bytes_per_chunk:
+            bytes_per_chunk = self.bytes_per_chunk
         return bytes_per_chunk
 
     @staticmethod
@@ -390,6 +388,7 @@ class RetryChunkDownloader(object):
         self.download_context = download_context
         self.actual_bytes_read = 0
         self.remote_store = download_context.create_remote_store()
+        self.bytes_per_chunk = download_context.config.download_bytes_per_chunk
 
     def run(self):
         try:
@@ -450,7 +449,7 @@ class RetryChunkDownloader(object):
         """
         with open(self.local_path, 'r+b') as outfile:  # open file for read/write (no truncate)
             outfile.seek(self.seek_amt)
-            for chunk in response.iter_content(chunk_size=DOWNLOAD_FILE_CHUNK_SIZE):
+            for chunk in response.iter_content(chunk_size=self.bytes_per_chunk):
                 if chunk:  # filter out keep-alive chunks
                     outfile.write(chunk)
                     self._on_bytes_read(len(chunk))
