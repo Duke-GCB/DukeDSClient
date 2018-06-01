@@ -173,7 +173,8 @@ class TestDownloadedFileRelations(TestCase):
 
         data_service = MagicMock()
         data_service.create_activity().json().__getitem__.return_value = new_activity_id
-        remote_file = Mock(remote_path=file_remote_path, file_version_id=file_version_id)
+        data_service.get_file.return_value.json.return_value = {'current_version': {'id': file_version_id}}
+        remote_file = Mock(path=file_remote_path, file_version_id=file_version_id)
         activity = CopyActivity(data_service, Mock(name='mouse'), "mouse_copy")
 
         downloaded_file_relations = DownloadedFileRelations(activity)

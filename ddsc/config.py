@@ -18,6 +18,7 @@ DUKE_DATA_SERVICE_URL = 'https://api.dataservice.duke.edu/api/v1'
 D4S2_SERVICE_URL = 'https://datadelivery.genome.duke.edu/api/v1'
 MB_TO_BYTES = 1024 * 1024
 DDS_DEFAULT_UPLOAD_CHUNKS = 100 * MB_TO_BYTES
+DDS_DEFAULT_DOWNLOAD_CHUNK_SIZE = 20 * MB_TO_BYTES
 AUTH_ENV_KEY_NAME = 'DUKE_DATA_SERVICE_AUTH'
 # when uploading skip .DS_Store, our key file, and ._ (resource fork metadata)
 FILE_EXCLUDE_REGEX_DEFAULT = '^\.DS_Store$|^\.ddsclient$|^\.\_'
@@ -67,6 +68,7 @@ class Config(object):
     UPLOAD_BYTES_PER_CHUNK = 'upload_bytes_per_chunk'  # bytes per chunk we will upload
     UPLOAD_WORKERS = 'upload_workers'                  # how many worker processes used for uploading
     DOWNLOAD_WORKERS = 'download_workers'              # how many worker processes used for downloading
+    DOWNLOAD_BYTES_PER_CHUNK = 'download_bytes_per_chunk'  # bytes per chunk we will download
     DEBUG_MODE = 'debug'                               # show stack traces
     D4S2_URL = 'd4s2_url'                              # url for use with the D4S2 (share/deliver service)
     FILE_EXCLUDE_REGEX = 'file_exclude_regex'          # allows customization of which filenames will be uploaded
@@ -160,6 +162,10 @@ class Config(object):
         # Profiling download on different servers showed half the number of CPUs to be optimum for speed.
         default_workers = int(math.ceil(default_num_workers() / 2))
         return self.values.get(Config.DOWNLOAD_WORKERS, default_workers)
+
+    @property
+    def download_bytes_per_chunk(self):
+        return self.values.get(Config.DOWNLOAD_BYTES_PER_CHUNK, DDS_DEFAULT_DOWNLOAD_CHUNK_SIZE)
 
     @property
     def debug_mode(self):

@@ -20,14 +20,18 @@ class RemoteStore(object):
     """
     Fetches project tree data from remote store.
     """
-    def __init__(self, config):
+    def __init__(self, config, data_service=None):
         """
         Setup to allow fetching project tree.
         :param config: ddsc.config.Config settings to use for connecting to the dataservice.
+        :param data_service: DataServiceApi: optional param to specify an existing DataServiceApi object
         """
         self.config = config
-        auth = DataServiceAuth(self.config)
-        self.data_service = DataServiceApi(auth, self.config.url)
+        if data_service:
+            self.data_service = data_service
+        else:
+            auth = DataServiceAuth(self.config)
+            self.data_service = DataServiceApi(auth, self.config.url)
 
     def fetch_remote_project(self, project_name_or_id, must_exist=False, include_children=True):
         """
@@ -323,6 +327,27 @@ class RemoteStore(object):
             if not auth_role.is_deprecated:
                 result.append(auth_role)
         return result
+
+    def get_project_files(self, project):
+        """
+        Returns a list of project files (files in the project including their download links)
+        :param project: RemoteProject
+        :return: [ProjectFile]: files in the specified project
+        """
+        files = []
+        result = self.data_service.get_project_files(project.id)
+        user_list_json = result.json()
+        for user_json in user_list_json['results']:
+            files.append(ProjectFile(user_json))
+        return files
+
+    def get_file_url(self, file_id):
+        """
+        Given a file id return the RemoteFileUrl (file download url)
+        :param file_id: str: DukeDS file uuid
+        :return: RemoteFileUrl
+        """
+        return RemoteFileUrl(self.data_service.get_file_url(file_id).json())
 
 
 class RemoteProject(object):
@@ -620,3 +645,45 @@ class ProjectNameOrId(object):
     @staticmethod
     def create_from_remote_project(project):
         return ProjectNameOrId.create_from_project_id(project.id)
+
+
+class ProjectFile(object):
+    def __init__(self, json_data):
+        """
+        Set properties based on json_data.
+        :param json_data: dict JSON data containing auth_role info
+        """
+        self.id = json_data['id']
+        self.name = json_data['name']
+        self.size = json_data['size']
+        self.file_url = json_data['file_url']
+        self.hashes = json_data['hashes']
+        self.ancestors = json_data['ancestors']
+        self.json_data = json_data
+        self.kind = KindType.file_str
+
+    @property
+    def path(self):
+        names = self._get_remote_parent_folder_names()
+        names.append(self.name)
+        return os.sep.join(names)
+
+    def get_remote_parent_path(self):
+        return os.sep.join(self._get_remote_parent_folder_names())
+
+    def _get_remote_parent_folder_names(self):
+        return [item['name'] for item in self.ancestors if item['kind'] == KindType.folder_str]
+
+    def get_local_path(self, directory_path):
+        return os.path.join(directory_path, self.path)
+
+    def get_hash(self):
+        return RemoteFile.get_hash_from_upload(self.json_data)
+
+
+class RemoteFileUrl(object):
+    def __init__(self, json_data):
+        self.http_verb = json_data['http_verb']
+        self.host = json_data['host']
+        self.url = json_data['url']
+        self.http_headers = json_data['http_headers']
