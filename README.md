@@ -17,7 +17,7 @@ Older python 2.7 may work by following this guide: [Older-python-2.7-setup](http
 
 # Installation:
 
-DukeDSClient is written in Python and packaged for easy installation on [PyPI](https://pypi.org/project/DukeDSClient/), the Python Package Index. We recommend installing into a Python [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments).
+DukeDSClient is written in Python and packaged for easy installation from [PyPI](https://pypi.org/project/DukeDSClient/), the Python Package Index. We recommend installing into a Python [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments).
 Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for full details, but the below commands will create a virtual environment named **ddsclient-env** and install **DukeDSClient**:
 
 ```
