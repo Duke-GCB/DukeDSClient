@@ -7,33 +7,52 @@ Command line tool to upload/manage project on the [duke-data-service](https://gi
 
 
 # Requirements
-- [python](https://www.python.org/) - version 2.7+ with a functional ssl module. 
+
+- [python](https://www.python.org/) - version 2.7+ with a functional ssl module.
 - [requests](http://docs.python-requests.org/en/master/) - python module
 - [PyYAML](http://pyyaml.org/wiki/PyYAML) - python module
 
 The preferred python versions are 2.7.9+ or 3.4.1+ as they have functional ssl modules by default.
 Older python 2.7 may work by following this guide: [Older-python-2.7-setup](https://github.com/Duke-GCB/DukeDSClient/wiki/Older-python-2.7-setup)
 
-# Install or Upgrade:
+# Installation:
+
+DukeDSClient is written in Python and packaged for easy installation on [PyPI](https://pypi.org/project/DukeDSClient/), the Python Package Index. We recommend installing into a Python [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments).
+Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for full details, but the below commands will create a virtual environment named **ddsclient-env** and install **DukeDSClient**:
+
 ```
-pip install --upgrade DukeDSClient
+python3 -m venv ddsclient-env
+source ddsclient-env/bin/activate
+pip3 install DukeDSClient
 ```
 
 ### Config file setup.
+
 DukeDSClient requires a config file containing an __agent_key__ and a __user_key__.
 DukeDSClient supports a global configuration file at /etc/ddsclient.conf and a user configuration file at ~/.ddsclient.
 Settings in the user configuration file override those in the global configuration.
 Details of all configuration options: [Configuration options](https://github.com/Duke-GCB/DukeDSClient/wiki/Configuration).
 
 #####  Follow these instructions to setup your __user_key__ and  __agent_key__:
+
 [Instructions for adding agent and user keys to the user config file.](https://github.com/Duke-GCB/DukeDSClient/wiki/Agent-User-Keys-(setup))
 
-### Use:
+### Usage:
+
+If DukeDSClient is installed in a [Virtual Environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments), you must activate the virtual environment before running ddsclient:
+
+```
+source ddsclient-env/bin/activate
+```
+
 See general help screen:
+
 ```
 ddsclient -h
 ```
+
 See help screen for a particular command:
+
 ```
 ddsclient <command> -h
 ```
@@ -44,6 +63,7 @@ ddsclient <command> <arguments...>
 ```
 
 ### Upload:
+
 ```
 ddsclient upload -p <ProjectName> <Folders/Files...>
 ```
@@ -54,49 +74,60 @@ Any items that already exist with the same hash will not be uploaded.
 
 
 Example: Upload a folder named 'results' to new or existing project named 'Analyzed Mouse RNA':
+
 ```
 ddsclient upload -p 'Analyzed Mouse RNA' results
 ```
 
 ### Download:
+
 ```
 ddsclient download -p <ProjectName> [Folder]
 ```
+
 This will download the contents of ProjectName into the specified folder.
 Currently it requires the directory be empty or not exist.
 It will create Folder if it doesn't exist.
 If Folder is not specified it will use the name of the project with spaces translated to '_'.
 
 Example: Download the contents of project named 'Mouse RNA' into '/tmp/mouserna' :
+
 ```
 ddsclient download -p 'Mouse RNA' /tmp/mouserna
 ```
 
-
 ### Add User To Project:
+
 #### Using duke netid:
+
 ```
 ddsclient add_user -p <ProjectName> --user <Username> --auth_role 'project_admin'
 ```
+
 Example: Grant permission to user with username 'jpb123' for a project named 'Analyzed Mouse RNA' with default permissions:
+
 ```
 ddsclient add_user -p 'Analyzed Mouse RNA' --user 'jpb123'
 ```
 
 #### Using email:
+
 ```
 ddsclient add_user -p <ProjectName> --email <Username> --auth_role 'project_admin'
 ```
+
 Example: Grant permission to user with email 'ada.lovelace@duke.edu' for a project named 'Analyzed Mouse RNA' with default permissions:
+
 ```
 ddsclient add_user -p 'Analyzed Mouse RNA' --email 'ada.lovelace@duke.edu'
 ```
 
 
 ### Developer:
+
 Install dependencies:
 ```
-pip install -r devRequirements.txt 
+pip install -r devRequirements.txt
 ```
 
 Setup pre-commit hook:
