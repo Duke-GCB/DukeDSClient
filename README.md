@@ -21,9 +21,9 @@ DukeDSClient is written in Python and packaged for easy installation from [PyPI]
 Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for full details, but the below commands will create a virtual environment named **ddsclient-env** and install **DukeDSClient**:
 
 ```
-python3 -m venv ddsclient-env
-source ddsclient-env/bin/activate
-pip3 install DukeDSClient
+python3 -m venv ddsclient-env       # Creates an environment called 'ddsclient-env'
+source ddsclient-env/bin/activate   # Activates the ddsclient-env environment
+pip3 install DukeDSClient           # Installs 'DukeDSClient' into 'ddsclient-env'
 ```
 
 ### Config file setup.
