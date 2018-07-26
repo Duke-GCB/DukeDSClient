@@ -17,7 +17,9 @@ Older python 2.7 may work by following this guide: [Older-python-2.7-setup](http
 
 # Installation:
 
-DukeDSClient is written in Python and packaged for easy installation from [PyPI](https://pypi.org/project/DukeDSClient/), the Python Package Index. We recommend installing into a Python [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments).
+DukeDSClient is written in Python and packaged for easy installation from [PyPI](https://pypi.org/project/DukeDSClient/) using `pip`.
+If you do not have superuser or administrative privileges on your machine, you will either have to create a [virtual environment (recommended)](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments) or run `pip` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme).
+
 Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for full details, but the below commands will create a virtual environment named **ddsclient-env** and install **DukeDSClient**:
 
 ```
@@ -39,7 +41,7 @@ Details of all configuration options: [Configuration options](https://github.com
 
 ### Usage:
 
-If DukeDSClient is installed in a [Virtual Environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments), you must activate the virtual environment before running ddsclient:
+If DukeDSClient is installed in a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments), you must activate the virtual environment before running ddsclient:
 
 ```
 source ddsclient-env/bin/activate
