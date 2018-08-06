@@ -527,6 +527,39 @@ class TestDataServiceApi(TestCase):
         args, kwargs = mock_requests.get.call_args
         self.assertEqual(args[0], 'something.com/v1/projects/123/files')
 
+    def test_get_project_permissions(self):
+        mock_requests = MagicMock()
+        page1 = {
+            "results": [
+                {
+                    "project": {
+                        "id": "8593ab3c-9999-11e8-9eb6-529269fb1459",
+                    },
+                    "user": {
+                        "id": "8593aeac-9999-11e8-9eb6-529269fb1459",
+                    },
+                    "auth_role": {
+                        "id": "project_admin",
+                    }
+                }
+            ]
+        }
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=page1, num_pages=1),
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+
+        response = api.get_project_permissions(project_id='123')
+
+        args, kwargs = mock_requests.get.call_args
+        self.assertEqual(args[0], 'something.com/v1/projects/123/permissions/')
+        results = response.json()['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['project']['id'], '8593ab3c-9999-11e8-9eb6-529269fb1459')
+        self.assertEqual(results[0]['user']['id'], '8593aeac-9999-11e8-9eb6-529269fb1459')
+        self.assertEqual(results[0]['auth_role']['id'], 'project_admin')
+
 
 class TestDataServiceAuth(TestCase):
     @patch('ddsc.core.ddsapi.get_user_agent_str')
