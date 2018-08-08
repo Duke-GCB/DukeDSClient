@@ -644,17 +644,23 @@ class DataServiceApi(object):
         Send GET request to /projects/{project_id}/permissions/{user_id/.
         :param project_id: str uuid of the project
         :param user_id: str uuid of the user
-        :param auth_role: str project role eg 'project_admin'
         :return: requests.Response containing the successful result
         """
         return self._get_single_item("/projects/" + project_id + "/permissions/" + user_id, {})
+
+    def get_project_permissions(self, project_id):
+        """
+        Send GET request to /projects/{project_id}/permissions/.
+        :param project_id: str uuid of the project
+        :return: requests.Response containing the successful result
+        """
+        return self._get_collection("/projects/" + project_id + "/permissions/", {})
 
     def revoke_user_project_permission(self, project_id, user_id):
         """
         Send DELETE request to /projects/{project_id}/permissions/{user_id so they will no longer have permissions.
         :param project_id: str uuid of the project
         :param user_id: str uuid of the user
-        :param auth_role: str project role eg 'project_admin'
         :return: requests.Response containing the successful result
         """
         return self._delete("/projects/" + project_id + "/permissions/" + user_id, {})
