@@ -222,11 +222,11 @@ def _add_copy_project_arg(arg_parser):
     Adds optional copy_project parameter to a parser.
     :param arg_parser: ArgumentParser parser to add this argument to.
     """
-    arg_parser.add_argument("--skip-copy",
-                            help="Should we just send the deliver email and skip copying the project.",
+    arg_parser.add_argument("--copy",
+                            help="Instead of delivering the specified project, deliver a copy of the project.",
                             action='store_true',
                             default=False,
-                            dest='skip_copy_project')
+                            dest='copy_project')
 
 
 def _add_resend_arg(arg_parser, resend_help):
@@ -424,8 +424,8 @@ class CommandParser(object):
         :param deliver_func: function to run when user choses this option
         """
         description = "Initiate delivery of a project to another user. Removes other user's current permissions. " \
-                      "Makes a copy of the project. Send message to D4S2 service to send email and allow " \
-                      "access to the copy of the project once user acknowledges receiving the data."
+                      "Send message to D4S2 service to send email and allow access to the project once user " \
+                      "acknowledges receiving the data."
         deliver_parser = self.subparsers.add_parser('deliver', description=description)
         add_project_name_or_id_arg(deliver_parser)
         user_or_email = deliver_parser.add_mutually_exclusive_group(required=True)
