@@ -309,7 +309,7 @@ class DeliverCommand(BaseCommand):
         """
         email = args.email                  # email of person to deliver to, will be None if username is specified
         username = args.username            # username of person to deliver to, will be None if email is specified
-        skip_copy_project = args.skip_copy_project  # should we skip the copy step
+        copy_project = args.copy_project    # should we deliver a copy of the project
         force_send = args.resend            # is this a resend so we should force sending
         msg_file = args.msg_file            # message file who's contents will be sent with the delivery
         share_usernames = args.share_usernames  # usernames who will have this project shared once it is accepted
@@ -319,7 +319,7 @@ class DeliverCommand(BaseCommand):
         share_users = self.make_user_list(share_emails, share_usernames)
         print("Delivering project.")
         new_project_name = None
-        if not skip_copy_project:
+        if copy_project:
             new_project_name = self.get_new_project_name(project.name)
         to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         try:

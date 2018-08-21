@@ -177,8 +177,10 @@ class TestShareCommand(TestCase):
 class TestDeliverCommand(TestCase):
     @patch('ddsc.ddsclient.RemoteStore')
     @patch('ddsc.ddsclient.D4S2Project')
-    def test_run_no_message(self, mock_d4s2_project, mock_remote_store):
+    def test_run_no_message_and_copy(self, mock_d4s2_project, mock_remote_store):
         cmd = DeliverCommand(MagicMock())
+        cmd.get_new_project_name = Mock()
+        cmd.get_new_project_name.return_value = 'NewProjectName'
         myargs = Mock(project_name='mouse',
                       project_id=None,
                       email=None,
@@ -186,7 +188,7 @@ class TestDeliverCommand(TestCase):
                       username='joe123',
                       share_usernames=[],
                       share_emails=[],
-                      skip_copy_project=True,
+                      copy_project=True,
                       include_paths=None,
                       exclude_paths=None,
                       msg_file=None)
@@ -196,6 +198,7 @@ class TestDeliverCommand(TestCase):
         self.assertEqual(project, mock_remote_store.return_value.fetch_remote_project.return_value)
         self.assertEqual(False, force_send)
         self.assertEqual('', message)
+        self.assertEqual('NewProjectName', new_project_name)
         args, kwargs = mock_remote_store.return_value.fetch_remote_project.call_args
         self.assertEqual('mouse', args[0].get_name_or_raise())
 
@@ -211,7 +214,7 @@ class TestDeliverCommand(TestCase):
                           username='joe123',
                           share_emails=[],
                           share_usernames=[],
-                          skip_copy_project=True,
+                          copy_project=False,
                           include_paths=None,
                           exclude_paths=None,
                           msg_file=message_infile)
@@ -221,6 +224,7 @@ class TestDeliverCommand(TestCase):
             self.assertEqual(project, mock_remote_store.return_value.fetch_remote_project.return_value)
             self.assertEqual(False, force_send)
             self.assertIn('setup(', message)
+            self.assertEqual(new_project_name, None)
             args, kwargs = mock_remote_store.return_value.fetch_remote_project.call_args
             self.assertEqual('456', args[0].get_id_or_raise())
 

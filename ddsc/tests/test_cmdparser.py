@@ -57,6 +57,7 @@ class TestCommandParser(TestCase):
         self.assertEqual(None, self.parsed_args.project_id)
         self.assertEqual(None, self.parsed_args.share_usernames)
         self.assertEqual(None, self.parsed_args.share_emails)
+        self.assertEqual(False, self.parsed_args.copy_project)
 
     def test_deliver_with_msg(self):
         command_parser = CommandParser(version_str='1.0')
@@ -66,6 +67,7 @@ class TestCommandParser(TestCase):
         self.assertIn('setup(', self.parsed_args.msg_file.read())
         self.assertEqual(None, self.parsed_args.project_name)
         self.assertEqual('123', self.parsed_args.project_id)
+        self.assertEqual(False, self.parsed_args.copy_project)
 
     def test_deliver_with_share_users(self):
         command_parser = CommandParser(version_str='1.0')
@@ -79,6 +81,19 @@ class TestCommandParser(TestCase):
         self.assertEqual('123', self.parsed_args.project_id)
         self.assertEqual(['bob555', 'tom666'], self.parsed_args.share_usernames)
         self.assertEqual(['bob@bob.bob'], self.parsed_args.share_emails)
+        self.assertEqual(False, self.parsed_args.copy_project)
+
+    def test_deliver_with_copy(self):
+        command_parser = CommandParser(version_str='1.0')
+        command_parser.register_deliver_command(self.set_parsed_args)
+        self.assertEqual(['deliver'], list(command_parser.subparsers.choices.keys()))
+        command_parser.run_command(['deliver', '-p', 'someproject', '--user', 'joe123', '--copy'])
+        self.assertEqual(None, self.parsed_args.msg_file)
+        self.assertEqual('someproject', self.parsed_args.project_name)
+        self.assertEqual(None, self.parsed_args.project_id)
+        self.assertEqual(None, self.parsed_args.share_usernames)
+        self.assertEqual(None, self.parsed_args.share_emails)
+        self.assertEqual(True, self.parsed_args.copy_project)
 
     def test_share_no_msg(self):
         command_parser = CommandParser(version_str='1.0')
