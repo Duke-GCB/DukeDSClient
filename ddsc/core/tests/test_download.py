@@ -101,8 +101,8 @@ class TestProjectDownload(TestCase):
         mock_file2 = Mock(path='file2.txt')
         project_download.run_preprocessor([mock_file1, mock_file2])
         mock_preprocessor.run.assert_has_calls([
-            call(mock_file1),
-            call(mock_file2)
+            call(self.mock_remote_store.data_service, mock_file1),
+            call(self.mock_remote_store.data_service, mock_file2)
         ])
 
 

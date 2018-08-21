@@ -84,7 +84,7 @@ class ProjectDownload(object):
         :param files_to_download: [ProjectFile]: files that will be downloaded
         """
         for project_file in files_to_download:
-            self.file_download_pre_processor.run(project_file)
+            self.file_download_pre_processor.run(self.remote_store.data_service, project_file)
 
     def download_files(self, files_to_download, watcher):
         settings = DownloadSettings(self.remote_store, self.dest_directory, watcher)
