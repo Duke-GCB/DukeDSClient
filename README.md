@@ -3,7 +3,6 @@ Command line tool to upload/manage project on the [duke-data-service](https://gi
 
 [![Build Status](https://travis-ci.org/Duke-GCB/DukeDSClient.svg?branch=master)](https://travis-ci.org/Duke-GCB/DukeDSClient)
 [![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg?branch=coveralls)](https://coveralls.io/github/Duke-GCB/DukeDSClient?branch=coveralls)
-[![Dependency Status](https://gemnasium.com/badges/github.com/Duke-GCB/DukeDSClient.svg)](https://gemnasium.com/github.com/Duke-GCB/DukeDSClient)
 
 
 # Requirements
