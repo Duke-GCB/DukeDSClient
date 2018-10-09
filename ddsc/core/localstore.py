@@ -58,8 +58,7 @@ class LocalProject(object):
         self.sent_to_remote = True
 
     def __str__(self):
-        sorted_children = sorted(self.children, key=lambda x: x.path)
-        child_str = ', '.join([str(child) for child in sorted_children])
+        child_str = ', '.join([str(child) for child in self.children])
         return 'project: [{}]'.format(child_str)
 
 
