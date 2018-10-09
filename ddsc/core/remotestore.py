@@ -122,7 +122,7 @@ class RemoteStore(object):
         :param username: str username we are looking for
         :return: RemoteUser: user we found
         """
-        matches = [user for user in self.fetch_all_users() if user.username == username]
+        matches = self.fetch_users(username=username)
         if not matches:
             raise NotFoundError('Username not found: {}.'.format(username))
         if len(matches) > 1:
@@ -180,9 +180,9 @@ class RemoteStore(object):
         :param email: str email we are looking for
         :return: RemoteUser user we found
         """
-        matches = [user for user in self.fetch_all_users() if user.email == email]
+        matches = self.fetch_users(email=email)
         if not matches:
-            raise ValueError('Email not found: {}.'.format(email))
+            raise NotFoundError('Email not found: {}.'.format(email))
         if len(matches) > 1:
             raise ValueError('Multiple users with same email found: {}.'.format(email))
         return matches[0]
@@ -195,13 +195,15 @@ class RemoteStore(object):
         response = self.data_service.get_current_user().json()
         return RemoteUser(response)
 
-    def fetch_all_users(self):
+    def fetch_users(self, email=None, username=None):
         """
-        Retrieves all users from data service.
+        Retrieves users with optional email and/or username filtering from data service.
+        :param email: str: optional email to filter by
+        :param username: str: optional username to filter by
         :return: [RemoteUser] list of all users we downloaded
         """
         users = []
-        result = self.data_service.get_all_users()
+        result = self.data_service.get_users(email, username)
         user_list_json = result.json()
         for user_json in user_list_json['results']:
             users.append(RemoteUser(user_json))
