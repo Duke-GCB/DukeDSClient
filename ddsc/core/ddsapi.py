@@ -623,7 +623,7 @@ class DataServiceApi(object):
         if email:
             data['email'] = email
         if username:
-            data['username='] = username
+            data['username'] = username
         return self._get_collection('/users', data)
 
     def get_user_by_id(self, id):
