@@ -619,7 +619,7 @@ class DataServiceApi(object):
         """
         data = {}
         if full_name:
-            data['full_name'] = full_name
+            data['full_name_contains'] = full_name
         if email:
             data['email'] = email
         if username:

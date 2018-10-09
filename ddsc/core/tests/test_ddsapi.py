@@ -599,7 +599,7 @@ class TestDataServiceApi(TestCase):
         response = api.get_users(full_name='Joe Bob', email='joe@joe.com', username='joe')
 
         mock_requests.get.assert_called_with('something.com/v1/users', headers=ANY,
-                                             params={'full_name': 'Joe Bob', 'email': 'joe@joe.com', 'username': 'joe',
+                                             params={'full_name_contains': 'Joe Bob', 'email': 'joe@joe.com', 'username': 'joe',
                                                      'page': 1, 'per_page': 100})
 
         results = response.json()['results']
