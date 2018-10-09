@@ -532,7 +532,7 @@ class TestRemoteStore(TestCase):
         remote_store = RemoteStore(config=MagicMock())
         users = remote_store.fetch_users()
 
-        mock_data_service_api.return_value.get_users.assert_called_with(None, None)
+        mock_data_service_api.return_value.get_users.assert_called_with(email=None, username=None)
         self.assertEqual(len(users), 1)
         self.assertEqual(users[0], mock_remote_user.return_value)
         mock_remote_user.assert_called_with(user_dict)
@@ -554,7 +554,7 @@ class TestRemoteStore(TestCase):
         remote_store = RemoteStore(config=MagicMock())
         users = remote_store.fetch_users(email='joe@joe.com', username='joe')
 
-        mock_data_service_api.return_value.get_users.assert_called_with('joe@joe.com', 'joe')
+        mock_data_service_api.return_value.get_users.assert_called_with(email='joe@joe.com', username='joe')
         self.assertEqual(len(users), 1)
         self.assertEqual(users[0], mock_remote_user.return_value)
         mock_remote_user.assert_called_with(user_dict)

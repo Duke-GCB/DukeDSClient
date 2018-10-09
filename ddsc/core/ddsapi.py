@@ -609,14 +609,17 @@ class DataServiceApi(object):
         }
         return self._get_collection('/users', data)
 
-    def get_users(self, email=None, username=None):
+    def get_users(self, full_name=None, email=None, username=None):
         """
-        Send GET request to /users for users with optional email and/or username filtering.
+        Send GET request to /users for users with optional full_name, email, and/or username filtering.
+        :param full_name: str name of the user we are searching for
         :param email: str: optional email to filter by
         :param username: str: optional username to filter by
         :return: requests.Response containing the successful result
         """
         data = {}
+        if full_name:
+            data['full_name'] = full_name
         if email:
             data['email'] = email
         if username:

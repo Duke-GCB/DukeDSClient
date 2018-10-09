@@ -203,7 +203,7 @@ class RemoteStore(object):
         :return: [RemoteUser] list of all users we downloaded
         """
         users = []
-        result = self.data_service.get_users(email, username)
+        result = self.data_service.get_users(email=email, username=username)
         user_list_json = result.json()
         for user_json in user_list_json['results']:
             users.append(RemoteUser(user_json))
