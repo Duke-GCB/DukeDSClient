@@ -956,6 +956,14 @@ class DataServiceApi(object):
         """
         return self._get_collection("/auth_providers", {})
 
+    def get_auth_provider(self, auth_provider_id):
+        """
+        Get auth provider details.
+        :param auth_provider_id: str: uuid of the auth provider
+        :return: requests.Response containing the successful result
+        """
+        return self._get_single_item('/auth_providers/{}/'.format(auth_provider_id), {})
+
     def get_auth_provider_affiliates(self, auth_provider_id, full_name_contains):
         """
         List affiliates for a specific auth provider.

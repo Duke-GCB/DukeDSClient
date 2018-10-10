@@ -234,6 +234,18 @@ class TestDataServiceApi(TestCase):
         self.assertEqual(json_results, result.json())
         self.assertEqual('something.com/v1/auth_providers', mock_requests.get.call_args_list[0][0][0])
 
+    def test_get_auth_provider(self):
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response(status_code=200, json_return_value={"ok": True})
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+        result = api.get_auth_provider('provider_id_123')
+        self.assertEqual(200, result.status_code)
+        mock_requests.get.assert_called_with('something.com/v1/auth_providers/provider_id_123/',
+                                             headers=ANY, params=ANY)
+
     def test_get_auth_provider_affiliates(self):
         user = {
             "id": "abc4e9-9987-47eb-bb4e-19f0203efbf6",
