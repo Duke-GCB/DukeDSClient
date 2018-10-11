@@ -99,7 +99,7 @@ class TestProjectContent(TestCase):
         content.add_path('/tmp/DukeDsClientTestFolder/scripts')
         self.assertEqual('project: [folder:scripts [file:makemoney.sh]]', str(content))
 
-    @skip(reason="Fragile test breaks do to item sorting differences on travis")
+    @skip(reason="Fragile test breaks due to item sorting differences on travis")
     def test_nested_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/results')
@@ -110,7 +110,7 @@ class TestProjectContent(TestCase):
                           'folder:subresults2 []'
                           ']]'), str(content))
 
-    @skip(reason="Fragile test breaks do to item sorting differences on travis")
+    @skip(reason="Fragile test breaks due to item sorting differences on travis")
     def test_big_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder')
