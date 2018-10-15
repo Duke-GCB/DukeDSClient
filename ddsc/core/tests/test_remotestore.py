@@ -9,7 +9,7 @@ from ddsc.core.remotestore import RemoteAuthRole
 from ddsc.core.remotestore import RemoteProjectChildren
 from ddsc.core.remotestore import RemoteAuthProvider
 from ddsc.core.remotestore import ProjectNameOrId
-from ddsc.core.remotestore import ProjectFile, RemoteFileUrl
+from ddsc.core.remotestore import ProjectFile, RemoteFileUrl, NotFoundError
 
 
 class TestProjectFolderFile(TestCase):
@@ -514,6 +514,88 @@ class TestRemoteStore(TestCase):
 
         remote_store = RemoteStore(config=mock_config)
         self.assertTrue(mock_data_service_api.called)
+
+    @patch("ddsc.core.remotestore.DataServiceApi")
+    @patch("ddsc.core.remotestore.RemoteUser")
+    def test_fetch_users_no_filter(self, mock_remote_user, mock_data_service_api):
+        user_dict = {
+            'id': '123',
+        }
+        users_resp = Mock()
+        users_resp.json.return_value = {
+            'results': [
+                user_dict,
+            ]
+        }
+        mock_data_service_api.return_value.get_users.return_value = users_resp
+
+        remote_store = RemoteStore(config=MagicMock())
+        users = remote_store.fetch_users()
+
+        mock_data_service_api.return_value.get_users.assert_called_with(email=None, username=None)
+        self.assertEqual(len(users), 1)
+        self.assertEqual(users[0], mock_remote_user.return_value)
+        mock_remote_user.assert_called_with(user_dict)
+
+    @patch("ddsc.core.remotestore.DataServiceApi")
+    @patch("ddsc.core.remotestore.RemoteUser")
+    def test_fetch_users_with_filter(self, mock_remote_user, mock_data_service_api):
+        user_dict = {
+            'id': '123',
+        }
+        users_resp = Mock()
+        users_resp.json.return_value = {
+            'results': [
+                user_dict,
+            ]
+        }
+        mock_data_service_api.return_value.get_users.return_value = users_resp
+
+        remote_store = RemoteStore(config=MagicMock())
+        users = remote_store.fetch_users(email='joe@joe.com', username='joe')
+
+        mock_data_service_api.return_value.get_users.assert_called_with(email='joe@joe.com', username='joe')
+        self.assertEqual(len(users), 1)
+        self.assertEqual(users[0], mock_remote_user.return_value)
+        mock_remote_user.assert_called_with(user_dict)
+
+    def test_lookup_user_by_username(self):
+        mock_user = Mock()
+        mock_user2 = Mock()
+        remote_store = RemoteStore(config=MagicMock())
+        remote_store.fetch_users = Mock()
+
+        remote_store.fetch_users.return_value = []
+        with self.assertRaises(NotFoundError) as raised_exception:
+            remote_store.lookup_user_by_username('joe')
+        self.assertEqual(str(raised_exception.exception), 'Username not found: joe.')
+
+        remote_store.fetch_users.return_value = [mock_user]
+        self.assertEqual(remote_store.lookup_user_by_username('joe'), mock_user)
+
+        remote_store.fetch_users.return_value = [mock_user, mock_user2]
+        with self.assertRaises(ValueError) as raised_exception:
+            remote_store.lookup_user_by_username('joe')
+        self.assertEqual(str(raised_exception.exception), 'Multiple users with same username found: joe.')
+
+    def test_lookup_user_by_email(self):
+        mock_user = Mock()
+        mock_user2 = Mock()
+        remote_store = RemoteStore(config=MagicMock())
+        remote_store.fetch_users = Mock()
+
+        remote_store.fetch_users.return_value = []
+        with self.assertRaises(NotFoundError) as raised_exception:
+            remote_store.lookup_user_by_email('joe@joe.com')
+        self.assertEqual(str(raised_exception.exception), 'Email not found: joe@joe.com.')
+
+        remote_store.fetch_users.return_value = [mock_user]
+        self.assertEqual(remote_store.lookup_user_by_email('joe@joe.com'), mock_user)
+
+        remote_store.fetch_users.return_value = [mock_user, mock_user2]
+        with self.assertRaises(ValueError) as raised_exception:
+            remote_store.lookup_user_by_email('joe@joe.com')
+        self.assertEqual(str(raised_exception.exception), 'Multiple users with same email found: joe@joe.com.')
 
 
 class TestRemoteProjectChildren(TestCase):

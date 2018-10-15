@@ -609,12 +609,21 @@ class DataServiceApi(object):
         }
         return self._get_collection('/users', data)
 
-    def get_all_users(self):
+    def get_users(self, full_name=None, email=None, username=None):
         """
-        Send GET request to /users for all users.
+        Send GET request to /users for users with optional full_name, email, and/or username filtering.
+        :param full_name: str name of the user we are searching for
+        :param email: str: optional email to filter by
+        :param username: str: optional username to filter by
         :return: requests.Response containing the successful result
         """
         data = {}
+        if full_name:
+            data['full_name_contains'] = full_name
+        if email:
+            data['email'] = email
+        if username:
+            data['username'] = username
         return self._get_collection('/users', data)
 
     def get_user_by_id(self, id):
@@ -946,6 +955,26 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         return self._get_collection("/auth_providers", {})
+
+    def get_auth_provider(self, auth_provider_id):
+        """
+        Get auth provider details.
+        :param auth_provider_id: str: uuid of the auth provider
+        :return: requests.Response containing the successful result
+        """
+        return self._get_single_item('/auth_providers/{}/'.format(auth_provider_id), {})
+
+    def get_auth_provider_affiliates(self, auth_provider_id, full_name_contains):
+        """
+        List affiliates for a specific auth provider.
+        :param auth_provider_id: str: uuid of the auth provider to list affiliates of
+        :param full_name_contains: str: filters affiliates for this name
+        :return: requests.Response containing the successful result
+        """
+        data = {
+            'full_name_contains': full_name_contains
+        }
+        return self._get_collection("/auth_providers/{}/affiliates/".format(auth_provider_id), data)
 
     def auth_provider_add_user(self, auth_provider_id, username):
         """

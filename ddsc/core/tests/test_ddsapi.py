@@ -5,7 +5,7 @@ from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth,
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
     retry_until_resource_is_consistent, retry_when_service_down
-from mock import MagicMock, Mock, patch
+from mock import MagicMock, Mock, patch, ANY
 
 
 def fake_response_with_pages(status_code, json_return_value, num_pages=1):
@@ -233,6 +233,41 @@ class TestDataServiceApi(TestCase):
         self.assertEqual(200, result.status_code)
         self.assertEqual(json_results, result.json())
         self.assertEqual('something.com/v1/auth_providers', mock_requests.get.call_args_list[0][0][0])
+
+    def test_get_auth_provider(self):
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response(status_code=200, json_return_value={"ok": True})
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+        result = api.get_auth_provider('provider_id_123')
+        self.assertEqual(200, result.status_code)
+        mock_requests.get.assert_called_with('something.com/v1/auth_providers/provider_id_123/',
+                                             headers=ANY, params=ANY)
+
+    def test_get_auth_provider_affiliates(self):
+        user = {
+            "id": "abc4e9-9987-47eb-bb4e-19f0203efbf6",
+            "username": "joe",
+        }
+        json_results = {
+            "results": [
+                user
+            ]
+        }
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=json_results, num_pages=1)
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+        result = api.get_auth_provider_affiliates('provider_id_123', 'Joe Smith')
+        self.assertEqual(200, result.status_code)
+        self.assertEqual(json_results, result.json())
+        mock_requests.get.assert_called_with('something.com/v1/auth_providers/provider_id_123/affiliates/',
+                                             headers=ANY,
+                                             params={'full_name_contains': 'Joe Smith', 'page': 1, 'per_page': 100})
 
     def test_auth_provider_add_user(self):
         user = {
@@ -559,6 +594,52 @@ class TestDataServiceApi(TestCase):
         self.assertEqual(results[0]['project']['id'], '8593ab3c-9999-11e8-9eb6-529269fb1459')
         self.assertEqual(results[0]['user']['id'], '8593aeac-9999-11e8-9eb6-529269fb1459')
         self.assertEqual(results[0]['auth_role']['id'], 'project_admin')
+
+    def test_get_users_no_filtering(self):
+        mock_requests = MagicMock()
+        page1 = {
+            "results": [
+                {
+                    "id": "8593aeac-9999-11e8-9eb6-529269fb1459"
+                }
+            ]
+        }
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=page1, num_pages=1),
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+        response = api.get_users()
+
+        mock_requests.get.assert_called_with('something.com/v1/users', headers=ANY, params={'page': 1, 'per_page': 100})
+
+        results = response.json()['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['id'], '8593aeac-9999-11e8-9eb6-529269fb1459')
+
+    def test_get_users_with_filtering(self):
+        mock_requests = MagicMock()
+        page1 = {
+            "results": [
+                {
+                    "id": "8593aeac-9999-11e8-9eb6-529269fb1459"
+                }
+            ]
+        }
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=page1, num_pages=1),
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+        response = api.get_users(full_name='Joe Bob', email='joe@joe.com', username='joe')
+
+        mock_requests.get.assert_called_with('something.com/v1/users', headers=ANY,
+                                             params={'full_name_contains': 'Joe Bob', 'email': 'joe@joe.com', 'username': 'joe',
+                                                     'page': 1, 'per_page': 100})
+
+        results = response.json()['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['id'], '8593aeac-9999-11e8-9eb6-529269fb1459')
 
 
 class TestDataServiceAuth(TestCase):
