@@ -17,7 +17,7 @@ def get_file_or_folder_paths(item, prefix=""):
     if item.kind != KindType.file_str:
         for child in item.children:
             results.extend(get_file_or_folder_paths(child, item_path + "/"))
-    return results
+    return sorted(results)
 
 
 class TestProjectFolderFile(TestCase):
@@ -40,8 +40,9 @@ class TestProjectFolderFile(TestCase):
         folder.add_child(LocalFile('requirements.txt'))
         self.assertEqual(get_file_or_folder_paths(folder), [
             'stuff',
+            'stuff/requirements.txt',
             'stuff/setup.py',
-            'stuff/requirements.txt'
+
         ])
 
     def test_nested_folder_str(self):
@@ -54,10 +55,10 @@ class TestProjectFolderFile(TestCase):
         grand.add_child(otherparent)
         self.assertEqual(get_file_or_folder_paths(grand), [
             'grand',
+            'grand/otherparent',
             'grand/parent',
-            'grand/parent/setup.py',
             'grand/parent/requirements.txt',
-            'grand/otherparent'
+            'grand/parent/setup.py',
         ])
 
 
@@ -150,8 +151,8 @@ class TestProjectContent(TestCase):
         self.assertEqual(set(['note.txt', 'emptyfolder', 'results', 'scripts']), set(child_names))
         self.assertEqual(get_file_or_folder_paths(content), [
             '/DukeDsClientTestFolder',
-            '/DukeDsClientTestFolder/note.txt',
             '/DukeDsClientTestFolder/emptyfolder',
+            '/DukeDsClientTestFolder/note.txt',
             '/DukeDsClientTestFolder/results',
             '/DukeDsClientTestFolder/results/result1929.txt',
             '/DukeDsClientTestFolder/results/result2929.txt',
