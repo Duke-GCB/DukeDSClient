@@ -1,32 +1,48 @@
 import shutil
 import tarfile
 from unittest import TestCase, skip
-from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject
+from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, KindType
 from mock import patch
 
 
 INCLUDE_ALL = ''
 
 
+def get_file_or_folder_paths(item, prefix=""):
+    results = []
+    item_path = ""
+    if item.kind != KindType.project_str:
+        item_path = "{}{}".format(prefix, item.name)
+        results.append(item_path)
+    if item.kind != KindType.file_str:
+        for child in item.children:
+            results.extend(get_file_or_folder_paths(child, item_path + "/"))
+    return results
+
+
 class TestProjectFolderFile(TestCase):
     def test_file_str(self):
         f = LocalFile('setup.py')
-        self.assertEqual('file:setup.py', str(f))
+        self.assertEqual(get_file_or_folder_paths(f), ['setup.py'])
 
     def test_empty_folder_str(self):
         f = LocalFolder('stuff')
-        self.assertEqual('folder:stuff []', str(f))
+        self.assertEqual(get_file_or_folder_paths(f), ['stuff'])
 
     def test_folder_one_child_str(self):
         folder = LocalFolder('stuff')
         folder.add_child(LocalFile('setup.py'))
-        self.assertEqual('folder:stuff [file:setup.py]', str(folder))
+        self.assertEqual(get_file_or_folder_paths(folder), ['stuff', 'stuff/setup.py'])
 
     def test_folder_two_children_str(self):
         folder = LocalFolder('stuff')
         folder.add_child(LocalFile('setup.py'))
         folder.add_child(LocalFile('requirements.txt'))
-        self.assertEqual('folder:stuff [file:setup.py, file:requirements.txt]', str(folder))
+        self.assertEqual(get_file_or_folder_paths(folder), [
+            'stuff',
+            'stuff/setup.py',
+            'stuff/requirements.txt'
+        ])
 
     def test_nested_folder_str(self):
         grand = LocalFolder('grand')
@@ -36,9 +52,13 @@ class TestProjectFolderFile(TestCase):
         otherparent = LocalFolder('otherparent')
         grand.add_child(parent)
         grand.add_child(otherparent)
-        self.assertEqual(('folder:grand ['
-                          'folder:parent [file:setup.py, file:requirements.txt], '
-                          'folder:otherparent []]'), str(grand))
+        self.assertEqual(get_file_or_folder_paths(grand), [
+            'grand',
+            'grand/parent',
+            'grand/parent/setup.py',
+            'grand/parent/requirements.txt',
+            'grand/otherparent'
+        ])
 
 
 class TestProjectContent(TestCase):
@@ -76,68 +96,83 @@ class TestProjectContent(TestCase):
 
     def test_empty_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
-        self.assertEqual('project: []', str(content))
+        self.assertEqual(get_file_or_folder_paths(content), [])
 
     def test_top_level_file_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/note.txt')
-        self.assertEqual('project: [file:note.txt]', str(content))
+        self.assertEqual(get_file_or_folder_paths(content), [
+            '/note.txt'
+        ])
 
     def test_empty_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/emptyfolder')
-        self.assertEqual('project: [folder:emptyfolder []]', str(content))
+        self.assertEqual(get_file_or_folder_paths(content), [
+            '/emptyfolder'
+        ])
 
     def test_empty_folder_and_file_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/emptyfolder')
         content.add_path('/tmp/DukeDsClientTestFolder/note.txt')
-        self.assertEqual('project: [folder:emptyfolder [], file:note.txt]', str(content))
+        self.assertEqual(get_file_or_folder_paths(content), [
+            '/emptyfolder',
+            '/note.txt'
+        ])
 
     def test_one_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/scripts')
-        self.assertEqual('project: [folder:scripts [file:makemoney.sh]]', str(content))
+        self.assertEqual(get_file_or_folder_paths(content), [
+            '/scripts',
+            '/scripts/makemoney.sh',
+        ])
 
-    @skip(reason="Fragile test breaks due to item sorting differences on travis")
     def test_nested_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/results')
-        self.assertEqual(('project: [folder:results ['
-                          'file:result1929.txt, '
-                          'file:result2929.txt, '
-                          'folder:subresults [file:result1002.txt, file:result13.txt, file:result15.txt], '
-                          'folder:subresults2 []'
-                          ']]'), str(content))
+        self.assertEqual(get_file_or_folder_paths(content), [
+            '/results',
+            '/results/result1929.txt',
+            '/results/result2929.txt',
+            '/results/subresults',
+            '/results/subresults/result1002.txt',
+            '/results/subresults/result13.txt',
+            '/results/subresults/result15.txt',
+            '/results/subresults2',
+        ])
 
-    @skip(reason="Fragile test breaks due to item sorting differences on travis")
     def test_big_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder')
         child_names = [child.name for child in content.children[0].children]
         self.assertEqual(set(['note.txt', 'emptyfolder', 'results', 'scripts']), set(child_names))
-        self.assertEqual(('project: [folder:DukeDsClientTestFolder ['
-                          'file:note.txt, '
-                          'folder:emptyfolder [], '
-                          'folder:results ['
-                          'file:result1929.txt, file:result2929.txt, folder:subresults '
-                          '[file:result1002.txt, file:result13.txt, file:result15.txt], '
-                          'folder:subresults2 []'
-                          '], '
-                          'folder:scripts ['
-                          'file:makemoney.sh'
-                          ']'
-                          ']]'), str(content))
+        self.assertEqual(get_file_or_folder_paths(content), [
+            '/DukeDsClientTestFolder',
+            '/DukeDsClientTestFolder/note.txt',
+            '/DukeDsClientTestFolder/emptyfolder',
+            '/DukeDsClientTestFolder/results',
+            '/DukeDsClientTestFolder/results/result1929.txt',
+            '/DukeDsClientTestFolder/results/result2929.txt',
+            '/DukeDsClientTestFolder/results/subresults',
+            '/DukeDsClientTestFolder/results/subresults/result1002.txt',
+            '/DukeDsClientTestFolder/results/subresults/result13.txt',
+            '/DukeDsClientTestFolder/results/subresults/result15.txt',
+            '/DukeDsClientTestFolder/results/subresults2',
+            '/DukeDsClientTestFolder/scripts',
+            '/DukeDsClientTestFolder/scripts/makemoney.sh'
+        ])
 
     def test_include_dot_files(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('test_scripts')
-        self.assertIn('.hidden_file', str(content))
+        self.assertIn('/test_scripts/.hidden_file', get_file_or_folder_paths(content))
 
     def test_exclude_dot_files(self):
         content = LocalProject(False, file_exclude_regex='^\.')
         content.add_path('test_scripts')
-        self.assertNotIn('.hidden_file', str(content))
+        self.assertNotIn('/test_scripts/.hidden_file', get_file_or_folder_paths(content))
 
     def test_ignore_one_dir(self):
         with open("/tmp/DukeDsClientTestFolder/.ddsignore", "w") as text_file:
