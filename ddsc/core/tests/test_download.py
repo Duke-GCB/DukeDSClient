@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 from unittest import TestCase
 import os
-import ddsc.core.download
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
     download_file_part_run, DownloadFilePartCommand, FileUrlDownloader
@@ -574,7 +573,7 @@ class TestRetryChunkDownloader(TestCase):
         downloader.get_url_and_headers_for_range.return_value = ('someurl', ['headers'])
         mock_requests.get.return_value.iter_content.side_effect = [
             ['X' * 10],  # only 10 bytes the first time
-            ['X' * 100], # all 100 bytes the second time
+            ['X' * 100],  # all 100 bytes the second time
         ]
         fake_open = mock_open()
         with patch('ddsc.core.download.open', fake_open, create=True):
