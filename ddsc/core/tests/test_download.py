@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 import os
+import ddsc.core.download
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
     download_file_part_run, DownloadFilePartCommand, FileUrlDownloader
@@ -541,3 +542,41 @@ class TestRetryChunkDownloader(TestCase):
 
         with self.assertRaises(PartialChunkDownloadError):
             downloader._verify_download_complete()
+
+    @patch('ddsc.core.download.RemoteFileUrl')
+    @patch('ddsc.core.download.requests')
+    def test_retry_download_loop_too_few_actual_bytes_read(self, mock_requests, mock_remote_file_url):
+        mock_requests.exceptions.ConnectionError = ValueError
+        mock_project_file = Mock()
+        mock_context = Mock()
+        downloader = RetryChunkDownloader(project_file=mock_project_file, local_path=None, seek_amt=0,
+                                          bytes_to_read=100, download_context=mock_context)
+        downloader.max_retry_times = 2
+        downloader.get_url_and_headers_for_range = Mock()
+        downloader.get_url_and_headers_for_range.return_value = ('someurl', ['headers'])
+        mock_requests.get.return_value.iter_content.return_value = ['X' * 10]
+        fake_open = mock_open()
+        with patch('ddsc.core.download.open', fake_open, create=True):
+            with self.assertRaises(PartialChunkDownloadError):
+                downloader.retry_download_loop()
+        self.assertEqual(downloader.actual_bytes_read, 10)
+
+    @patch('ddsc.core.download.RemoteFileUrl')
+    @patch('ddsc.core.download.requests')
+    def test_retry_download_loop_too_few_actual_bytes_read_then_works(self, mock_requests, mock_remote_file_url):
+        mock_requests.exceptions.ConnectionError = ValueError
+        mock_project_file = Mock()
+        mock_context = Mock()
+        downloader = RetryChunkDownloader(project_file=mock_project_file, local_path=None, seek_amt=0,
+                                          bytes_to_read=100, download_context=mock_context)
+        downloader.max_retry_times = 2
+        downloader.get_url_and_headers_for_range = Mock()
+        downloader.get_url_and_headers_for_range.return_value = ('someurl', ['headers'])
+        mock_requests.get.return_value.iter_content.side_effect = [
+            ['X' * 10],  # only 10 bytes the first time
+            ['X' * 100], # all 100 bytes the second time
+        ]
+        fake_open = mock_open()
+        with patch('ddsc.core.download.open', fake_open, create=True):
+            downloader.retry_download_loop()
+        self.assertEqual(downloader.actual_bytes_read, 100)
