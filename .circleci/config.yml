@@ -4,7 +4,7 @@ jobs:
     docker:
       - image: circleci/python:3.6
     steps:
-      - checkout
+      - checkout:
           path: path: ~/DukeDSClient
 
       - restore_cache:
