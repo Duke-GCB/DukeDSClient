@@ -1,3 +1,6 @@
+# Contains two jobs: build and deploy.
+# Job `build` is always run to validate code via `python setup.py test`
+# Job `deploy` is run for version number tags and uploads DukeDSClient to pypi.
 version: 2
 jobs:
   build:
