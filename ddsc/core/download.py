@@ -439,6 +439,7 @@ class RetryChunkDownloader(object):
         if response.status_code == 401:
             raise DownloadInconsistentError(response.text)
         response.raise_for_status()
+        self.actual_bytes_read = 0
         self._write_response_to_file(response)
         self._verify_download_complete()
 
