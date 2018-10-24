@@ -1,7 +1,7 @@
 # DukeDSClient
 Command line tool to upload/manage project on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
 
-[![Build Status](https://travis-ci.org/Duke-GCB/DukeDSClient.svg?branch=master)](https://travis-ci.org/Duke-GCB/DukeDSClient)
+[![CircleCI](https://circleci.com/gh/Duke-GCB/DukeDSClient.svg?style=svg)](https://circleci.com/gh/Duke-GCB/DukeDSClient)
 [![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg)](https://coveralls.io/github/Duke-GCB/DukeDSClient)
 
 
