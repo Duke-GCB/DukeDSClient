@@ -21,7 +21,7 @@ jobs:
             . venv/bin/activate
             python setup.py install
             pip install -r devRequirements.txt
-
+            pip install coveralls
       - save_cache:
           key: v1-dependency-cache-{{ checksum "setup.py" }}-{{ checksum "devRequirements.txt" }}
           paths:
@@ -32,7 +32,8 @@ jobs:
           command: |
             . venv/bin/activate
             python setup.py test
-
+            flake8 --ignore E501 ddsc/
+            coverage run --source=ddsc setup.py test
   deploy:
     docker:
       - image: circleci/python:3.6
