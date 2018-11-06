@@ -964,16 +964,22 @@ class DataServiceApi(object):
         """
         return self._get_single_item('/auth_providers/{}/'.format(auth_provider_id), {})
 
-    def get_auth_provider_affiliates(self, auth_provider_id, full_name_contains):
+    def get_auth_provider_affiliates(self, auth_provider_id, full_name_contains=None, email=None, username=None):
         """
         List affiliates for a specific auth provider.
         :param auth_provider_id: str: uuid of the auth provider to list affiliates of
         :param full_name_contains: str: filters affiliates for this name
+        :param email: str: filters affiliates for this email address
+        :param username: str: filters affiliates for this username
         :return: requests.Response containing the successful result
         """
-        data = {
-            'full_name_contains': full_name_contains
-        }
+        data = {}
+        if full_name_contains:
+            data['full_name_contains'] = full_name_contains
+        if email:
+            data['email'] = email
+        if username:
+            data['username'] = username
         return self._get_collection("/auth_providers/{}/affiliates/".format(auth_provider_id), data)
 
     def auth_provider_add_user(self, auth_provider_id, username):
