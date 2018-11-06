@@ -284,7 +284,6 @@ class TestDataServiceApi(TestCase):
                                              headers=ANY,
                                              params={'email': 'joe.smith@example.org', 'page': 1, 'per_page': 100})
 
-
     def test_get_auth_provider_affiliates_username(self):
         mock_requests, json_results = self.make_mock_requests_for_auth_provider_affiliates()
         api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
