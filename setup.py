@@ -10,7 +10,7 @@ setup(name='DukeDSClient',
         license='MIT',
         packages=['ddsc', 'ddsc.core', 'ddsc.sdk', 'DukeDS'],
         install_requires=[
-          'requests',
+          'requests>=2.20.0',
           'PyYAML',
           'pytz',
           'future',
