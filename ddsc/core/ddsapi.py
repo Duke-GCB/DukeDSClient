@@ -982,6 +982,15 @@ class DataServiceApi(object):
             data['username'] = username
         return self._get_collection("/auth_providers/{}/affiliates/".format(auth_provider_id), data)
 
+    def get_auth_provider_affiliate(self, auth_provider_id, username):
+        """
+        Fetch single affiliate by username for an auth provider
+        :param auth_provider_id: str: uuid of the auth provider to list affiliates of
+        :param username: str: unique username for which to fetch affiliate
+        :return: requests.Response containing the successful result
+        """
+        return self._get_single_item('/auth_providers/{}/affiliates/{}/'.format(auth_provider_id, username), {})
+
     def auth_provider_add_user(self, auth_provider_id, username):
         """
         Transform an institutional affiliates UID, such as a Duke NetID, to a DDS specific user identity;
