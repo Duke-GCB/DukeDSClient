@@ -3,15 +3,15 @@ import os
 import base64
 import requests
 
-travis_tag = os.environ['TRAVIS_TAG']
+commit_tag = os.environ['CIRCLE_TAG']
 commit_token = os.environ['COMMIT_TOKEN']
 commit_user = os.environ['COMMIT_USER']
 commit_email = os.environ['COMMIT_EMAIL']
 
 base_url = 'https://api.github.com/repos/Duke-GCB/helmod/contents/rpmbuild/SPECS/'
 source_filename = "deploy/ddsclient-generic-gcb01.spec"
-target_filename = "ddsclient-{}-gcb01.spec".format(travis_tag)
-commit_msg = "DukeDSClient module update {}".format(travis_tag)
+target_filename = "ddsclient-{}-gcb01.spec".format(commit_tag)
+commit_msg = "DukeDSClient module update {}".format(commit_tag)
 commit_branch = "master"
 
 headers = { "Authorization": "token {}".format(commit_token)}

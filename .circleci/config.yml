@@ -74,6 +74,12 @@ jobs:
             . venv/bin/activate
             twine upload dist/*
 
+      - run:
+          name: Add new spec to helmod repo
+          command: |
+            . venv/bin/activate
+            ./deploy/onpublish.sh
+
 workflows:
   version: 2
   build_and_deploy:
