@@ -295,6 +295,19 @@ class TestDataServiceApi(TestCase):
                                              headers=ANY,
                                              params={'username': 'js123', 'page': 1, 'per_page': 100})
 
+    def test_auth_provider_affiliate_single(self):
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response(status_code=200, json_return_value={"ok": True})
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+        result = api.get_auth_provider_affiliate('provider_id_123', 'az567')
+        self.assertEqual(200, result.status_code)
+        mock_requests.get.assert_called_with('something.com/v1/auth_providers/provider_id_123/affiliates/az567/',
+                                             headers=ANY,
+                                             params=ANY)
+
     def test_auth_provider_add_user(self):
         user = {
             "id": "abc4e9-9987-47eb-bb4e-19f0203efbf6",
