@@ -26,7 +26,7 @@ if resp.status_code == 404:
       "path": "rpmbuild/SPECS/{}".format(target_filename),
       "message": commit_msg,
       "committer": {"name": commit_user, "email": commit_email},
-      "content": str(base64_content),
+      "content": base64_content.decode("utf-8"),
       "branch": commit_branch
     }
     resp = requests.put(url, headers=headers, json=data)
