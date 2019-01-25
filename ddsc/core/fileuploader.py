@@ -53,7 +53,8 @@ class FileUploader(object):
         """
         path_data = self.local_file.get_path_data()
         hash_data = path_data.get_hash()
-        self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data)
+        self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data,
+                                                              self.config.storage_provider_id)
         ParallelChunkProcessor(self).run()
         parent_data = ParentData(parent_kind, parent_id)
         remote_file_data = self.upload_operations.finish_upload(self.upload_id, hash_data, parent_data,
@@ -96,13 +97,14 @@ class FileUploadOperations(object):
         self.data_service = data_service
         self.waiting_monitor = waiting_monitor
 
-    def create_upload(self, project_id, path_data, hash_data, remote_filename=None):
+    def create_upload(self, project_id, path_data, hash_data, remote_filename=None, storage_provider=None):
         """
         Create upload so we can send call further methods.
         :param project_id: str: uuid of the project
         :param path_data: PathData: holds file system data about the file we are uploading
         :param hash_data: HashData: contains hash alg and value for the file we are uploading
         :param remote_filename: str: name to use for our remote file (defaults to path_data basename otherwise)
+        :param storage_provider: str: optional storage provider id
         :return: str: uuid for the upload
         """
         if not remote_filename:
@@ -112,7 +114,7 @@ class FileUploadOperations(object):
 
         def func():
             return self.data_service.create_upload(project_id, remote_filename, mime_type, size,
-                                                   hash_data.value, hash_data.alg)
+                                                   hash_data.value, hash_data.alg, storage_provider)
 
         resp = retry_until_resource_is_consistent(func, self.waiting_monitor)
         return resp.json()['id']
@@ -127,7 +129,11 @@ class FileUploadOperations(object):
         """
         chunk_len = len(chunk)
         hash_data = HashData.create_from_chunk(chunk)
-        resp = self.data_service.create_upload_url(upload_id, chunk_num, chunk_len, hash_data.value, hash_data.alg)
+
+        def func():
+            return self.data_service.create_upload_url(upload_id, chunk_num, chunk_len, hash_data.value, hash_data.alg)
+
+        resp = retry_until_resource_is_consistent(func, self.waiting_monitor)
         return resp.json()
 
     def send_file_external(self, url_json, chunk):
