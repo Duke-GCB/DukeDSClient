@@ -409,7 +409,7 @@ def create_small_file(upload_context):
     # Talk to data service uploading chunk and creating the file.
     upload_operations = FileUploadOperations(data_service, upload_context)
     upload_id = upload_operations.create_upload(upload_context.project_id, path_data, hash_data,
-                                                upload_context.config.storage_provider_id)
+                                                storage_provider_id=upload_context.config.storage_provider_id)
     url_info = upload_operations.create_file_chunk_url(upload_id, chunk_num, chunk)
     upload_operations.send_file_external(url_info, chunk)
     return upload_operations.finish_upload(upload_id, hash_data, parent_data, remote_file_id)
