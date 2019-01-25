@@ -190,8 +190,7 @@ class DDSConnection(object):
         hash_data = path_data.get_hash()
         file_upload_operations = FileUploadOperations(self.data_service, None)
         upload_id = file_upload_operations.create_upload(project_id, path_data, hash_data,
-                                                         remote_filename=remote_filename,
-                                                         storage_provider=self.config.storage_provider_id)
+                                                         remote_filename=remote_filename)
         context = UploadContext(self.config, self.data_service, upload_id, path_data)
         ParallelChunkProcessor(context).run()
         remote_file_data = file_upload_operations.finish_upload(upload_id, hash_data, parent_data, existing_file_id)

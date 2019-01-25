@@ -73,7 +73,6 @@ class Config(object):
     D4S2_URL = 'd4s2_url'                              # url for use with the D4S2 (share/deliver service)
     FILE_EXCLUDE_REGEX = 'file_exclude_regex'          # allows customization of which filenames will be uploaded
     GET_PAGE_SIZE = 'get_page_size'                    # page size used for GET pagination requests
-    STORAGE_PROVIDER_ID = 'storage_provider_id'        # setting to override the default storage provider
 
     def __init__(self):
         self.values = {}
@@ -216,11 +215,3 @@ class Config(object):
         :return:
         """
         return self.values.get(Config.GET_PAGE_SIZE, GET_PAGE_SIZE_DEFAULT)
-
-    @property
-    def storage_provider_id(self):
-        """
-        Returns storage provider id from /api/v1/storage_providers DukeDS API or None to use default.
-        :return: str: uuid of storage provider
-        """
-        return self.values.get(Config.STORAGE_PROVIDER_ID, None)
