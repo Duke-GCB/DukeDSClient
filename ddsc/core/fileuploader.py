@@ -124,15 +124,17 @@ class FileUploadOperations(object):
         """
         Create a url for uploading a particular chunk to the datastore.
         :param upload_id: str: uuid of the upload this chunk is for
-        :param chunk_num: int: where in the file does this chunk go
+        :param chunk_num: int: where in the file does this chunk go (0-based index)
         :param chunk: bytes: data we are going to upload
         :return:
         """
         chunk_len = len(chunk)
         hash_data = HashData.create_from_chunk(chunk)
+        one_based_index = chunk_num + 1
 
         def func():
-            return self.data_service.create_upload_url(upload_id, chunk_num, chunk_len, hash_data.value, hash_data.alg)
+            return self.data_service.create_upload_url(upload_id, one_based_index, chunk_len,
+                                                       hash_data.value, hash_data.alg)
 
         resp = retry_until_resource_is_consistent(func, self.waiting_monitor)
         return resp.json()

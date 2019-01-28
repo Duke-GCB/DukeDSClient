@@ -500,12 +500,14 @@ class DataServiceApi(object):
         """
         Given an upload created by create_upload retrieve a url where we can upload a chunk.
         :param upload_id: uuid of the upload
-        :param number: int incrementing number of the upload
+        :param number: int incrementing number of the upload (1-based index)
         :param size: int size of the chunk in bytes
         :param hash_value: str hash value of chunk
         :param hash_alg: str algorithm used to create hash
         :return: requests.Response containing the successful result
         """
+        if number < 1:
+            raise ValueError("Chunk number must be > 0")
         data = {
             "number": number,
             "size": size,
