@@ -680,6 +680,29 @@ class TestDataServiceApi(TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]['id'], '8593aeac-9999-11e8-9eb6-529269fb1459')
 
+    def test_put_create_upload_url(self):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        mock_response = {
+            "id": "8593aeac-9999-11e8-9eb6-529269fb1459"
+        }
+        mock_requests.put.side_effect = [
+            fake_response(status_code=200, json_return_value=mock_response),
+        ]
+        resp = api.create_upload_url(upload_id='someId', number=1, size=200, hash_value='somehash', hash_alg='md5')
+        self.assertEqual(resp.json(), mock_response)
+
+    def test_put_create_upload_url_invalid_number(self):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        with self.assertRaises(ValueError) as raised_exception:
+            api.create_upload_url(upload_id='someId', number=0, size=200, hash_value='somehash', hash_alg='md5')
+        self.assertEqual(str(raised_exception.exception), "Chunk number must be > 0")
+
 
 class TestDataServiceAuth(TestCase):
     @patch('ddsc.core.ddsapi.get_user_agent_str')

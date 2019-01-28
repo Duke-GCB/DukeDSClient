@@ -233,3 +233,26 @@ class TestFileUploadOperations(TestCase):
         args, kwargs = data_service.create_upload.call_args
         self.assertEqual(args[0], '12')
         self.assertEqual(args[1], 'other.dat')
+
+    @patch('ddsc.core.fileuploader.HashData')
+    def test_create_file_chunk_url_uses_one_based_indexing(self, hash_data):
+        data_service = MagicMock()
+        mock_response = Mock()
+        mock_response.json.return_value = 'result'
+        data_service.create_upload_url.return_value = mock_response
+        response = Mock()
+        response.json.return_value = {'id': '123'}
+        data_service.create_upload.side_effect = [
+            response
+        ]
+        hash_data.create_from_chunk.return_value = Mock(value='h@sh', alg='md5')
+
+        fop = FileUploadOperations(data_service, MagicMock())
+        resp = fop.create_file_chunk_url(upload_id='someId', chunk_num=0, chunk='data')
+
+        self.assertEqual(resp, 'result')
+        data_service.create_upload_url.assert_called_with('someId',
+                                                          1,       # one based_index
+                                                          4,       # chunk_len
+                                                          'h@sh',  # hash_value
+                                                          'md5')   # hash_alg
