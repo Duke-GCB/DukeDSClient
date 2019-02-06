@@ -711,7 +711,7 @@ class TestDataServiceApi(TestCase):
                              http=mock_requests)
         mock_requests.post.return_value = fake_response(status_code=201, json_return_value={})
         api.create_upload(project_id='123', filename='data.txt', content_type='sometype', size=10,
-                      hash_value='somehash', hash_alg='md5', storage_provider_id='abc456')
+                          hash_value='somehash', hash_alg='md5', storage_provider_id='abc456')
         expected_data = json.dumps({
             "name": "data.txt",
             "content_type": "sometype",
