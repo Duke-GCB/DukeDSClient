@@ -470,7 +470,7 @@ class DataServiceApi(object):
         return self._get_collection(url_prefix, data)
 
     def create_upload(self, project_id, filename, content_type, size,
-                      hash_value, hash_alg):
+                      hash_value, hash_alg, storage_provider_id=None):
         """
         Post to /projects/{project_id}/uploads to create a uuid for uploading chunks.
         NOTE: The optional hash_value and hash_alg parameters are being removed from the DukeDS API.
@@ -480,6 +480,7 @@ class DataServiceApi(object):
         :param size: int size of the file in bytes
         :param hash_value: str hash value of the entire file
         :param hash_alg: str algorithm used to create hash_value
+        :param storage_provider_id: str optional storage provider id
         :return: requests.Response containing the successful result
         """
         data = {
@@ -489,20 +490,24 @@ class DataServiceApi(object):
             "hash": {
                 "value": hash_value,
                 "algorithm": hash_alg
-            }
+            },
         }
+        if storage_provider_id:
+            data['storage_provider'] = {'id': storage_provider_id}
         return self._post("/projects/" + project_id + "/uploads", data)
 
     def create_upload_url(self, upload_id, number, size, hash_value, hash_alg):
         """
         Given an upload created by create_upload retrieve a url where we can upload a chunk.
         :param upload_id: uuid of the upload
-        :param number: int incrementing number of the upload
+        :param number: int incrementing number of the upload (1-based index)
         :param size: int size of the chunk in bytes
         :param hash_value: str hash value of chunk
         :param hash_alg: str algorithm used to create hash
         :return: requests.Response containing the successful result
         """
+        if number < 1:
+            raise ValueError("Chunk number must be > 0")
         data = {
             "number": number,
             "size": size,

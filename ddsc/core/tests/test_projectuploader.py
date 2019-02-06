@@ -2,10 +2,10 @@ from unittest import TestCase
 import pickle
 import multiprocessing
 from ddsc.core.projectuploader import UploadSettings, UploadContext, ProjectUploadDryRun, CreateProjectCommand, \
-    upload_project_run
+    upload_project_run, create_small_file
 from ddsc.core.util import KindType
 from ddsc.core.remotestore import ProjectNameOrId
-from mock import MagicMock, Mock
+from mock import MagicMock, Mock, patch
 
 
 class FakeDataServiceApi(object):
@@ -144,3 +144,21 @@ class TestCreateProjectCommand(TestCase):
         mock_upload_context.project_name_or_id = ProjectNameOrId.create_from_name('mouse')
         upload_project_run(mock_upload_context)
         mock_data_service.create_project.assert_called_with('mouse', 'mouse')
+
+
+class TestCreateSmallFile(TestCase):
+    @patch('ddsc.core.projectuploader.FileUploadOperations')
+    def test_create_small_file_passes_zero_index(self, mock_file_operations):
+        mock_path_data = Mock()
+        mock_path_data.read_whole_file.return_value = 'data'
+        mock_file_operations.return_value.create_upload.return_value = 'someId'
+
+        upload_context = Mock(params=(Mock(), mock_path_data, Mock()))
+        resp = create_small_file(upload_context)
+
+        self.assertEqual(resp, mock_file_operations.return_value.finish_upload.return_value)
+        mock_file_operations.return_value.create_file_chunk_url.assert_called_with(
+            'someId',
+            0,  # zero based index passed to create_file_chunk_url
+            'data'
+        )

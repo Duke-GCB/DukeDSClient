@@ -1,6 +1,7 @@
 from __future__ import absolute_import, print_function
 from unittest import TestCase
 import requests
+import json
 from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth, SETUP_GUIDE_URL
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
@@ -679,6 +680,51 @@ class TestDataServiceApi(TestCase):
         results = response.json()['results']
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]['id'], '8593aeac-9999-11e8-9eb6-529269fb1459')
+
+    def test_put_create_upload_url(self):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        mock_response = {
+            "id": "8593aeac-9999-11e8-9eb6-529269fb1459"
+        }
+        mock_requests.put.side_effect = [
+            fake_response(status_code=200, json_return_value=mock_response),
+        ]
+        resp = api.create_upload_url(upload_id='someId', number=1, size=200, hash_value='somehash', hash_alg='md5')
+        self.assertEqual(resp.json(), mock_response)
+
+    def test_put_create_upload_url_invalid_number(self):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        with self.assertRaises(ValueError) as raised_exception:
+            api.create_upload_url(upload_id='someId', number=0, size=200, hash_value='somehash', hash_alg='md5')
+        self.assertEqual(str(raised_exception.exception), "Chunk number must be > 0")
+
+    def test_create_upload(self):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        mock_requests.post.return_value = fake_response(status_code=201, json_return_value={})
+        api.create_upload(project_id='123', filename='data.txt', content_type='sometype', size=10,
+                          hash_value='somehash', hash_alg='md5', storage_provider_id='abc456')
+        expected_data = json.dumps({
+            "name": "data.txt",
+            "content_type": "sometype",
+            "size": 10,
+            "hash": {
+                "value": "somehash",
+                "algorithm": "md5"
+            },
+            "storage_provider": {"id": "abc456"}
+        })
+        mock_requests.post.assert_called_with('something.com/v1/projects/123/uploads',
+                                              expected_data,
+                                              headers=ANY)
 
 
 class TestDataServiceAuth(TestCase):
