@@ -248,17 +248,25 @@ class TestDDSConnection(TestCase):
         }
         mock_file_upload_operations.return_value.finish_upload.return_value = response
 
-        dds_connection = DDSConnection(Mock())
+        mock_config = Mock()
+        dds_connection = DDSConnection(mock_config)
         file_info = dds_connection.upload_file(
             local_path='/tmp/data.dat',
             project_id='123',
-            parent_data=Mock()
+            parent_data=Mock(),
+            remote_filename='data.dat'
         )
 
         self.assertEqual(file_info.id, '456')
         self.assertEqual(file_info.name, 'data.dat')
         self.assertEqual(file_info.project_id, '123')
-        mock_file_upload_operations.return_value.create_upload.assert_called()
+        mock_file_upload_operations.return_value.create_upload.assert_called_with(
+            '123',
+            mock_path_data.return_value,
+            mock_path_data.return_value.get_hash.return_value,
+            remote_filename='data.dat',
+            storage_provider=mock_config.storage_provider_id
+        )
         mock_parallel_chunk_processor.return_value.run.assert_called()
         mock_file_upload_operations.return_value.finish_upload.assert_called()
 
