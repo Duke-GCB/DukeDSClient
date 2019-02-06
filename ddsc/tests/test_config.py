@@ -14,6 +14,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.auth, None)
         self.assertEqual(config.upload_bytes_per_chunk, ddsc.config.DDS_DEFAULT_UPLOAD_CHUNKS)
         self.assertEqual(config.upload_workers, min(multiprocessing.cpu_count(), ddsc.config.MAX_DEFAULT_WORKERS))
+        self.assertEqual(config.storage_provider_id, None)
 
     def test_global_then_local(self):
         config = ddsc.config.Config()
@@ -145,3 +146,13 @@ class TestConfig(TestCase):
         }
         config.update_properties(some_config)
         self.assertEqual(config.page_size, 200)
+
+    @patch('ddsc.config.os')
+    def test_storage_provider_id(self, mock_os):
+        config = ddsc.config.Config()
+        self.assertEqual(config.storage_provider_id, None)
+        some_config = {
+            'storage_provider_id': '123456',
+        }
+        config.update_properties(some_config)
+        self.assertEqual(config.storage_provider_id, '123456')
