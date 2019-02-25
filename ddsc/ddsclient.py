@@ -5,7 +5,7 @@ import sys
 import datetime
 import time
 from ddsc.core.d4s2 import D4S2Project, D4S2Error
-from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId, NotFoundError
+from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, format_destination_path, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
@@ -123,22 +123,18 @@ class BaseCommand(object):
         :return: [RemoteUser]: details about any users referenced the two parameters
         """
         to_users = []
-        unable_to_find_users = []
-        if emails:
-            for email in emails:
-                try:
-                    to_users.append(self.remote_store.lookup_user_by_email(email))
-                except NotFoundError:
-                    unable_to_find_users.append(email)
-        if usernames:
-            for username in usernames:
-                try:
-                    to_users.append(self.remote_store.lookup_user_by_username(username))
-                except NotFoundError:
-                    unable_to_find_users.append(username)
-        if unable_to_find_users:
-            missing_email_and_usernames = ','.join(unable_to_find_users)
-            msg = "Unable to find users for the following email/usernames: {}".format(missing_email_and_usernames)
+        remaining_emails = [] if not emails else list(emails)
+        remaining_usernames = [] if not usernames else list(usernames)
+        for user in self.remote_store.fetch_users():
+            if user.email in remaining_emails:
+                to_users.append(user)
+                remaining_emails.remove(user.email)
+            elif user.username in remaining_usernames:
+                to_users.append(user)
+                remaining_usernames.remove(user.username)
+        if remaining_emails or remaining_usernames:
+            unable_to_find_users = ','.join(remaining_emails + remaining_usernames)
+            msg = "Unable to find users for the following email/usernames: {}".format(unable_to_find_users)
             raise ValueError(msg)
         return to_users
 

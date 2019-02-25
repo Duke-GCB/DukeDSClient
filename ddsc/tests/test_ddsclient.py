@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand, NotFoundError
+from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand
 from ddsc.ddsclient import ShareCommand, DeliverCommand, read_argument_file_contents
 from mock import patch, MagicMock, Mock, call
 
@@ -33,71 +33,31 @@ class TestBaseCommand(TestCase):
         self.assertEqual(False, kwargs['include_children'])
 
     @patch('ddsc.ddsclient.RemoteStore')
-    def test_make_user_list_with_valid_emails(self, mock_remote_store):
-        mock_remote_store.return_value.lookup_user_by_email.side_effect = [
-            Mock(username='joe', email='joe@joe.com'),
-            Mock(username='bob', email='bob@bob.com'),
-            ValueError("Should not be raised.")
-        ]
+    def test_make_user_list(self, mock_remote_store):
         mock_config = MagicMock()
         base_cmd = BaseCommand(mock_config)
-        results = base_cmd.make_user_list(
-            emails=['joe@joe.com', 'bob@bob.com'],
-            usernames=None)
-
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results[0].username, 'joe')
-        self.assertEqual(results[1].username, 'bob')
-        mock_remote_store.return_value.lookup_user_by_email.assert_has_calls([
-            call("joe@joe.com"),
-            call("bob@bob.com")
-        ])
-
-    @patch('ddsc.ddsclient.RemoteStore')
-    def test_make_user_list_with_valid_usernames(self, mock_remote_store):
-        mock_remote_store.return_value.lookup_user_by_username.side_effect = [
-            Mock(username='joe', email='joe@joe.com'),
-            Mock(username='bob', email='bob@bob.com'),
-            ValueError("Should not be raised.")
+        mock_remote_store.return_value.fetch_users.return_value = [
+            Mock(username='joe', email='joe@joe.joe'),
+            Mock(username='bob', email='bob@bob.bob'),
+            Mock(username='tim', email='tim@tim.tim'),
         ]
-        mock_config = MagicMock()
-        base_cmd = BaseCommand(mock_config)
-        results = base_cmd.make_user_list(
-            emails=[],
-            usernames=['joe', 'bob'])
 
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results[0].username, 'joe')
-        self.assertEqual(results[1].username, 'bob')
-        mock_remote_store.return_value.lookup_user_by_username.assert_has_calls([
-            call("joe"),
-            call("bob")
+        # Find users by username
+        results = base_cmd.make_user_list(emails=None, usernames=[
+            'joe',
+            'bob'
         ])
+        self.assertEqual([user.email for user in results], ['joe@joe.joe', 'bob@bob.bob'])
 
-    @patch('ddsc.ddsclient.RemoteStore')
-    def test_make_user_list_with_invalid_values(self, mock_remote_store):
-        mock_remote_store.return_value.lookup_user_by_email.side_effect = [
-            NotFoundError(""),
-            ValueError("Should not be raised.")
-        ]
-        mock_remote_store.return_value.lookup_user_by_username.side_effect = [
-            NotFoundError(""),
-            ValueError("Should not be raised.")
-        ]
-        mock_config = MagicMock()
-        base_cmd = BaseCommand(mock_config)
-        with self.assertRaises(ValueError) as raised_exception:
-            base_cmd.make_user_list(emails=['joe@joe.com'], usernames=['bob'])
+        # Find users by email
+        results = base_cmd.make_user_list(emails=['joe@joe.joe'], usernames=None)
+        self.assertEqual([user.username for user in results], ['joe'])
 
-        self.assertEqual(str(raised_exception.exception),
-                         'Unable to find users for the following email/usernames: joe@joe.com,bob')
-
-        mock_remote_store.return_value.lookup_user_by_email.assert_has_calls([
-            call("joe@joe.com"),
-        ])
-        mock_remote_store.return_value.lookup_user_by_username.assert_has_calls([
-            call("bob"),
-        ])
+        # Should get an error for invalid emails or usernames
+        with self.assertRaises(ValueError) as raisedError:
+            base_cmd.make_user_list(emails=['no@no.no'], usernames=['george'])
+        self.assertEqual('Unable to find users for the following email/usernames: no@no.no,george',
+                         str(raisedError.exception))
 
 
 class TestUploadCommand(TestCase):
