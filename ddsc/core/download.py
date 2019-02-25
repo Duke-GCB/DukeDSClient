@@ -12,6 +12,8 @@ from ddsc.core.remotestore import RemoteStore, ProjectFile, RemoteFileUrl
 FETCH_EXTERNAL_PUT_RETRY_TIMES = 5
 FETCH_EXTERNAL_RETRY_SECONDS = 20
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
+SWIFT_EXPIRED_STATUS_CODE = 401
+S3_EXPIRED_STATUS_CODE = 403
 
 
 class ProjectDownload(object):
@@ -421,7 +423,10 @@ class RetryChunkDownloader(object):
         headers = self.get_range_headers()
         if file_download.http_headers:
             headers.update(file_download.http_headers)
-        url = '{}/{}'.format(file_download.host, file_download.url)
+        separator = ""
+        if not file_download.url.startswith("/"):
+            separator = "/"
+        url = '{}{}{}'.format(file_download.host, separator, file_download.url)
         return url, headers
 
     def get_range_headers(self):
@@ -436,7 +441,8 @@ class RetryChunkDownloader(object):
         :param headers: dict: headers used to download this file chunk
         """
         response = requests.get(url, headers=headers, stream=True)
-        if response.status_code == 401:
+        if response.status_code == SWIFT_EXPIRED_STATUS_CODE \
+                or response.status_code == S3_EXPIRED_STATUS_CODE:
             raise DownloadInconsistentError(response.text)
         response.raise_for_status()
         self.actual_bytes_read = 0

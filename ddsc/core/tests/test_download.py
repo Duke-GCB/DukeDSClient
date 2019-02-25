@@ -438,9 +438,23 @@ class TestRetryChunkDownloader(TestCase):
         with self.assertRaises(DownloadInconsistentError):
             downloader.retry_download_loop()
 
-    def test_get_url_and_headers_for_range(self):
+    def test_get_url_and_headers_for_range_with_no_slashes(self):
         mock_context = Mock()
         mock_file_download = Mock(host='somehost', url='someurl')
+        mock_file_download.http_headers = {}
+        downloader = RetryChunkDownloader(project_file=None, local_path=None, seek_amt=None,
+                                          bytes_to_read=None, download_context=mock_context)
+
+        downloader.get_range_headers = Mock()
+        downloader.get_range_headers.return_value = {'Range': 'bytes=100-200'}
+
+        url, headers = downloader.get_url_and_headers_for_range(mock_file_download)
+
+        self.assertEqual(url, 'somehost/someurl')
+
+    def test_get_url_and_headers_for_range(self):
+        mock_context = Mock()
+        mock_file_download = Mock(host='somehost', url='/someurl')
         mock_file_download.http_headers = {'secret': '222'}
         downloader = RetryChunkDownloader(project_file=None, local_path=None, seek_amt=None,
                                           bytes_to_read=None, download_context=mock_context)
@@ -463,16 +477,28 @@ class TestRetryChunkDownloader(TestCase):
         self.assertEqual(downloader.get_range_headers(), {'Range': 'bytes=200-299'})
 
     @patch('ddsc.core.download.requests')
-    def test_download_chunk_inconsistent(self, mock_requests):
+    def test_download_chunk_inconsistent_swift(self, mock_requests):
         mock_context = Mock()
         downloader = RetryChunkDownloader(project_file=None, local_path=None, seek_amt=None,
                                           bytes_to_read=None, download_context=mock_context)
 
-        mock_requests.get.return_value = Mock(status_code=401, text='Bad Download')
+        mock_requests.get.return_value = Mock(status_code=401, text='Bad Swift Download')
 
         with self.assertRaises(DownloadInconsistentError) as raised_exception:
             downloader.download_chunk('someurl', {})
-            self.assertEqual(str(raised_exception), 'Bad Download')
+            self.assertEqual(str(raised_exception), 'Bad Swift Download')
+
+    @patch('ddsc.core.download.requests')
+    def test_download_chunk_inconsistent_s3(self, mock_requests):
+        mock_context = Mock()
+        downloader = RetryChunkDownloader(project_file=None, local_path=None, seek_amt=None,
+                                          bytes_to_read=None, download_context=mock_context)
+
+        mock_requests.get.return_value = Mock(status_code=403, text='Bad S3 Download')
+
+        with self.assertRaises(DownloadInconsistentError) as raised_exception:
+            downloader.download_chunk('someurl', {})
+            self.assertEqual(str(raised_exception), 'Bad S3 Download')
 
     @patch('ddsc.core.download.requests')
     def test_download_chunk_works(self, mock_requests):
