@@ -125,7 +125,7 @@ class BaseCommand(object):
         to_users = []
         remaining_emails = [] if not emails else list(emails)
         remaining_usernames = [] if not usernames else list(usernames)
-        for user in self.remote_store.fetch_users():
+        for user in self.remote_store.fetch_all_users():
             if user.email in remaining_emails:
                 to_users.append(user)
                 remaining_emails.remove(user.email)
