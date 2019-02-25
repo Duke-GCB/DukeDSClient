@@ -41,10 +41,9 @@ class TestBaseCommand(TestCase):
         ]
         mock_config = MagicMock()
         base_cmd = BaseCommand(mock_config)
-        results = base_cmd.make_user_list(emails=[
-             'joe@joe.com',
-             'bob@bob.com'
-         ], usernames=None)
+        results = base_cmd.make_user_list(
+            emails=['joe@joe.com', 'bob@bob.com'],
+            usernames=None)
 
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0].username, 'joe')
@@ -63,10 +62,9 @@ class TestBaseCommand(TestCase):
         ]
         mock_config = MagicMock()
         base_cmd = BaseCommand(mock_config)
-        results = base_cmd.make_user_list(emails=[], usernames=[
-             'joe',
-             'bob'
-         ])
+        results = base_cmd.make_user_list(
+            emails=[],
+            usernames=['joe', 'bob'])
 
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0].username, 'joe')
