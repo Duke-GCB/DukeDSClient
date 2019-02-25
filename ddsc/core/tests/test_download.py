@@ -438,6 +438,20 @@ class TestRetryChunkDownloader(TestCase):
         with self.assertRaises(DownloadInconsistentError):
             downloader.retry_download_loop()
 
+    def test_get_url_and_headers_for_range_with_no_slashes(self):
+        mock_context = Mock()
+        mock_file_download = Mock(host='somehost', url='someurl')
+        mock_file_download.http_headers = {}
+        downloader = RetryChunkDownloader(project_file=None, local_path=None, seek_amt=None,
+                                          bytes_to_read=None, download_context=mock_context)
+
+        downloader.get_range_headers = Mock()
+        downloader.get_range_headers.return_value = {'Range': 'bytes=100-200'}
+
+        url, headers = downloader.get_url_and_headers_for_range(mock_file_download)
+
+        self.assertEqual(url, 'somehost/someurl')
+
     def test_get_url_and_headers_for_range(self):
         mock_context = Mock()
         mock_file_download = Mock(host='somehost', url='/someurl')

@@ -423,8 +423,10 @@ class RetryChunkDownloader(object):
         headers = self.get_range_headers()
         if file_download.http_headers:
             headers.update(file_download.http_headers)
-        # The DukeDS API 'url' field always starts with a slash so none needed here.
-        url = '{}{}'.format(file_download.host, file_download.url)
+        separator = ""
+        if not file_download.url.startswith("/"):
+            separator = "/"
+        url = '{}{}{}'.format(file_download.host, separator, file_download.url)
         return url, headers
 
     def get_range_headers(self):
