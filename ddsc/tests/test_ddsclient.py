@@ -32,11 +32,11 @@ class TestBaseCommand(TestCase):
         self.assertEqual(True, kwargs['must_exist'])
         self.assertEqual(False, kwargs['include_children'])
 
-    @patch('ddsc.ddsclient.RemoteStore')
+    @patch('ddsc.ddsclient.RemoteStore', autospec=True)
     def test_make_user_list(self, mock_remote_store):
         mock_config = MagicMock()
         base_cmd = BaseCommand(mock_config)
-        mock_remote_store.return_value.fetch_all_users.return_value = [
+        mock_remote_store.return_value.fetch_users.return_value = [
             Mock(username='joe', email='joe@joe.joe'),
             Mock(username='bob', email='bob@bob.bob'),
             Mock(username='tim', email='tim@tim.tim'),
