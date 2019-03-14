@@ -86,7 +86,7 @@ class Config(object):
         filename = os.path.expanduser(filename)
         if os.path.exists(filename):
             with open(filename, 'r') as yaml_file:
-                self.update_properties(yaml.load(yaml_file))
+                self.update_properties(yaml.safe_load(yaml_file))
 
     def update_properties(self, new_values):
         """

@@ -1,4 +1,4 @@
 requests>=2.20.0
-PyYAML==3.12
+PyYAML==5.1
 future==0.16.0
 six==1.10.0
