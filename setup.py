@@ -11,7 +11,7 @@ setup(name='DukeDSClient',
         packages=['ddsc', 'ddsc.core', 'ddsc.sdk', 'DukeDS'],
         install_requires=[
           'requests>=2.20.0',
-          'PyYAML',
+          'PyYAML>=5.1',
           'pytz',
           'future',
           'six',
