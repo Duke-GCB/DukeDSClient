@@ -482,7 +482,7 @@ class DataServiceApi(object):
         :param hash_alg: str algorithm used to create hash_value
         :param storage_provider_id: str optional storage provider id
         :param chunked: is the uploaded file made up of multiple chunks. When False a single upload url is returned.
-            For more see https://github.com/dmann/duke-data-service/blob/d61e6c37de99c82351d15081fa6842e7ed452adf/api_design/DDS-1182-nonchucked_upload_api_design.md#implementation-view
+            For more see https://github.com/Duke-Translational-Bioinformatics/duke-data-service/blob/develop/api_design/DDS-1182-nonchucked_upload_api_design.md
         :return: requests.Response containing the successful result
         """
         data = {
