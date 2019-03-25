@@ -152,7 +152,7 @@ class TestCreateSmallFile(TestCase):
         mock_path_data = Mock()
         mock_path_data.read_whole_file.return_value = 'data'
         mock_file_operations.return_value.create_single_chunk_upload.return_value = (
-            'someId', {'host':'somehost', 'url':'someurl'}
+            'someId', {'host': 'somehost', 'url': 'someurl'}
         )
 
         upload_context = Mock(params=(Mock(), mock_path_data, Mock()))

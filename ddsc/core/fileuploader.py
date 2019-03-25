@@ -98,7 +98,7 @@ class FileUploadOperations(object):
         self.waiting_monitor = waiting_monitor
 
     def _create_upload(self, project_id, path_data, hash_data, remote_filename=None, storage_provider_id=None,
-                      chunked=True):
+                       chunked=True):
         """
         Create upload in either the chunked or the non-chunked (includes upload url).
         :param project_id: str: uuid of the project

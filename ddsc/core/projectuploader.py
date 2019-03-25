@@ -402,7 +402,6 @@ def create_small_file(upload_context):
     parent_data, path_data, remote_file_id = upload_context.params
 
     # The small file will fit into one chunk so read into memory and hash it.
-    chunk_num = 0
     chunk = path_data.read_whole_file()
     hash_data = path_data.get_hash()
 
