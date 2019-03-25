@@ -720,6 +720,7 @@ class TestDataServiceApi(TestCase):
                 "value": "somehash",
                 "algorithm": "md5"
             },
+            "chunked": True,
             "storage_provider": {"id": "abc456"}
         })
         mock_requests.post.assert_called_with('something.com/v1/projects/123/uploads',

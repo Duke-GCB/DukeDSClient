@@ -151,14 +151,12 @@ class TestCreateSmallFile(TestCase):
     def test_create_small_file_passes_zero_index(self, mock_file_operations):
         mock_path_data = Mock()
         mock_path_data.read_whole_file.return_value = 'data'
-        mock_file_operations.return_value.create_upload.return_value = 'someId'
+        mock_file_operations.return_value.create_single_chunk_upload.return_value = (
+            'someId', {'host':'somehost', 'url':'someurl'}
+        )
 
         upload_context = Mock(params=(Mock(), mock_path_data, Mock()))
         resp = create_small_file(upload_context)
 
         self.assertEqual(resp, mock_file_operations.return_value.finish_upload.return_value)
-        mock_file_operations.return_value.create_file_chunk_url.assert_called_with(
-            'someId',
-            0,  # zero based index passed to create_file_chunk_url
-            'data'
-        )
+        mock_file_operations.return_value.create_file_chunk_url.assert_not_called()
