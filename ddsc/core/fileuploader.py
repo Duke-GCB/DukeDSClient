@@ -100,7 +100,7 @@ class FileUploadOperations(object):
     def _create_upload(self, project_id, path_data, hash_data, remote_filename=None, storage_provider_id=None,
                        chunked=True):
         """
-        Create upload in either the chunked or the non-chunked (includes upload url).
+        Create upload for uploading multiple chunks or the non-chunked variety (includes upload url).
         :param project_id: str: uuid of the project
         :param path_data: PathData: holds file system data about the file we are uploading
         :param hash_data: HashData: contains hash alg and value for the file we are uploading

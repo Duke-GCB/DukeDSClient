@@ -147,11 +147,11 @@ class TestCreateProjectCommand(TestCase):
 
 
 class TestCreateSmallFile(TestCase):
-    @patch('ddsc.core.projectuploader.FileUploadOperations')
+    @patch('ddsc.core.projectuploader.FileUploadOperations', autospec=True)
     def test_create_small_file_passes_zero_index(self, mock_file_operations):
         mock_path_data = Mock()
         mock_path_data.read_whole_file.return_value = 'data'
-        mock_file_operations.return_value.create_single_chunk_upload.return_value = (
+        mock_file_operations.return_value.create_upload_and_chunk_url.return_value = (
             'someId', {'host': 'somehost', 'url': 'someurl'}
         )
 
