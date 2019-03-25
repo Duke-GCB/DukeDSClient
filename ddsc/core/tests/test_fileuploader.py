@@ -164,12 +164,12 @@ class TestFileUploadOperations(TestCase):
         fop = FileUploadOperations(data_service, MagicMock())
         path_data = MagicMock()
         path_data.name.return_value = '/tmp/data.dat'
-        upload_id = fop.create_chunked_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
+        upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
         self.assertEqual(upload_id, '123')
         mock_sleep.assert_called_with(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)
 
     @patch('ddsc.core.fileuploader.time.sleep')
-    def test_create_chunked_upload_with_two_pauses(self, mock_sleep):
+    def test_create_upload_with_two_pauses(self, mock_sleep):
         data_service = MagicMock()
         response = Mock()
         response.json.return_value = {'id': '124'}
@@ -181,14 +181,14 @@ class TestFileUploadOperations(TestCase):
         fop = FileUploadOperations(data_service, MagicMock())
         path_data = MagicMock()
         path_data.name.return_value = '/tmp/data.dat'
-        upload_id = fop.create_chunked_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
+        upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
         self.assertEqual(upload_id, '124')
         mock_sleep.assert_has_calls([
             call(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS),
             call(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)])
 
     @patch('ddsc.core.fileuploader.time.sleep')
-    def test_create_chunked_upload_with_one_pause_then_failure(self, mock_sleep):
+    def test_create_upload_with_one_pause_then_failure(self, mock_sleep):
         data_service = MagicMock()
         response = Mock()
         response.json.return_value = {'id': '123'}
@@ -200,9 +200,9 @@ class TestFileUploadOperations(TestCase):
         path_data.name.return_value = '/tmp/data.dat'
         fop = FileUploadOperations(data_service, MagicMock())
         with self.assertRaises(DataServiceError):
-            fop.create_chunked_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
+            fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
 
-    def test_create_chunked_upload_default_remote_filename(self):
+    def test_create_upload_default_remote_filename(self):
         data_service = MagicMock()
         response = Mock()
         response.json.return_value = {'id': '123'}
@@ -212,13 +212,13 @@ class TestFileUploadOperations(TestCase):
         fop = FileUploadOperations(data_service, MagicMock())
         path_data = MagicMock()
         path_data.name.return_value = 'data.dat'
-        upload_id = fop.create_chunked_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
+        upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
         self.assertEqual(upload_id, '123')
         args, kwargs = data_service.create_upload.call_args
         self.assertEqual(args[0], '12')
         self.assertEqual(args[1], 'data.dat')
 
-    def test_create_chunked_upload_remote_filename(self):
+    def test_create_upload_remote_filename(self):
         data_service = MagicMock()
         response = Mock()
         response.json.return_value = {'id': '123'}
@@ -228,8 +228,8 @@ class TestFileUploadOperations(TestCase):
         fop = FileUploadOperations(data_service, MagicMock())
         path_data = MagicMock()
         path_data.name.return_value = 'data.dat'
-        upload_id = fop.create_chunked_upload(project_id='12', path_data=path_data, hash_data=MagicMock(),
-                                              remote_filename='other.dat')
+        upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock(),
+                                      remote_filename='other.dat')
         self.assertEqual(upload_id, '123')
         args, kwargs = data_service.create_upload.call_args
         self.assertEqual(args[0], '12')
