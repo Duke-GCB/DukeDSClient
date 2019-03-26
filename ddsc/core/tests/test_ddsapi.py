@@ -727,6 +727,30 @@ class TestDataServiceApi(TestCase):
                                               expected_data,
                                               headers=ANY)
 
+    def test_create_non_chunked_upload(self):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        mock_requests.post.return_value = fake_response(status_code=201, json_return_value={})
+        api.create_upload(project_id='123', filename='data.txt', content_type='sometype', size=10,
+                          hash_value='somehash', hash_alg='md5', storage_provider_id='abc456',
+                          chunked=False)
+        expected_data = json.dumps({
+            "name": "data.txt",
+            "content_type": "sometype",
+            "size": 10,
+            "hash": {
+                "value": "somehash",
+                "algorithm": "md5"
+            },
+            "chunked": False,
+            "storage_provider": {"id": "abc456"}
+        })
+        mock_requests.post.assert_called_with('something.com/v1/projects/123/uploads',
+                                              expected_data,
+                                              headers=ANY)
+
 
 class TestDataServiceAuth(TestCase):
     @patch('ddsc.core.ddsapi.get_user_agent_str')

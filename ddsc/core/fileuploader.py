@@ -106,6 +106,7 @@ class FileUploadOperations(object):
         :param hash_data: HashData: contains hash alg and value for the file we are uploading
         :param remote_filename: str: name to use for our remote file (defaults to path_data basename otherwise)
         :param storage_provider_id: str: optional storage provider id
+        :param chunked: bool: should we create a chunked upload
         :return: str: uuid for the upload
         """
         if not remote_filename:
@@ -139,8 +140,9 @@ class FileUploadOperations(object):
     def create_upload_and_chunk_url(self, project_id, path_data, hash_data, remote_filename=None,
                                     storage_provider_id=None):
         """
-        Create an non-chunked upload that returns an upload url and doesn't allow additional upload urls.
-        For single chunk files this method is more efficient than create_upload/create_file_chunk_url.
+        Create an non-chunked upload that returns upload id and upload url. This type of upload doesn't allow
+        additional upload urls. For single chunk files this method is more efficient than
+        create_upload/create_file_chunk_url.
         :param project_id: str: uuid of the project
         :param path_data: PathData: holds file system data about the file we are uploading
         :param hash_data: HashData: contains hash alg and value for the file we are uploading
