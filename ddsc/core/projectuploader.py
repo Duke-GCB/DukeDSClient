@@ -402,15 +402,13 @@ def create_small_file(upload_context):
     parent_data, path_data, remote_file_id = upload_context.params
 
     # The small file will fit into one chunk so read into memory and hash it.
-    chunk_num = 0
     chunk = path_data.read_whole_file()
     hash_data = path_data.get_hash()
 
     # Talk to data service uploading chunk and creating the file.
     upload_operations = FileUploadOperations(data_service, upload_context)
-    upload_id = upload_operations.create_upload(upload_context.project_id, path_data, hash_data,
-                                                storage_provider_id=upload_context.config.storage_provider_id)
-    url_info = upload_operations.create_file_chunk_url(upload_id, chunk_num, chunk)
+    upload_id, url_info = upload_operations.create_upload_and_chunk_url(
+        upload_context.project_id, path_data, hash_data, storage_provider_id=upload_context.config.storage_provider_id)
     upload_operations.send_file_external(url_info, chunk)
     return upload_operations.finish_upload(upload_id, hash_data, parent_data, remote_file_id)
 

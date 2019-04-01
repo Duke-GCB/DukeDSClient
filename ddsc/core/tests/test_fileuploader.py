@@ -228,11 +228,13 @@ class TestFileUploadOperations(TestCase):
         fop = FileUploadOperations(data_service, MagicMock())
         path_data = MagicMock()
         path_data.name.return_value = 'data.dat'
-        upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock(), remote_filename='other.dat')
+        upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock(),
+                                      remote_filename='other.dat')
         self.assertEqual(upload_id, '123')
         args, kwargs = data_service.create_upload.call_args
         self.assertEqual(args[0], '12')
         self.assertEqual(args[1], 'other.dat')
+        self.assertEqual(kwargs['chunked'], True)
 
     @patch('ddsc.core.fileuploader.HashData')
     def test_create_file_chunk_url_uses_one_based_indexing(self, hash_data):
@@ -256,3 +258,28 @@ class TestFileUploadOperations(TestCase):
                                                           4,       # chunk_len
                                                           'h@sh',  # hash_value
                                                           'md5')   # hash_alg
+
+    def test_create_upload_and_chunk_url(self):
+        data_service = MagicMock()
+        response = Mock()
+        response.json.return_value = {'id': '123', 'signed_url': {
+            "http_verb": "PUT",
+            "host": "duke_data_service_prod.s3.amazonaws.com",
+        }}
+        data_service.create_upload.side_effect = [
+            response
+        ]
+        fop = FileUploadOperations(data_service, MagicMock())
+        path_data = MagicMock()
+        path_data.name.return_value = 'data.dat'
+        upload_id, upload_chunk_url = fop.create_upload_and_chunk_url(
+            project_id='12', path_data=path_data, hash_data=MagicMock(), remote_filename='other.dat')
+        self.assertEqual(upload_id, '123')
+        args, kwargs = data_service.create_upload.call_args
+        self.assertEqual(args[0], '12')
+        self.assertEqual(args[1], 'other.dat')
+        self.assertEqual(kwargs['chunked'], False)
+        self.assertEqual(upload_chunk_url, {
+            "http_verb": "PUT",
+            "host": "duke_data_service_prod.s3.amazonaws.com",
+        })

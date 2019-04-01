@@ -97,14 +97,16 @@ class FileUploadOperations(object):
         self.data_service = data_service
         self.waiting_monitor = waiting_monitor
 
-    def create_upload(self, project_id, path_data, hash_data, remote_filename=None, storage_provider_id=None):
+    def _create_upload(self, project_id, path_data, hash_data, remote_filename=None, storage_provider_id=None,
+                       chunked=True):
         """
-        Create upload so we can send call further methods.
+        Create upload for uploading multiple chunks or the non-chunked variety (includes upload url).
         :param project_id: str: uuid of the project
         :param path_data: PathData: holds file system data about the file we are uploading
         :param hash_data: HashData: contains hash alg and value for the file we are uploading
         :param remote_filename: str: name to use for our remote file (defaults to path_data basename otherwise)
         :param storage_provider_id: str: optional storage provider id
+        :param chunked: bool: should we create a chunked upload
         :return: str: uuid for the upload
         """
         if not remote_filename:
@@ -115,10 +117,42 @@ class FileUploadOperations(object):
         def func():
             return self.data_service.create_upload(project_id, remote_filename, mime_type, size,
                                                    hash_data.value, hash_data.alg,
-                                                   storage_provider_id=storage_provider_id)
+                                                   storage_provider_id=storage_provider_id,
+                                                   chunked=chunked)
 
         resp = retry_until_resource_is_consistent(func, self.waiting_monitor)
-        return resp.json()['id']
+        return resp.json()
+
+    def create_upload(self, project_id, path_data, hash_data, remote_filename=None, storage_provider_id=None):
+        """
+        Create a chunked upload id to pass to create_file_chunk_url to create upload urls.
+        :param project_id: str: uuid of the project
+        :param path_data: PathData: holds file system data about the file we are uploading
+        :param hash_data: HashData: contains hash alg and value for the file we are uploading
+        :param remote_filename: str: name to use for our remote file (defaults to path_data basename otherwise)
+        :param storage_provider_id: str: optional storage provider id
+        :return: str: uuid for the upload
+        """
+        upload_response = self._create_upload(project_id, path_data, hash_data, remote_filename=remote_filename,
+                                              storage_provider_id=storage_provider_id, chunked=True)
+        return upload_response['id']
+
+    def create_upload_and_chunk_url(self, project_id, path_data, hash_data, remote_filename=None,
+                                    storage_provider_id=None):
+        """
+        Create an non-chunked upload that returns upload id and upload url. This type of upload doesn't allow
+        additional upload urls. For single chunk files this method is more efficient than
+        create_upload/create_file_chunk_url.
+        :param project_id: str: uuid of the project
+        :param path_data: PathData: holds file system data about the file we are uploading
+        :param hash_data: HashData: contains hash alg and value for the file we are uploading
+        :param remote_filename: str: name to use for our remote file (defaults to path_data basename otherwise)
+        :param storage_provider_id:str: optional storage provider id
+        :return: str, dict: uuid for the upload, upload chunk url dict
+        """
+        upload_response = self._create_upload(project_id, path_data, hash_data, remote_filename=remote_filename,
+                                              storage_provider_id=storage_provider_id, chunked=False)
+        return upload_response['id'], upload_response['signed_url']
 
     def create_file_chunk_url(self, upload_id, chunk_num, chunk):
         """
