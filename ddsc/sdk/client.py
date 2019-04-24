@@ -4,7 +4,8 @@ from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.config import create_config
 from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
-from ddsc.core.localstore import PathData
+from ddsc.core.localstore import PathData, HashUtil
+from ddsc.core.download import FileUrlDownloader
 from ddsc.core.util import KindType
 from future.utils import python_2_unicode_compatible
 
@@ -389,6 +390,7 @@ class File(BaseResponseItem):
         if not path:
             path = self.name
         file_download.save_to_path(path)
+        FileUrlDownloader.check_file_hash(self, path)
 
     def delete(self):
         """
@@ -405,6 +407,12 @@ class File(BaseResponseItem):
         parent_data = ParentData(self.parent['kind'], self.parent['id'])
         return self.dds_connection.upload_file(file_path, project_id=self.project_id, parent_data=parent_data,
                                                existing_file_id=self.id)
+
+    def get_hash(self, algorithm=HashUtil.HASH_NAME):
+        for hash_dict in self.current_version["upload"]["hashes"]:
+            if hash_dict["algorithm"] == algorithm:
+                return hash_dict["value"]
+        raise ValueError("No hash found for algorithm {}".format(algorithm))
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)

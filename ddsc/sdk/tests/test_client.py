@@ -453,7 +453,8 @@ class TestFile(TestCase):
             }
         }
 
-    def test_download_to_path(self):
+    @patch('ddsc.sdk.client.FileUrlDownloader')
+    def test_download_to_path(self, mock_file_url_downloader):
         mock_dds_connection = Mock()
 
         file = File(mock_dds_connection, self.file_dict)
@@ -461,6 +462,7 @@ class TestFile(TestCase):
 
         mock_dds_connection.get_file_download.assert_called_with('456')
         mock_dds_connection.get_file_download.return_value.save_to_path('/tmp/data.dat')
+        mock_file_url_downloader.check_file_hash.assert_called_with(file, '/tmp/data.dat')
 
     def test_delete(self):
         mock_dds_connection = Mock()
