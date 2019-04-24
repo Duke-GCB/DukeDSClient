@@ -334,9 +334,10 @@ class TestFileUrlDownloader(TestCase):
         with self.assertRaises(ValueError) as raised_exception:
             downloader.check_downloaded_files()
         exception_str = str(raised_exception.exception)
-        self.assertEqual(exception_str, "ERROR: Downloaded file(s) do not match the expected hashes.\n" \
-                         "File /tmp/data.txt checksum mismatch: " \
+        self.assertEqual(exception_str, "ERROR: Downloaded file(s) do not match the expected hashes.\n"
+                         "File /tmp/data.txt checksum mismatch: "
                          "expected md5 hash: 'abc', downloaded file md5 hash 'def'.")
+
 
 class TestDownloadFilePartCommand(TestCase):
     @patch('ddsc.core.download.DownloadContext')
