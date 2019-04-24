@@ -3,7 +3,7 @@ from unittest import TestCase
 import os
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
-    download_file_part_run, DownloadFilePartCommand, FileUrlDownloader
+    download_file_part_run, DownloadFilePartCommand, FileUrlDownloader, ProjectFile
 from mock import Mock, patch, mock_open, call
 
 
@@ -168,6 +168,14 @@ class TestFileUrlDownloader(TestCase):
             self.mock_file1
         ]
         self.mock_watcher = Mock()
+        self.mock_file_json_data = {
+            "id": "abc",
+            "name": "data.txt",
+            "size": 100,
+            "file_url": "someurl",
+            "hashes": [],
+            "ancestors": [],
+        }
 
     @patch('ddsc.core.download.TaskRunner')
     @patch('ddsc.core.download.TaskExecutor')
@@ -304,38 +312,57 @@ class TestFileUrlDownloader(TestCase):
         self.assertEqual(set([200, 100, 400]), set([item.size for item in large_items]))
 
     @patch('ddsc.core.download.HashData')
-    def test_check_file_hash(self, mock_hash_data):
-        mock_hash_data.create_from_path.return_value.matches.return_value = True
-        FileUrlDownloader.check_file_hash(Mock(hash_alg='md5', file_hash='abc'), local_path='/tmp/fakepath.txt')
+    def test_check_file_hash_when_matching(self, mock_hash_data):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.json_data["hashes"] = [{"algorithm": "md5", "value": "abc"}]
+        mock_hash_data.create_from_path.return_value = Mock(alg='md5', value="abc")
+        FileUrlDownloader.check_file_hash(project_file, local_path='/tmp/fakepath.txt')
 
-        mock_hash_data.create_from_path.return_value.matches.return_value = False
-        mock_hash_data.create_from_path.return_value.alg = 'md5'
-        mock_hash_data.create_from_path.return_value.value = 'def'
+    @patch('ddsc.core.download.HashData')
+    def test_check_file_hash_value_mismatch(self, mock_hash_data):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.json_data["hashes"] = [{"algorithm": "md5", "value": "abc"}]
+        mock_hash_data.create_from_path.return_value = Mock(alg='md5', value="def")
         with self.assertRaises(ValueError) as raised_exception:
-            FileUrlDownloader.check_file_hash(Mock(hash_alg='md5', file_hash='abc'), local_path='/tmp/fakepath.txt')
+            FileUrlDownloader.check_file_hash(project_file, local_path='/tmp/fakepath.txt')
         self.assertEqual(str(raised_exception.exception),
                          "File /tmp/fakepath.txt checksum mismatch: "
                          "expected md5 hash: 'abc', downloaded file md5 hash 'def'.")
 
     @patch('ddsc.core.download.HashData')
-    def test_check_downloaded_files(self, mock_hash_data):
-        downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
-        mock_file_url = Mock(hash_alg='md5', file_hash='abc')
-        mock_file_url.get_local_path.return_value = '/tmp/data.txt'
-        downloader.file_urls = [mock_file_url]
-        downloader.get_local_path = Mock()
+    def test_check_file_hash_algorithm_mismatch(self, mock_hash_data):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.json_data["hashes"] = [{"algorithm": "sha256", "value": "abc"}]
+        mock_hash_data.create_from_path.return_value = Mock(alg='md5', value="abc")
+        with self.assertRaises(ValueError) as raised_exception:
+            FileUrlDownloader.check_file_hash(project_file, local_path='/tmp/fakepath.txt')
+        self.assertEqual(str(raised_exception.exception),
+                         "File /tmp/fakepath.txt missing remote hash for algorithm: md5.")
 
-        mock_hash_data.create_from_path.return_value.matches.return_value = True
+    @patch('ddsc.core.download.HashData')
+    def test_check_downloaded_files_when_matching(self, mock_hash_data):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.json_data["hashes"] = [{"algorithm": "md5", "value": "abc"}]
+        mock_hash_data.create_from_path.return_value = Mock(alg='md5', value="abc")
+
+        downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
+        downloader.file_urls = [project_file]
         downloader.check_downloaded_files()
 
-        mock_hash_data.create_from_path.return_value.matches.return_value = False
-        mock_hash_data.create_from_path.return_value.alg = 'md5'
-        mock_hash_data.create_from_path.return_value.value = 'def'
+    @patch('ddsc.core.download.HashData')
+    def test_check_downloaded_files_value_mismatched(self, mock_hash_data):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.json_data["hashes"] = [{"algorithm": "md5", "value": "abc"}]
+        mock_hash_data.create_from_path.return_value = Mock(alg='md5', value="def")
+
+        downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
+        downloader.file_urls = [project_file]
         with self.assertRaises(ValueError) as raised_exception:
             downloader.check_downloaded_files()
+
         exception_str = str(raised_exception.exception)
         self.assertEqual(exception_str, "ERROR: Downloaded file(s) do not match the expected hashes.\n"
-                         "File /tmp/data.txt checksum mismatch: "
+                         "File /tmp/data2/data.txt checksum mismatch: "
                          "expected md5 hash: 'abc', downloaded file md5 hash 'def'.")
 
 

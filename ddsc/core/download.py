@@ -302,10 +302,10 @@ class FileUrlDownloader(object):
         Raises ValueError if there is one or more problematic files.
         """
         invalid_hash_errors = []
-        for file_url in self.file_urls:
-            local_path = file_url.get_local_path(self.dest_directory)
+        for project_file in self.file_urls:
+            local_path = project_file.get_local_path(self.dest_directory)
             try:
-                self.check_file_hash(file_url, local_path)
+                self.check_file_hash(project_file, local_path)
             except ValueError as hash_error:
                 invalid_hash_errors.append(str(hash_error))
 
@@ -314,13 +314,18 @@ class FileUrlDownloader(object):
             raise ValueError('\n'.join([msg] + invalid_hash_errors))
 
     @staticmethod
-    def check_file_hash(file_url, local_path):
-        hash_data = HashData.create_from_path(local_path)
-        if not hash_data.matches(hash_alg=file_url.hash_alg, hash_value=file_url.file_hash):
+    def check_file_hash(project_file, local_path):
+        local_hash_data = HashData.create_from_path(local_path)
+        hash_algorithm = local_hash_data.alg
+        remote_hash_data = project_file.get_hash(hash_algorithm)
+        if not remote_hash_data:
+            raise ValueError("File {} missing remote hash for algorithm: {}.".format(local_path, hash_algorithm))
+        remote_hash_value = remote_hash_data["value"]
+        if local_hash_data.value != remote_hash_value:
             format_str = "File {} checksum mismatch: expected {} hash: '{}', downloaded file {} hash '{}'."
             msg = format_str.format(local_path,
-                                    file_url.hash_alg, file_url.file_hash,
-                                    hash_data.alg, hash_data.value)
+                                    hash_algorithm, remote_hash_value,
+                                    hash_algorithm, local_hash_data.value)
             raise ValueError(msg)
 
 
