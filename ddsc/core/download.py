@@ -3,7 +3,7 @@ import sys
 import traceback
 import math
 import requests
-from ddsc.core.localstore import PathData
+from ddsc.core.localstore import PathData, HashData
 from ddsc.core.util import ProgressPrinter
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
@@ -94,7 +94,7 @@ class ProjectDownload(object):
         file_url_downloader.make_local_directories()
         file_url_downloader.make_big_empty_files()
         file_url_downloader.download_files()
-        file_url_downloader.check_downloaded_files_sizes()
+        file_url_downloader.check_downloaded_files()
 
     def try_create_dir(self, path):
         """
@@ -296,26 +296,31 @@ class FileUrlDownloader(object):
                 small_items.append(file_url)
         return large_items, small_items
 
-    def check_downloaded_files_sizes(self):
+    def check_downloaded_files(self):
         """
-        Make sure the files sizes are correct. Since we manually create the files this will only catch overruns.
-        Raises ValueError if there is a problematic file.
+        Make sure the file contents are correct.
+        Raises ValueError if there is one or more problematic files.
         """
+        invalid_hash_errors = []
         for file_url in self.file_urls:
             local_path = file_url.get_local_path(self.dest_directory)
-            self.check_file_size(file_url.size, local_path)
+            try:
+                self.check_file_hash(file_url, local_path)
+            except ValueError as hash_error:
+                invalid_hash_errors.append(str(hash_error))
+
+        if invalid_hash_errors:
+            msg = "ERROR: Downloaded file(s) do not match the expected hashes."
+            raise ValueError('\n'.join([msg] + invalid_hash_errors))
 
     @staticmethod
-    def check_file_size(file_size, path):
-        """
-        Raise an error if we didn't get all of the file.
-        :param file_size: int: size of this file
-        :param path: str path where we downloaded the file to
-        """
-        stat_info = os.stat(path)
-        if stat_info.st_size != file_size:
-            format_str = "Error occurred downloading {}. Got a file size {}. Expected file size:{}"
-            msg = format_str.format(path, stat_info.st_size, file_size)
+    def check_file_hash(file_url, local_path):
+        hash_data = HashData.create_from_path(local_path)
+        if not hash_data.matches(hash_alg=file_url.hash_alg, hash_value=file_url.file_hash):
+            format_str = "File {} checksum mismatch: expected {} hash: '{}', downloaded file {} hash '{}'."
+            msg = format_str.format(local_path,
+                                    file_url.hash_alg, file_url.file_hash,
+                                    hash_data.alg, hash_data.value)
             raise ValueError(msg)
 
 

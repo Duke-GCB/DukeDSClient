@@ -303,31 +303,40 @@ class TestFileUrlDownloader(TestCase):
         self.assertEqual(set([90, 99]), set([item.size for item in small_items]))
         self.assertEqual(set([200, 100, 400]), set([item.size for item in large_items]))
 
-    @patch('ddsc.core.download.os')
-    def test_check_file_size(self, mock_os):
-        mock_os.stat.return_value = Mock(st_size=100)
-        FileUrlDownloader.check_file_size(file_size=100, path='/tmp/fakepath.txt')
+    @patch('ddsc.core.download.HashData')
+    def test_check_file_hash(self, mock_hash_data):
+        mock_hash_data.create_from_path.return_value.matches.return_value = True
+        FileUrlDownloader.check_file_hash(Mock(hash_alg='md5', file_hash='abc'), local_path='/tmp/fakepath.txt')
 
-        mock_os.stat.return_value = Mock(st_size=101)
-        with self.assertRaises(ValueError):
-            FileUrlDownloader.check_file_size(file_size=100, path='/tmp/fakepath.txt')
+        mock_hash_data.create_from_path.return_value.matches.return_value = False
+        mock_hash_data.create_from_path.return_value.alg = 'md5'
+        mock_hash_data.create_from_path.return_value.value = 'def'
+        with self.assertRaises(ValueError) as raised_exception:
+            FileUrlDownloader.check_file_hash(Mock(hash_alg='md5', file_hash='abc'), local_path='/tmp/fakepath.txt')
+        self.assertEqual(str(raised_exception.exception),
+                         "File /tmp/fakepath.txt checksum mismatch: "
+                         "expected md5 hash: 'abc', downloaded file md5 hash 'def'.")
 
-        mock_os.stat.return_value = Mock(st_size=99)
-        with self.assertRaises(ValueError):
-            FileUrlDownloader.check_file_size(file_size=100, path='/tmp/fakepath.txt')
-
-    @patch('ddsc.core.download.os')
-    def test_check_downloaded_files_sizes(self, mock_os):
+    @patch('ddsc.core.download.HashData')
+    def test_check_downloaded_files(self, mock_hash_data):
         downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
-        downloader.file_urls = [Mock(size=90)]
-        mock_os.stat.return_value = Mock(st_size=100)
-        with self.assertRaises(ValueError):
-            downloader.check_downloaded_files_sizes()
+        mock_file_url = Mock(hash_alg='md5', file_hash='abc')
+        mock_file_url.get_local_path.return_value = '/tmp/data.txt'
+        downloader.file_urls = [mock_file_url]
+        downloader.get_local_path = Mock()
 
-        downloader.file_urls = [Mock(size=100)]
-        mock_os.stat.return_value = Mock(st_size=100)
-        downloader.check_downloaded_files_sizes()
+        mock_hash_data.create_from_path.return_value.matches.return_value = True
+        downloader.check_downloaded_files()
 
+        mock_hash_data.create_from_path.return_value.matches.return_value = False
+        mock_hash_data.create_from_path.return_value.alg = 'md5'
+        mock_hash_data.create_from_path.return_value.value = 'def'
+        with self.assertRaises(ValueError) as raised_exception:
+            downloader.check_downloaded_files()
+        exception_str = str(raised_exception.exception)
+        self.assertEqual(exception_str, "ERROR: Downloaded file(s) do not match the expected hashes.\n" \
+                         "File /tmp/data.txt checksum mismatch: " \
+                         "expected md5 hash: 'abc', downloaded file md5 hash 'def'.")
 
 class TestDownloadFilePartCommand(TestCase):
     @patch('ddsc.core.download.DownloadContext')
