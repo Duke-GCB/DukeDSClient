@@ -40,15 +40,19 @@ class ProjectDownload(object):
         Download the contents of the specified project name or id to dest_directory.
         """
         files_to_download = self.get_files_to_download()
-        total_files_size = self.get_total_files_size(files_to_download)
+        if not files_to_download:
+            print("All content is already downloaded.")
+            return
+
         if self.file_download_pre_processor:
             self.run_preprocessor(files_to_download)
 
         self.try_create_dir(self.dest_directory)
-        if files_to_download:
-            self.download_files(files_to_download, total_files_size)
-        else:
-            print("All content is already downloaded.")
+        num_files_to_download = len(files_to_download)
+        print("Downloading {} files.".format(num_files_to_download))
+        self.download_files(files_to_download)
+        print("Verifying contents of {} downloaded files using file hashes.".format(num_files_to_download))
+        self.check_downloaded_files(files_to_download)
 
     def get_files_to_download(self):
         files_to_download = []
@@ -85,8 +89,8 @@ class ProjectDownload(object):
         for project_file in files_to_download:
             self.file_download_pre_processor.run(self.remote_store.data_service, project_file)
 
-    def download_files(self, files_to_download, total_files_size):
-        print("Downloading {} files.".format(len(files_to_download)))
+    def download_files(self, files_to_download):
+        total_files_size = self.get_total_files_size(files_to_download)
         watcher = ProgressPrinter(total_files_size, msg_verb='downloading')
         settings = DownloadSettings(self.remote_store, self.dest_directory, watcher)
         file_url_downloader = FileUrlDownloader(settings, files_to_download, watcher)
@@ -97,10 +101,9 @@ class ProjectDownload(object):
         warnings = self.check_warnings()
         if warnings:
             watcher.show_warning(warnings)
-        if files_to_download:
-            file_url_downloader.check_downloaded_files()
 
-    def try_create_dir(self, path):
+    @staticmethod
+    def try_create_dir(path):
         """
         Try to create a directory if it doesn't exist and raise error if there is a non-directory with the same name.
         :param path: str path to the directory
@@ -115,6 +118,39 @@ class ProjectDownload(object):
         if unused_paths:
             return 'WARNING: Path(s) not found: {}.'.format(','.join(unused_paths))
         return None
+
+    def check_downloaded_files(self, files_to_download):
+        """
+        Make sure the file contents are correct.
+        Raises ValueError if there is one or more problematic files.
+        """
+        invalid_hash_errors = []
+        for project_file in files_to_download:
+            local_path = project_file.get_local_path(self.dest_directory)
+            try:
+                self.check_file_hash(project_file, local_path)
+            except ValueError as hash_error:
+                invalid_hash_errors.append(str(hash_error))
+
+        if invalid_hash_errors:
+            msg = "ERROR: Downloaded file(s) do not match the expected hashes."
+            raise ValueError('\n'.join([msg] + invalid_hash_errors))
+        else:
+            print("All downloaded files have been verified successfully.")
+
+    @staticmethod
+    def check_file_hash(project_file, local_path):
+        local_hash_data = HashData.create_from_path(local_path)
+        remote_hash_dict = project_file.get_hash()
+        if not remote_hash_dict:
+            raise ValueError("File /tmp/fakepath.txt missing remote hash.")
+        remote_hash_value = remote_hash_dict["value"]
+        if local_hash_data.value != remote_hash_value:
+            format_str = "File {} checksum mismatch: expected hash: '{}', downloaded file hash '{}'."
+            msg = format_str.format(local_path,
+                                    remote_hash_value,
+                                    local_hash_data.value)
+            raise ValueError(msg)
 
 
 class DownloadSettings(object):
@@ -299,40 +335,6 @@ class FileUrlDownloader(object):
             else:
                 small_items.append(file_url)
         return large_items, small_items
-
-    def check_downloaded_files(self):
-        """
-        Make sure the file contents are correct.
-        Raises ValueError if there is one or more problematic files.
-        """
-        print("Verifying contents of {} downloaded files using file hashes.".format(len(self.file_urls)))
-        invalid_hash_errors = []
-        for project_file in self.file_urls:
-            local_path = project_file.get_local_path(self.dest_directory)
-            try:
-                self.check_file_hash(project_file, local_path)
-            except ValueError as hash_error:
-                invalid_hash_errors.append(str(hash_error))
-
-        if invalid_hash_errors:
-            msg = "ERROR: Downloaded file(s) do not match the expected hashes."
-            raise ValueError('\n'.join([msg] + invalid_hash_errors))
-        else:
-            print("All downloaded files have been verified successfully.")
-
-    @staticmethod
-    def check_file_hash(project_file, local_path):
-        local_hash_data = HashData.create_from_path(local_path)
-        remote_hash_dict = project_file.get_hash()
-        if not remote_hash_dict:
-            raise ValueError("File /tmp/fakepath.txt missing remote hash.")
-        remote_hash_value = remote_hash_dict["value"]
-        if local_hash_data.value != remote_hash_value:
-            format_str = "File {} checksum mismatch: expected hash: '{}', downloaded file hash '{}'."
-            msg = format_str.format(local_path,
-                                    remote_hash_value,
-                                    local_hash_data.value)
-            raise ValueError(msg)
 
 
 class DownloadFilePartCommand(object):
