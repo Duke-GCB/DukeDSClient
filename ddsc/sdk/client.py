@@ -2,7 +2,7 @@ import os
 from collections import OrderedDict
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.config import create_config
-from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE
+from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData, HashUtil
 from ddsc.core.download import FileUrlDownloader
@@ -409,9 +409,9 @@ class File(BaseResponseItem):
                                                existing_file_id=self.id)
 
     def get_hash(self, algorithm=HashUtil.HASH_NAME):
-        for hash_dict in self.current_version["upload"]["hashes"]:
-            if hash_dict["algorithm"] == algorithm:
-                return hash_dict["value"]
+        hash_value = RemoteFile.get_hash_from_upload(self.current_version["upload"], algorithm)
+        if hash_value:
+            return hash_value
         raise ValueError("No hash found for algorithm {}".format(algorithm))
 
     def __str__(self):
