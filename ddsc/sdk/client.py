@@ -4,7 +4,7 @@ from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.config import create_config
 from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
-from ddsc.core.localstore import PathData, HashUtil
+from ddsc.core.localstore import PathData
 from ddsc.core.download import FileUrlDownloader
 from ddsc.core.util import KindType
 from future.utils import python_2_unicode_compatible
