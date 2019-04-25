@@ -121,7 +121,7 @@ class ProjectDownload(object):
 
     def check_downloaded_files(self, files_to_download):
         """
-        Make sure the file contents are correct.
+        Make sure the file contents are correct by hashing file and comparing against hash provided by DukeDS.
         Raises ValueError if there is one or more problematic files.
         """
         invalid_hash_errors = []
@@ -143,7 +143,7 @@ class ProjectDownload(object):
         local_hash_data = HashData.create_from_path(local_path)
         remote_hash_dict = project_file.get_hash()
         if not remote_hash_dict:
-            raise ValueError("File /tmp/fakepath.txt missing remote hash.")
+            raise ValueError("File {} missing remote hash.".format(local_path))
         remote_hash_value = remote_hash_dict["value"]
         if local_hash_data.value != remote_hash_value:
             format_str = "File {} checksum mismatch: expected hash: '{}', downloaded file hash '{}'."
