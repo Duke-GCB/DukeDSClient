@@ -408,11 +408,8 @@ class File(BaseResponseItem):
         return self.dds_connection.upload_file(file_path, project_id=self.project_id, parent_data=parent_data,
                                                existing_file_id=self.id)
 
-    def get_hash(self, algorithm=HashUtil.HASH_NAME):
-        hash_value = RemoteFile.get_hash_from_upload(self.current_version["upload"], algorithm)
-        if hash_value:
-            return hash_value
-        raise ValueError("No hash found for algorithm {}".format(algorithm))
+    def get_hash(self):
+        return RemoteFile.get_hash_from_upload(self.current_version["upload"])
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)

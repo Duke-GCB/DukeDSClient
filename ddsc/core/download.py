@@ -323,16 +323,15 @@ class FileUrlDownloader(object):
     @staticmethod
     def check_file_hash(project_file, local_path):
         local_hash_data = HashData.create_from_path(local_path)
-        hash_algorithm = local_hash_data.alg
-        remote_hash_data = project_file.get_hash(hash_algorithm)
-        if not remote_hash_data:
-            raise ValueError("File {} missing remote hash for algorithm: {}.".format(local_path, hash_algorithm))
-        remote_hash_value = remote_hash_data["value"]
+        remote_hash_dict = project_file.get_hash()
+        if not remote_hash_dict:
+            raise ValueError("File /tmp/fakepath.txt missing remote hash.")
+        remote_hash_value = remote_hash_dict["value"]
         if local_hash_data.value != remote_hash_value:
-            format_str = "File {} checksum mismatch: expected {} hash: '{}', downloaded file {} hash '{}'."
+            format_str = "File {} checksum mismatch: expected hash: '{}', downloaded file hash '{}'."
             msg = format_str.format(local_path,
-                                    hash_algorithm, remote_hash_value,
-                                    hash_algorithm, local_hash_data.value)
+                                    remote_hash_value,
+                                    local_hash_data.value)
             raise ValueError(msg)
 
 

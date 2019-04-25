@@ -327,7 +327,7 @@ class TestFileUrlDownloader(TestCase):
             FileUrlDownloader.check_file_hash(project_file, local_path='/tmp/fakepath.txt')
         self.assertEqual(str(raised_exception.exception),
                          "File /tmp/fakepath.txt checksum mismatch: "
-                         "expected md5 hash: 'abc', downloaded file md5 hash 'def'.")
+                         "expected hash: 'abc', downloaded file hash 'def'.")
 
     @patch('ddsc.core.download.HashData')
     def test_check_file_hash_algorithm_mismatch(self, mock_hash_data):
@@ -337,7 +337,7 @@ class TestFileUrlDownloader(TestCase):
         with self.assertRaises(ValueError) as raised_exception:
             FileUrlDownloader.check_file_hash(project_file, local_path='/tmp/fakepath.txt')
         self.assertEqual(str(raised_exception.exception),
-                         "File /tmp/fakepath.txt missing remote hash for algorithm: md5.")
+                         "File /tmp/fakepath.txt missing remote hash.")
 
     @patch('ddsc.core.download.HashData')
     def test_check_downloaded_files_when_matching(self, mock_hash_data):
@@ -363,7 +363,7 @@ class TestFileUrlDownloader(TestCase):
         exception_str = str(raised_exception.exception)
         self.assertEqual(exception_str, "ERROR: Downloaded file(s) do not match the expected hashes.\n"
                          "File /tmp/data2/data.txt checksum mismatch: "
-                         "expected md5 hash: 'abc', downloaded file md5 hash 'def'.")
+                         "expected hash: 'abc', downloaded file hash 'def'.")
 
 
 class TestDownloadFilePartCommand(TestCase):

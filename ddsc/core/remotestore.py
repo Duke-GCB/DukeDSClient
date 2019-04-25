@@ -679,8 +679,8 @@ class ProjectFile(object):
     def get_local_path(self, directory_path):
         return os.path.join(directory_path, self.path)
 
-    def get_hash(self, target_algorithm=HashUtil.HASH_NAME):
-        return RemoteFile.get_hash_from_upload(self.json_data, target_algorithm=target_algorithm)
+    def get_hash(self):
+        return RemoteFile.get_hash_from_upload(self.json_data)
 
 
 class RemoteFileUrl(object):
