@@ -45,13 +45,10 @@ class ProjectDownload(object):
             self.run_preprocessor(files_to_download)
 
         self.try_create_dir(self.dest_directory)
-        watcher = ProgressPrinter(total_files_size, msg_verb='downloading')
-        self.download_files(files_to_download, watcher)
-        watcher.finished()
-
-        warnings = self.check_warnings()
-        if warnings:
-            watcher.show_warning(warnings)
+        if files_to_download:
+            self.download_files(files_to_download, total_files_size)
+        else:
+            print("All content is already downloaded.")
 
     def get_files_to_download(self):
         files_to_download = []
@@ -88,13 +85,20 @@ class ProjectDownload(object):
         for project_file in files_to_download:
             self.file_download_pre_processor.run(self.remote_store.data_service, project_file)
 
-    def download_files(self, files_to_download, watcher):
+    def download_files(self, files_to_download, total_files_size):
+        print("Downloading {} files.".format(len(files_to_download)))
+        watcher = ProgressPrinter(total_files_size, msg_verb='downloading')
         settings = DownloadSettings(self.remote_store, self.dest_directory, watcher)
         file_url_downloader = FileUrlDownloader(settings, files_to_download, watcher)
         file_url_downloader.make_local_directories()
         file_url_downloader.make_big_empty_files()
         file_url_downloader.download_files()
-        file_url_downloader.check_downloaded_files()
+        watcher.finished()
+        warnings = self.check_warnings()
+        if warnings:
+            watcher.show_warning(warnings)
+        if files_to_download:
+            file_url_downloader.check_downloaded_files()
 
     def try_create_dir(self, path):
         """
@@ -301,6 +305,7 @@ class FileUrlDownloader(object):
         Make sure the file contents are correct.
         Raises ValueError if there is one or more problematic files.
         """
+        print("Verifying contents of {} downloaded files using file hashes.".format(len(self.file_urls)))
         invalid_hash_errors = []
         for project_file in self.file_urls:
             local_path = project_file.get_local_path(self.dest_directory)
@@ -312,6 +317,8 @@ class FileUrlDownloader(object):
         if invalid_hash_errors:
             msg = "ERROR: Downloaded file(s) do not match the expected hashes."
             raise ValueError('\n'.join([msg] + invalid_hash_errors))
+        else:
+            print("All downloaded files have been verified successfully.")
 
     @staticmethod
     def check_file_hash(project_file, local_path):
