@@ -3,7 +3,7 @@ import sys
 import traceback
 import math
 import requests
-from ddsc.core.localstore import PathData, HashData
+from ddsc.core.localstore import HashUtil
 from ddsc.core.util import ProgressPrinter
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
@@ -70,11 +70,9 @@ class ProjectDownload(object):
 
     def file_exists_with_same_hash(self, project_file):
         local_path = project_file.get_local_path(self.dest_directory)
-
         if os.path.exists(local_path):
-            hash_data = PathData(local_path).get_hash()
-            remote_hash_dict = project_file.get_hash()
-            return hash_data.value == remote_hash_dict['value']
+            file_hash = FileHash.create_for_first_supported_algorithm(project_file.hashes, local_path)
+            return file_hash.status == FileHash.STATUS_OK
         return False
 
     @staticmethod
@@ -124,33 +122,17 @@ class ProjectDownload(object):
         Make sure the file contents are correct by hashing file and comparing against hash provided by DukeDS.
         Raises ValueError if there is one or more problematic files.
         """
-        invalid_hash_errors = []
+        had_hash_failures = False
         for project_file in files_to_download:
             local_path = project_file.get_local_path(self.dest_directory)
-            try:
-                self.check_file_hash(project_file, local_path)
-            except ValueError as hash_error:
-                invalid_hash_errors.append(str(hash_error))
-
-        if invalid_hash_errors:
-            msg = "ERROR: Downloaded file(s) do not match the expected hashes."
-            raise ValueError('\n'.join([msg] + invalid_hash_errors))
+            file_hash = FileHash.create_for_first_supported_algorithm(project_file.hashes, local_path)
+            print(file_hash.get_status_line())
+            if file_hash.status == FileHash.STATUS_FAILED:
+                had_hash_failures = True
+        if had_hash_failures:
+            raise ValueError("ERROR: Downloaded file(s) do not match the expected hashes.")
         else:
             print("All downloaded files have been verified successfully.")
-
-    @staticmethod
-    def check_file_hash(project_file, local_path):
-        local_hash_data = HashData.create_from_path(local_path)
-        remote_hash_dict = project_file.get_hash()
-        if not remote_hash_dict:
-            raise ValueError("File {} missing remote hash.".format(local_path))
-        remote_hash_value = remote_hash_dict["value"]
-        if local_hash_data.value != remote_hash_value:
-            format_str = "File {} checksum mismatch: expected hash: '{}', downloaded file hash '{}'."
-            msg = format_str.format(local_path,
-                                    remote_hash_value,
-                                    local_hash_data.value)
-            raise ValueError(msg)
 
 
 class DownloadSettings(object):
@@ -529,3 +511,54 @@ class TooLargeChunkDownloadError(Exception):
         self.message = "Received too many bytes downloading part of a file. " \
                        "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
         super(TooLargeChunkDownloadError, self).__init__(self.message)
+
+
+class MD5FileHash(object):
+    algorithm = 'md5'
+
+    @staticmethod
+    def get_hash_value(file_path):
+        _, hash_value = HashUtil().add_file(file_path).hexdigest()
+        return hash_value
+
+
+class FileHash(object):
+    STATUS_OK = "OK"
+    STATUS_FAILED = "FAILED"
+    algorithm_to_get_hash_value = {
+        MD5FileHash.algorithm: MD5FileHash.get_hash_value
+    }
+
+    def __init__(self, algorithm, expected_hash_value, file_path):
+        self.algorithm = algorithm
+        self.expected_hash_value = expected_hash_value
+        self.file_path = file_path
+        self.status = self.determine_status()
+
+    def _get_hash_value(self):
+        get_hash_value_func = self.algorithm_to_get_hash_value.get(self.algorithm)
+        if get_hash_value_func:
+            return get_hash_value_func(self.file_path)
+        raise ValueError("Unsupported algorithm {}.".format(self.algorithm))
+
+    def determine_status(self):
+        if self._get_hash_value() == self.expected_hash_value:
+            return self.STATUS_OK
+        else:
+            return self.STATUS_FAILED
+
+    def get_status_line(self):
+        return "{} {} {} {}".format(self.file_path, self.expected_hash_value, self.algorithm, self.status)
+
+    def raise_for_status(self):
+        if self.status == self.STATUS_FAILED:
+            raise ValueError("Hash validation error: {}".format(self.get_status_line()))
+
+    @staticmethod
+    def create_for_first_supported_algorithm(dds_hashes, file_path):
+        for hash_info in dds_hashes:
+            algorithm = hash_info.get('algorithm')
+            hash_value = hash_info.get('value')
+            if algorithm in FileHash.algorithm_to_get_hash_value:
+                return FileHash(algorithm, hash_value, file_path)
+        raise ValueError("Unable to validate: No supported hashes found for file {}".format(file_path))

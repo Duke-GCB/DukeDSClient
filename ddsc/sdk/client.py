@@ -5,7 +5,7 @@ from ddsc.config import create_config
 from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
-from ddsc.core.download import ProjectDownload
+from ddsc.core.download import FileHash
 from ddsc.core.util import KindType
 from future.utils import python_2_unicode_compatible
 
@@ -390,7 +390,8 @@ class File(BaseResponseItem):
         if not path:
             path = self.name
         file_download.save_to_path(path)
-        ProjectDownload.check_file_hash(self, path)
+        file_hash = FileHash.create_for_first_supported_algorithm(self.current_version['hashes'], path)
+        file_hash.raise_for_status()
 
     def delete(self):
         """
