@@ -518,8 +518,9 @@ class MD5FileHash(object):
 
     @staticmethod
     def get_hash_value(file_path):
-        _, hash_value = HashUtil().add_file(file_path).hexdigest()
-        return hash_value
+        hash_util = HashUtil()
+        hash_util.add_file(file_path)
+        return hash_util.hash.hexdigest()
 
 
 class FileHash(object):

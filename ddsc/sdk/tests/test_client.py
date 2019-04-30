@@ -461,10 +461,10 @@ class TestFile(TestCase):
             }
         }
 
-    @patch('ddsc.core.download.HashUtil', autospec=True)
+    @patch('ddsc.core.download.HashUtil')
     def test_download_to_path_with_valid_hash(self, mock_hash_util):
         mock_dds_connection = Mock()
-        mock_hash_util.return_value.add_file.return_value.hexdigest.return_value = 'md5', 'abcd'
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'abcd'
 
         file = File(mock_dds_connection, self.file_dict)
         file.download_to_path('/tmp/data.dat')
@@ -473,10 +473,10 @@ class TestFile(TestCase):
         mock_dds_connection.get_file_download.return_value.save_to_path('/tmp/data.dat')
         mock_hash_util.return_value.add_file.assert_called_with('/tmp/data.dat')
 
-    @patch('ddsc.core.download.HashUtil', autospec=True)
+    @patch('ddsc.core.download.HashUtil')
     def test_download_to_path_with_invalid_hash(self, mock_hash_util):
         mock_dds_connection = Mock()
-        mock_hash_util.return_value.add_file.return_value.hexdigest.return_value = 'md5', 'efgh'
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'md5', 'efgh'
 
         file = File(mock_dds_connection, self.file_dict)
         with self.assertRaises(ValueError) as raised_exception:
