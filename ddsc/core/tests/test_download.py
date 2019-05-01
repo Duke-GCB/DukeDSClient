@@ -3,7 +3,7 @@ from unittest import TestCase
 import os
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
-    download_file_part_run, DownloadFilePartCommand, FileDownloader, ProjectFile, FileHash, FileToDownload
+    download_file_part_run, DownloadFilePartCommand, FileDownloader, ProjectFile, FileHash
 from mock import Mock, patch, mock_open, call, ANY
 
 
@@ -14,7 +14,7 @@ class TestProjectDownload(TestCase):
             "name": "data1.txt",
             "size": 100,
             "file_url": "someurl",
-            "hashes": [{"algorithm":"md5", "value": "abc"}],
+            "hashes": [{"algorithm": "md5", "value": "abc"}],
             "ancestors": [],
         })
         self.mock_file2 = Mock(path="somepath/data2.txt", size=452, json_data={
@@ -22,7 +22,7 @@ class TestProjectDownload(TestCase):
             "name": "data2.txt",
             "size": 452,
             "file_url": "someurl",
-            "hashes": [{"algorithm":"md5", "value": "abc"}],
+            "hashes": [{"algorithm": "md5", "value": "abc"}],
             "ancestors": [],
         })
         self.mock_remote_store = Mock()
@@ -456,7 +456,7 @@ class TestDownloadFilePartCommand(TestCase):
     def test_on_message_processed(self, mock_download_context):
         mock_settings = Mock()
         mock_file_url = Mock(json_data={})
-        command = DownloadFilePartCommand(mock_settings, mock_file_url,'/tmp/dest/data.txt', 100, 200)
+        command = DownloadFilePartCommand(mock_settings, mock_file_url, '/tmp/dest/data.txt', 100, 200)
         command.on_message(('processed', 2000))
         mock_settings.watcher.transferring_item.assert_called_with(mock_file_url, 2000)
 
