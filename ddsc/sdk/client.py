@@ -2,9 +2,10 @@ import os
 from collections import OrderedDict
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.config import create_config
-from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE
+from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
+from ddsc.core.download import FileHash
 from ddsc.core.util import KindType
 from future.utils import python_2_unicode_compatible
 
@@ -389,6 +390,8 @@ class File(BaseResponseItem):
         if not path:
             path = self.name
         file_download.save_to_path(path)
+        file_hash = FileHash.create_for_first_supported_algorithm(self.current_version['hashes'], path)
+        file_hash.raise_for_status()
 
     def delete(self):
         """
@@ -405,6 +408,9 @@ class File(BaseResponseItem):
         parent_data = ParentData(self.parent['kind'], self.parent['id'])
         return self.dds_connection.upload_file(file_path, project_id=self.project_id, parent_data=parent_data,
                                                existing_file_id=self.id)
+
+    def get_hash(self):
+        return RemoteFile.get_hash_from_upload(self.current_version["upload"])
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)

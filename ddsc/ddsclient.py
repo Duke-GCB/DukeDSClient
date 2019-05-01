@@ -198,6 +198,7 @@ class DownloadCommand(BaseCommand):
             folder = replace_invalid_path_chars(project_name_or_id.value.replace(' ', '_'))
         destination_path = format_destination_path(folder)
         path_filter = PathFilter(args.include_paths, args.exclude_paths)
+        print("Fetching list of files/folders.")
         project = self.fetch_project(args, must_exist=True)
         project_download = ProjectDownload(self.remote_store, project, destination_path, path_filter)
         project_download.run()

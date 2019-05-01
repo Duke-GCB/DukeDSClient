@@ -108,21 +108,21 @@ class TestUploadCommand(TestCase):
 class TestDownloadCommand(TestCase):
     @patch('ddsc.ddsclient.RemoteStore')
     @patch("ddsc.ddsclient.ProjectDownload")
-    def test_run_project_name(self, mock_project_download, mock_remote_store):
-        @patch('ddsc.ddsclient.RemoteStore')
-        @patch('ddsc.ddsclient.ProjectDownload')
-        def test_run_project_id(self, mock_project_download, mock_remote_store):
-            cmd = DownloadCommand(MagicMock())
-            args = Mock()
-            args.project_name = 'mouse'
-            args.project_id = None
-            args.include_paths = None
-            args.exclude_paths = None
-            cmd.run(args)
-            mock_remote_store.return_value.fetch_remote_project.assert_called()
-            args, kwargs = mock_remote_store.return_value.fetch_remote_project.call_args
-            self.assertEqual('mouse', args[0].get_name_or_raise())
-            mock_project_download.return_value.run.assert_called()
+    @patch("ddsc.ddsclient.format_destination_path")
+    @patch("ddsc.ddsclient.print")
+    def test_run_project_name(self, mock_print, mock_format_destination_path, mock_project_download, mock_remote_store):
+        cmd = DownloadCommand(MagicMock())
+        args = Mock()
+        args.project_name = 'mouse'
+        args.project_id = None
+        args.include_paths = None
+        args.exclude_paths = None
+        cmd.run(args)
+        mock_remote_store.return_value.fetch_remote_project.assert_called()
+        args, kwargs = mock_remote_store.return_value.fetch_remote_project.call_args
+        self.assertEqual('mouse', args[0].get_name_or_raise())
+        mock_project_download.return_value.run.assert_called()
+        mock_print.assert_called_with('Fetching list of files/folders.')
 
     @patch('ddsc.ddsclient.RemoteStore')
     @patch('ddsc.ddsclient.ProjectDownload')

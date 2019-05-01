@@ -3,14 +3,16 @@ from unittest import TestCase
 import os
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
-    download_file_part_run, DownloadFilePartCommand, FileUrlDownloader
+    download_file_part_run, DownloadFilePartCommand, FileUrlDownloader, ProjectFile, FileHash
 from mock import Mock, patch, mock_open, call
 
 
 class TestProjectDownload(TestCase):
     def setUp(self):
         self.mock_file1 = Mock(path="somepath/data1.txt", size=100)
+        self.mock_file1.get_local_path.return_value = "somepath/data1.txt"
         self.mock_file2 = Mock(path="somepath/data2.txt", size=452)
+        self.mock_file2.get_local_path.return_value = "somepath/data2.txt"
         self.mock_remote_store = Mock()
         self.mock_remote_store.get_project_files.return_value = [
             self.mock_file1,
@@ -19,21 +21,39 @@ class TestProjectDownload(TestCase):
         self.mock_project = Mock()
         self.mock_path_filter = Mock()
         self.mock_path_filter.include_path.return_value = True
+        self.mock_file_json_data = {
+            "id": "abc",
+            "name": "data.txt",
+            "size": 100,
+            "file_url": "someurl",
+            "hashes": [],
+            "ancestors": [],
+        }
 
+    @patch('ddsc.core.download.print')
+    @patch('ddsc.core.download.HashUtil')
     @patch('ddsc.core.download.FileUrlDownloader')
     @patch('ddsc.core.download.ProgressPrinter')
     @patch('ddsc.core.download.DownloadSettings')
     @patch('ddsc.core.download.os')
-    @patch('ddsc.core.download.PathData')
-    def test_run(self, mock_path_data, mock_os, mock_download_settings, mock_progress_printer, mock_file_url_downloader):
+    def test_run(self, mock_os, mock_download_settings, mock_progress_printer, mock_file_url_downloader,
+                 mock_hash_util, mock_print):
+        mock_hash_util.return_value.add_file.return_value.hexdigest.return_value = 'md5', '123'
         project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
                                            self.mock_path_filter)
 
         project_download.try_create_dir = Mock()
         project_download.check_warnings = Mock()
         project_download.check_warnings.return_value = 'Things went wrong'
-        self.mock_file1.get_hash.return_value = {'value': '123'}
-        self.mock_file2.get_hash.return_value = {'value': '123'}
+        # remote hashes for files we are downloading
+        self.mock_file1.hashes = [{'algorithm': 'md5', 'value': '111'}]
+        self.mock_file2.hashes = [{'algorithm': 'md5', 'value': '222'}]
+        mock_hash_util.return_value.hash.hexdigest.side_effect = [
+            ('333'),  # local file1 hash doesn't match before upload
+            ('444'),  # local file2 hash doesn't match before upload
+            ('111'),  # file1 hash matches after download
+            ('222'),  # file1 hash matches after download
+        ]
 
         project_download.run()
 
@@ -51,6 +71,79 @@ class TestProjectDownload(TestCase):
         self.assertTrue(mock_file_url_downloader.return_value.make_big_empty_files.called)
         self.assertTrue(mock_file_url_downloader.return_value.download_files.called)
 
+        mock_print.assert_has_calls([
+            call('Downloading 2 files.'),
+            call('Verifying contents of 2 downloaded files using file hashes.'),
+            call('somepath/data1.txt 111 md5 OK'),
+            call('somepath/data2.txt 222 md5 OK'),
+            call('All downloaded files have been verified successfully.')
+        ])
+
+    @patch('ddsc.core.download.print')
+    def test_run_no_files(self, mock_print):
+        project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
+                                           self.mock_path_filter)
+        project_download.try_create_dir = Mock()
+        project_download.check_warnings = Mock()
+        project_download.check_warnings.return_value = ''
+        project_download.get_files_to_download = Mock()
+        project_download.get_files_to_download.return_value = []
+
+        project_download.run()
+
+        project_download.try_create_dir.assert_not_called()
+        mock_print.assert_has_calls([
+            call('All content is already downloaded.')
+        ])
+
+    @patch('ddsc.core.download.print')
+    @patch('ddsc.core.download.HashUtil')
+    @patch('ddsc.core.download.FileUrlDownloader')
+    @patch('ddsc.core.download.ProgressPrinter')
+    @patch('ddsc.core.download.DownloadSettings')
+    @patch('ddsc.core.download.os')
+    def test_run_mismatched_hash(self, mock_os, mock_download_settings, mock_progress_printer,
+                                 mock_file_url_downloader, mock_hash_util, mock_print):
+        project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
+                                           self.mock_path_filter)
+
+        project_download.try_create_dir = Mock()
+        project_download.check_warnings = Mock()
+        project_download.check_warnings.return_value = 'Things went wrong'
+        self.mock_file1.hashes = [{'value': '111', 'algorithm': 'md5'}]
+        self.mock_remote_store.get_project_files.return_value = [self.mock_file1]
+
+        mock_hash_util.return_value.add_file.return_value.hexdigest.side_effect = [
+            ('md5', '222'),  # local file doesn't match remote hash
+            ('md5', '333'),  # after download has is wrong
+        ]
+
+        with self.assertRaises(ValueError) as raised_exception:
+            project_download.run()
+
+        # Makes root directory and updates progress
+        project_download.try_create_dir.assert_called_with('/tmp/dest')
+        mock_progress_printer.assert_called_with(100, msg_verb='downloading')
+        self.assertTrue(mock_progress_printer.return_value.finished.called)
+        mock_progress_printer.return_value.show_warning.assert_called_with('Things went wrong')
+
+        # Downloads files
+        mock_file_url_downloader.assert_called_with(mock_download_settings.return_value,
+                                                    [self.mock_file1],
+                                                    mock_progress_printer.return_value)
+        self.assertTrue(mock_file_url_downloader.return_value.make_local_directories.called)
+        self.assertTrue(mock_file_url_downloader.return_value.make_big_empty_files.called)
+        self.assertTrue(mock_file_url_downloader.return_value.download_files.called)
+
+        mock_print.assert_has_calls([
+            call('Downloading 1 files.'),
+            call('Verifying contents of 1 downloaded files using file hashes.'),
+            call('somepath/data1.txt 111 md5 FAILED'),
+        ])
+
+        self.assertEqual(str(raised_exception.exception),
+                         "ERROR: Downloaded file(s) do not match the expected hashes.")
+
     def test_check_warnings(self):
         project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
                                            self.mock_path_filter)
@@ -61,8 +154,8 @@ class TestProjectDownload(TestCase):
         self.assertEqual(project_download.check_warnings().strip(), 'WARNING: Path(s) not found: tmp/data.txt.')
 
     @patch('ddsc.core.download.os')
-    @patch('ddsc.core.download.PathData')
-    def test_include_project_file(self, mock_path_data, mock_os):
+    @patch('ddsc.core.download.HashUtil')
+    def test_include_project_file(self, mock_hash_util, mock_os):
         project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
                                            self.mock_path_filter)
 
@@ -81,19 +174,18 @@ class TestProjectDownload(TestCase):
         project_download.path_filter.include_path.return_value = True
         mock_os.path.exists.return_value = True
         mock_project_file = Mock(path='/tmp/data.txt')
-        mock_project_file.get_hash.return_value = {'value': 'abcd'}
-        mock_path_data.return_value.get_hash.return_value = Mock(value='abcd')
+        mock_project_file.hashes = [{'value': 'abcd', 'algorithm': 'md5'}]
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'abcd'
         self.assertEqual(False, project_download.include_project_file(mock_project_file))
 
         # Local file has different hash than remote file
         mock_project_file = Mock(path='/tmp/data.txt')
-        mock_project_file.get_hash.return_value = {'value': 'abcd'}
-        mock_path_data.return_value.get_hash.return_value = Mock(value='abcd')
-        self.assertEqual(False, project_download.include_project_file(mock_project_file))
+        mock_project_file.hashes = [{'value': 'abcd', 'algorithm': 'md5'}]
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'cdef'
+        self.assertEqual(True, project_download.include_project_file(mock_project_file))
 
     @patch('ddsc.core.download.os')
-    @patch('ddsc.core.download.PathData')
-    def test_run_preprocessor(self, mock_path_data, mock_os):
+    def test_run_preprocessor(self, mock_os):
         mock_preprocessor = Mock()
         project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
                                            self.mock_path_filter, file_download_pre_processor=mock_preprocessor)
@@ -104,6 +196,44 @@ class TestProjectDownload(TestCase):
             call(self.mock_remote_store.data_service, mock_file1),
             call(self.mock_remote_store.data_service, mock_file2)
         ])
+
+    @patch('ddsc.core.download.HashUtil')
+    @patch('ddsc.core.download.print')
+    def test_check_downloaded_files_when_matching_hash(self, mock_print, mock_hash_util):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.hashes = [{"algorithm": "md5", "value": "abc"}]
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'abc'
+
+        downloader = ProjectDownload(None, None, dest_directory='/tmp/data2/', path_filter=None)
+        downloader.check_downloaded_files([project_file])
+
+    @patch('ddsc.core.download.HashUtil')
+    @patch('ddsc.core.download.print')
+    def test_check_downloaded_files_value_mismatched_hash(self, mock_print, mock_hash_util):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.hashes = [{"algorithm": "md5", "value": "abc"}]
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'efgh'
+
+        downloader = ProjectDownload(None, None, dest_directory='/tmp/data2', path_filter=None)
+        with self.assertRaises(ValueError) as raised_exception:
+            downloader.check_downloaded_files([project_file])
+
+        mock_print.assert_called_with("/tmp/data2/data.txt abc md5 FAILED")
+        exception_str = str(raised_exception.exception)
+        self.assertEqual(exception_str, "ERROR: Downloaded file(s) do not match the expected hashes.")
+
+    @patch('ddsc.core.download.HashUtil')
+    @patch('ddsc.core.download.print')
+    def test_check_downloaded_files_when_no_supported_hashes(self, mock_print, mock_hash_util):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.hashes = [{"algorithm": "sha1", "value": "abc"}]
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'abc'
+
+        downloader = ProjectDownload(None, None, dest_directory='/tmp/data2/', path_filter=None)
+        with self.assertRaises(ValueError) as raised_exception:
+            downloader.check_downloaded_files([project_file])
+        exception_str = str(raised_exception.exception)
+        self.assertEqual(exception_str, 'Unable to validate: No supported hashes found for file /tmp/data2/data.txt')
 
 
 class TestDownloadSettings(TestCase):
@@ -302,31 +432,6 @@ class TestFileUrlDownloader(TestCase):
         large_items, small_items = downloader.split_file_urls_by_size(100)
         self.assertEqual(set([90, 99]), set([item.size for item in small_items]))
         self.assertEqual(set([200, 100, 400]), set([item.size for item in large_items]))
-
-    @patch('ddsc.core.download.os')
-    def test_check_file_size(self, mock_os):
-        mock_os.stat.return_value = Mock(st_size=100)
-        FileUrlDownloader.check_file_size(file_size=100, path='/tmp/fakepath.txt')
-
-        mock_os.stat.return_value = Mock(st_size=101)
-        with self.assertRaises(ValueError):
-            FileUrlDownloader.check_file_size(file_size=100, path='/tmp/fakepath.txt')
-
-        mock_os.stat.return_value = Mock(st_size=99)
-        with self.assertRaises(ValueError):
-            FileUrlDownloader.check_file_size(file_size=100, path='/tmp/fakepath.txt')
-
-    @patch('ddsc.core.download.os')
-    def test_check_downloaded_files_sizes(self, mock_os):
-        downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
-        downloader.file_urls = [Mock(size=90)]
-        mock_os.stat.return_value = Mock(st_size=100)
-        with self.assertRaises(ValueError):
-            downloader.check_downloaded_files_sizes()
-
-        downloader.file_urls = [Mock(size=100)]
-        mock_os.stat.return_value = Mock(st_size=100)
-        downloader.check_downloaded_files_sizes()
 
 
 class TestDownloadFilePartCommand(TestCase):
@@ -605,3 +710,86 @@ class TestRetryChunkDownloader(TestCase):
         with patch('ddsc.core.download.open', fake_open, create=True):
             downloader.retry_download_loop()
         self.assertEqual(downloader.actual_bytes_read, 100)
+
+
+class TestFileHash(TestCase):
+    def test_create_for_first_supported_algorithm_no_supported_hash_found(self):
+        expected_error_msg = "Unable to validate: No supported hashes found for file /tmp/fakepath.dat"
+        with self.assertRaises(ValueError) as raised_exception:
+            FileHash.create_for_first_supported_algorithm(dds_hashes=[], file_path='/tmp/fakepath.dat')
+        self.assertEqual(str(raised_exception.exception), expected_error_msg)
+        with self.assertRaises(ValueError) as raised_exception:
+            FileHash.create_for_first_supported_algorithm(dds_hashes=[
+                {"algorithm": "sha1", "value": "abc"}
+            ], file_path='/tmp/fakepath.dat')
+        self.assertEqual(str(raised_exception.exception), expected_error_msg)
+
+    @patch('ddsc.core.download.HashUtil')
+    def test_create_for_first_supported_algorithm_md5_hash_ok(self, mock_hash_util):
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'def'
+        file_hash = FileHash.create_for_first_supported_algorithm(dds_hashes=[
+            {"algorithm": "sha1", "value": "abc"},
+            {"algorithm": "md5", "value": "def"},
+        ], file_path='/tmp/fakepath.dat')
+        self.assertEqual(file_hash.status, FileHash.STATUS_OK)
+        self.assertEqual(file_hash.get_status_line(), '/tmp/fakepath.dat def md5 OK')
+        file_hash.raise_for_status()
+
+    @patch('ddsc.core.download.HashUtil')
+    def test_create_for_first_supported_algorithm_md5_hash_failed(self, mock_hash_util):
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'def'
+        file_hash = FileHash.create_for_first_supported_algorithm(dds_hashes=[
+            {"algorithm": "sha1", "value": "abc"},
+            {"algorithm": "md5", "value": "hij"},
+        ], file_path='/tmp/fakepath.dat')
+        self.assertEqual(file_hash.status, FileHash.STATUS_FAILED)
+        self.assertEqual(file_hash.get_status_line(), '/tmp/fakepath.dat hij md5 FAILED')
+
+        with self.assertRaises(ValueError) as raised_exception:
+            file_hash.raise_for_status()
+        self.assertEqual(str(raised_exception.exception), 'Hash validation error: /tmp/fakepath.dat hij md5 FAILED')
+
+
+"""
+class FileHash(object):
+    STATUS_OK = "OK"
+    STATUS_FAILED = "FAILED"
+    algorithm_to_get_hash_value = {
+        MD5FileHash.algorithm: MD5FileHash.get_hash_value
+    }
+
+    def __init__(self, algorithm, expected_hash_value, file_path):
+        self.algorithm = algorithm
+        self.expected_hash_value = expected_hash_value
+        self.file_path = file_path
+        self.status = self.determine_status()
+
+    def _get_hash_value(self):
+        get_hash_value_func = self.algorithm_to_get_hash_value.get(self.algorithm)
+        if get_hash_value_func:
+            return get_hash_value_func(self.file_path)
+        raise ValueError("Unsupported algorithm {}.".format(self.algorithm))
+
+    def determine_status(self):
+        if self._get_hash_value() == self.expected_hash_value:
+            return self.STATUS_OK
+        else:
+            return self.STATUS_FAILED
+
+    def get_status_line(self):
+        return "{} {} {} {}".format(self.file_path, self.expected_hash_value, self.algorithm, self.status)
+
+    def raise_for_status(self):
+        if self.status == self.STATUS_FAILED:
+            raise ValueError("Hash validation error: {}".format(self.get_status_line()))
+
+    @staticmethod
+    def create_for_first_supported_algorithm(dds_hashes, file_path):
+        for hash_info in dds_hashes:
+            algorithm = hash_info.get('algorithm')
+            hash_value = hash_info.get('value')
+            if algorithm in FileHash.algorithm_to_get_hash_value:
+                return FileHash(algorithm, hash_value, file_path)
+        raise ValueError("Unable to validate: No supported hashes found for file {}".format(file_path))
+
+"""

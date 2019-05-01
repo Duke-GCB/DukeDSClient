@@ -450,17 +450,42 @@ class TestFile(TestCase):
             'parent': {
                 'id': '123',
                 'kind': KindType.project_str
+            },
+            'current_version': {
+                'hashes': [
+                    {
+                        'algorithm': 'md5',
+                        'value': 'abcd',
+                    }
+                ]
             }
         }
 
-    def test_download_to_path(self):
+    @patch('ddsc.core.download.HashUtil')
+    def test_download_to_path_with_valid_hash(self, mock_hash_util):
         mock_dds_connection = Mock()
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'abcd'
 
         file = File(mock_dds_connection, self.file_dict)
         file.download_to_path('/tmp/data.dat')
 
         mock_dds_connection.get_file_download.assert_called_with('456')
         mock_dds_connection.get_file_download.return_value.save_to_path('/tmp/data.dat')
+        mock_hash_util.return_value.add_file.assert_called_with('/tmp/data.dat')
+
+    @patch('ddsc.core.download.HashUtil')
+    def test_download_to_path_with_invalid_hash(self, mock_hash_util):
+        mock_dds_connection = Mock()
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'md5', 'efgh'
+
+        file = File(mock_dds_connection, self.file_dict)
+        with self.assertRaises(ValueError) as raised_exception:
+            file.download_to_path('/tmp/data.dat')
+
+        mock_dds_connection.get_file_download.assert_called_with('456')
+        mock_dds_connection.get_file_download.return_value.save_to_path('/tmp/data.dat')
+        mock_hash_util.return_value.add_file.assert_called_with('/tmp/data.dat')
+        self.assertEqual(str(raised_exception.exception), 'Hash validation error: /tmp/data.dat abcd md5 FAILED')
 
     def test_delete(self):
         mock_dds_connection = Mock()
