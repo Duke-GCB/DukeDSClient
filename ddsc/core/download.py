@@ -152,6 +152,47 @@ class DownloadSettings(object):
         return self.data_service.auth.get_auth_data()
 
 
+class DownloadContext(object):
+    """
+    Values passed to a background worker.
+    Contains DownloadSettings and parameters specific to the function to be run.
+    """
+    def __init__(self, settings, params, message_queue, task_id):
+        """
+        Setup context so it can be passed.
+        :param settings: UploadSettings: project level info
+        :param params: tuple: values specific to the function being run
+        :param message_queue: Queue: queue background process can send messages to us on
+        :param task_id: int: id of this command's task so message will be routed correctly
+        """
+        self.data_service_auth_data = settings.get_data_service_auth_data()
+        self.config = settings.config
+        self.params = params
+        self.message_queue = message_queue
+        self.task_id = task_id
+
+    def create_data_service(self):
+        auth = DataServiceAuth(self.config)
+        auth.set_auth_data(self.data_service_auth_data)
+        return DataServiceApi(auth, self.config.url)
+
+    def create_remote_store(self):
+        return RemoteStore(self.config, self.create_data_service())
+
+    def send_message(self, data):
+        """
+        Sends a message to the command's on_message(data) method.
+        :param data: object: data sent to on_message
+        """
+        self.message_queue.put((self.task_id, data))
+
+    def send_processed_message(self, num_bytes):
+        self.send_message(('processed', num_bytes))
+
+    def send_error_message(self, error):
+        self.send_message(('error', error))
+
+
 class FileToDownload(ProjectFile):
     """
     Extends ProjectFile to have a destination to write the file to.
@@ -283,47 +324,6 @@ class FileDownloader(object):
             else:
                 small_items.append(file_to_download)
         return large_items, small_items
-
-
-class DownloadContext(object):
-    """
-    Values passed to a background worker.
-    Contains DownloadSettings and parameters specific to the function to be run.
-    """
-    def __init__(self, settings, params, message_queue, task_id):
-        """
-        Setup context so it can be passed.
-        :param settings: UploadSettings: project level info
-        :param params: tuple: values specific to the function being run
-        :param message_queue: Queue: queue background process can send messages to us on
-        :param task_id: int: id of this command's task so message will be routed correctly
-        """
-        self.data_service_auth_data = settings.get_data_service_auth_data()
-        self.config = settings.config
-        self.params = params
-        self.message_queue = message_queue
-        self.task_id = task_id
-
-    def create_data_service(self):
-        auth = DataServiceAuth(self.config)
-        auth.set_auth_data(self.data_service_auth_data)
-        return DataServiceApi(auth, self.config.url)
-
-    def create_remote_store(self):
-        return RemoteStore(self.config, self.create_data_service())
-
-    def send_message(self, data):
-        """
-        Sends a message to the command's on_message(data) method.
-        :param data: object: data sent to on_message
-        """
-        self.message_queue.put((self.task_id, data))
-
-    def send_processed_message(self, num_bytes):
-        self.send_message(('processed', num_bytes))
-
-    def send_error_message(self, error):
-        self.send_message(('error', error))
 
 
 class DownloadFilePartCommand(object):
