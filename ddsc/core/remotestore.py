@@ -682,6 +682,24 @@ class ProjectFile(object):
     def get_hash(self):
         return RemoteFile.get_hash_from_upload(self.json_data)
 
+    @staticmethod
+    def create_for_dds_file_dict(file_dict):
+        """
+        Create a ProjectFile for a DukeDS File dict specifying None for file_url since this data is not present.
+        :param file_dict: dict: DukeDS API file response
+        :return: ProjectFile
+        """
+        project_file_dict = {
+            "id": file_dict["id"],
+            "name": file_dict["name"],
+            "size": file_dict["current_version"]["upload"]["size"],
+            "hashes": file_dict["current_version"]["upload"]["hashes"],
+            "ancestors": file_dict["ancestors"],
+            "file_url": None,
+
+        }
+        return ProjectFile(project_file_dict)
+
 
 class RemoteFileUrl(object):
     def __init__(self, json_data):

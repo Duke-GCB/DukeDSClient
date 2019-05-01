@@ -3,16 +3,28 @@ from unittest import TestCase
 import os
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
-    download_file_part_run, DownloadFilePartCommand, FileUrlDownloader, ProjectFile, FileHash
-from mock import Mock, patch, mock_open, call
+    download_file_part_run, DownloadFilePartCommand, FileDownloader, ProjectFile, FileHash, FileToDownload
+from mock import Mock, patch, mock_open, call, ANY
 
 
 class TestProjectDownload(TestCase):
     def setUp(self):
-        self.mock_file1 = Mock(path="somepath/data1.txt", size=100)
-        self.mock_file1.get_local_path.return_value = "somepath/data1.txt"
-        self.mock_file2 = Mock(path="somepath/data2.txt", size=452)
-        self.mock_file2.get_local_path.return_value = "somepath/data2.txt"
+        self.mock_file1 = Mock(path="somepath/data1.txt", size=100, json_data={
+            "id": "1",
+            "name": "data1.txt",
+            "size": 100,
+            "file_url": "someurl",
+            "hashes": [{"algorithm":"md5", "value": "abc"}],
+            "ancestors": [],
+        })
+        self.mock_file2 = Mock(path="somepath/data2.txt", size=452, json_data={
+            "id": "2",
+            "name": "data2.txt",
+            "size": 452,
+            "file_url": "someurl",
+            "hashes": [{"algorithm":"md5", "value": "abc"}],
+            "ancestors": [],
+        })
         self.mock_remote_store = Mock()
         self.mock_remote_store.get_project_files.return_value = [
             self.mock_file1,
@@ -32,27 +44,27 @@ class TestProjectDownload(TestCase):
 
     @patch('ddsc.core.download.print')
     @patch('ddsc.core.download.HashUtil')
-    @patch('ddsc.core.download.FileUrlDownloader')
+    @patch('ddsc.core.download.FileDownloader')
     @patch('ddsc.core.download.ProgressPrinter')
     @patch('ddsc.core.download.DownloadSettings')
     @patch('ddsc.core.download.os')
-    def test_run(self, mock_os, mock_download_settings, mock_progress_printer, mock_file_url_downloader,
+    def test_run(self, mock_os, mock_download_settings, mock_progress_printer, mock_file_downloader,
                  mock_hash_util, mock_print):
-        mock_hash_util.return_value.add_file.return_value.hexdigest.return_value = 'md5', '123'
         project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
                                            self.mock_path_filter)
-
         project_download.try_create_dir = Mock()
         project_download.check_warnings = Mock()
         project_download.check_warnings.return_value = 'Things went wrong'
         # remote hashes for files we are downloading
         self.mock_file1.hashes = [{'algorithm': 'md5', 'value': '111'}]
-        self.mock_file2.hashes = [{'algorithm': 'md5', 'value': '222'}]
+        self.mock_file1.json_data["hashes"] = [{'algorithm': 'md5', 'value': '111'}]
+        self.mock_file2.hashes = [{'algorithm': 'md5', 'value': '111'}]
+        self.mock_file2.json_data["hashes"] = [{'algorithm': 'md5', 'value': '222'}]
         mock_hash_util.return_value.hash.hexdigest.side_effect = [
-            ('333'),  # local file1 hash doesn't match before upload
-            ('444'),  # local file2 hash doesn't match before upload
-            ('111'),  # file1 hash matches after download
-            ('222'),  # file1 hash matches after download
+            '333',  # local file1 hash doesn't match before upload
+            '444',  # local file2 hash doesn't match before upload
+            '111',  # file1 hash matches after download
+            '222',  # file1 hash matches after download
         ]
 
         project_download.run()
@@ -64,18 +76,16 @@ class TestProjectDownload(TestCase):
         mock_progress_printer.return_value.show_warning.assert_called_with('Things went wrong')
 
         # Downloads files
-        mock_file_url_downloader.assert_called_with(mock_download_settings.return_value,
-                                                    [self.mock_file1, self.mock_file2],
-                                                    mock_progress_printer.return_value)
-        self.assertTrue(mock_file_url_downloader.return_value.make_local_directories.called)
-        self.assertTrue(mock_file_url_downloader.return_value.make_big_empty_files.called)
-        self.assertTrue(mock_file_url_downloader.return_value.download_files.called)
+        mock_file_downloader.assert_called_with(mock_download_settings.return_value, [ANY, ANY])
+        args, kwargs = mock_file_downloader.call_args
+
+        self.assertTrue(mock_file_downloader.return_value.run.called)
 
         mock_print.assert_has_calls([
             call('Downloading 2 files.'),
             call('Verifying contents of 2 downloaded files using file hashes.'),
-            call('somepath/data1.txt 111 md5 OK'),
-            call('somepath/data2.txt 222 md5 OK'),
+            call('/tmp/dest/data1.txt 111 md5 OK'),
+            call('/tmp/dest/data2.txt 222 md5 OK'),
             call('All downloaded files have been verified successfully.')
         ])
 
@@ -98,12 +108,12 @@ class TestProjectDownload(TestCase):
 
     @patch('ddsc.core.download.print')
     @patch('ddsc.core.download.HashUtil')
-    @patch('ddsc.core.download.FileUrlDownloader')
+    @patch('ddsc.core.download.FileDownloader')
     @patch('ddsc.core.download.ProgressPrinter')
     @patch('ddsc.core.download.DownloadSettings')
     @patch('ddsc.core.download.os')
     def test_run_mismatched_hash(self, mock_os, mock_download_settings, mock_progress_printer,
-                                 mock_file_url_downloader, mock_hash_util, mock_print):
+                                 mock_file_downloader, mock_hash_util, mock_print):
         project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
                                            self.mock_path_filter)
 
@@ -111,6 +121,7 @@ class TestProjectDownload(TestCase):
         project_download.check_warnings = Mock()
         project_download.check_warnings.return_value = 'Things went wrong'
         self.mock_file1.hashes = [{'value': '111', 'algorithm': 'md5'}]
+        self.mock_file1.json_data["hashes"] = [{'algorithm': 'md5', 'value': '111'}]
         self.mock_remote_store.get_project_files.return_value = [self.mock_file1]
 
         mock_hash_util.return_value.add_file.return_value.hexdigest.side_effect = [
@@ -128,17 +139,13 @@ class TestProjectDownload(TestCase):
         mock_progress_printer.return_value.show_warning.assert_called_with('Things went wrong')
 
         # Downloads files
-        mock_file_url_downloader.assert_called_with(mock_download_settings.return_value,
-                                                    [self.mock_file1],
-                                                    mock_progress_printer.return_value)
-        self.assertTrue(mock_file_url_downloader.return_value.make_local_directories.called)
-        self.assertTrue(mock_file_url_downloader.return_value.make_big_empty_files.called)
-        self.assertTrue(mock_file_url_downloader.return_value.download_files.called)
+        mock_file_downloader.assert_called_with(mock_download_settings.return_value, [ANY])
+        self.assertTrue(mock_file_downloader.return_value.run.called)
 
         mock_print.assert_has_calls([
             call('Downloading 1 files.'),
             call('Verifying contents of 1 downloaded files using file hashes.'),
-            call('somepath/data1.txt 111 md5 FAILED'),
+            call('/tmp/dest/data1.txt 111 md5 FAILED'),
         ])
 
         self.assertEqual(str(raised_exception.exception),
@@ -238,10 +245,10 @@ class TestProjectDownload(TestCase):
 
 class TestDownloadSettings(TestCase):
     def test_get_data_service_auth_data(self):
-        mock_remote_store = Mock()
-        mock_remote_store.data_service.auth.get_auth_data.return_value = 'auth data'
+        mock_data_service = Mock()
+        mock_data_service.auth.get_auth_data.return_value = 'auth data'
 
-        settings = DownloadSettings(remote_store=mock_remote_store, dest_directory='/tmp/data', watcher=Mock())
+        settings = DownloadSettings(data_service=mock_data_service, config=Mock(), watcher=Mock())
 
         self.assertEqual(settings.get_data_service_auth_data(), 'auth data')
 
@@ -287,11 +294,11 @@ class TestDownloadContext(TestCase):
         self.mock_message_queue.put.assert_called_with(('123', ('error', 'oops')))
 
 
-class TestFileUrlDownloader(TestCase):
+class TestFileDownloader(TestCase):
     def setUp(self):
         self.mock_config = Mock(download_bytes_per_chunk=1000)
         self.mock_settings = Mock(dest_directory='/tmp/data2', config=self.mock_config)
-        self.mock_file1 = Mock(path="data/file1.txt", size=200)
+        self.mock_file1 = Mock(path="data/file1.txt", size=200, local_path='/tmp/data2/data/file1.txt')
         self.mock_file1.get_remote_parent_path.return_value = 'data'
         self.mock_file1.get_local_path.return_value = '/tmp/data2/data/file1.txt'
         self.mock_file_urls = [
@@ -305,7 +312,7 @@ class TestFileUrlDownloader(TestCase):
     def test_make_local_directories(self, mock_os, mock_task_executor, mock_task_runner):
         mock_os.path.exists.return_value = True
         mock_os.path = os.path
-        downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
+        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
         downloader.make_local_directories()
         mock_os.makedirs.assert_called_with('/tmp/data2/data')
 
@@ -315,7 +322,7 @@ class TestFileUrlDownloader(TestCase):
     def test_make_big_empty_files(self, mock_os, mock_task_executor, mock_task_runner):
         mock_os.path.exists.return_value = True
         mock_os.path = os.path
-        downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
+        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
         fake_open = mock_open()
         with patch('ddsc.core.download.open', fake_open, create=True):
             downloader.make_big_empty_files()
@@ -326,14 +333,14 @@ class TestFileUrlDownloader(TestCase):
     @patch('ddsc.core.download.TaskRunner')
     @patch('ddsc.core.download.TaskExecutor')
     def test_download_files(self, mock_task_executor, mock_task_runner):
-        downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
-        downloader.split_file_urls_by_size = Mock()
+        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
+        downloader.group_files_by_size = Mock()
         mock_small_file = Mock(size=100)
         mock_small_files = [mock_small_file]
         mock_large_file1 = Mock(size=200)
         mock_large_file2 = Mock(size=200)
         mock_large_files = [mock_large_file1, mock_large_file2]
-        downloader.split_file_urls_by_size.return_value = [mock_large_files, mock_small_files]
+        downloader.group_files_by_size.return_value = [mock_large_files, mock_small_files]
         downloader.make_ranges = Mock()
         downloader.make_ranges.return_value = [
             (0, 90),
@@ -406,11 +413,11 @@ class TestFileUrlDownloader(TestCase):
 
     def assert_make_ranges(self, workers, file_size, expected):
         self.mock_settings.config.download_workers = workers
-        downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
+        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
         self.assertEqual(expected, downloader.make_ranges(Mock(size=file_size)))
 
     def test_determine_bytes_per_chunk(self):
-        downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
+        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
         downloader.settings.config.download_workers = 2
         size = 10
         bytes_per_chunk = self.mock_config.download_bytes_per_chunk
@@ -420,16 +427,16 @@ class TestFileUrlDownloader(TestCase):
         size = bytes_per_chunk * 5
         self.assertEqual(downloader.determine_bytes_per_chunk(size), bytes_per_chunk * 2.5)
 
-    def test_split_file_urls_by_size(self):
-        downloader = FileUrlDownloader(self.mock_settings, self.mock_file_urls, self.mock_watcher)
-        downloader.file_urls = [
+    def test_group_files_by_size(self):
+        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
+        downloader.files_to_download = [
             Mock(size=90),
             Mock(size=100),
             Mock(size=99),
             Mock(size=200),
             Mock(size=400),
         ]
-        large_items, small_items = downloader.split_file_urls_by_size(100)
+        large_items, small_items = downloader.group_files_by_size(100)
         self.assertEqual(set([90, 99]), set([item.size for item in small_items]))
         self.assertEqual(set([200, 100, 400]), set([item.size for item in large_items]))
 
@@ -437,27 +444,27 @@ class TestFileUrlDownloader(TestCase):
 class TestDownloadFilePartCommand(TestCase):
     @patch('ddsc.core.download.DownloadContext')
     def test_create_context(self, mock_download_context):
-        mock_settings = Mock(dest_directory='/tmp/dest')
+        mock_settings = Mock()
         mock_file_url = Mock(json_data={})
-        command = DownloadFilePartCommand(mock_settings, mock_file_url, 100, 200)
+        command = DownloadFilePartCommand(mock_settings, mock_file_url, 100, 200, '/tmp/dest/data.txt')
         mock_message_queue = Mock()
         context = command.create_context(mock_message_queue, 123)
         self.assertEqual(context, mock_download_context.return_value)
-        mock_download_context.assert_called_with(mock_settings, ('/tmp/dest', {}, 100, 200), mock_message_queue, 123)
+        mock_download_context.assert_called_with(mock_settings, ({}, 100, 200, '/tmp/dest/data.txt'), mock_message_queue, 123)
 
     @patch('ddsc.core.download.DownloadContext')
     def test_on_message_processed(self, mock_download_context):
-        mock_settings = Mock(dest_directory='/tmp/dest')
+        mock_settings = Mock()
         mock_file_url = Mock(json_data={})
-        command = DownloadFilePartCommand(mock_settings, mock_file_url, 100, 200)
+        command = DownloadFilePartCommand(mock_settings, mock_file_url,'/tmp/dest/data.txt', 100, 200)
         command.on_message(('processed', 2000))
         mock_settings.watcher.transferring_item.assert_called_with(mock_file_url, 2000)
 
     @patch('ddsc.core.download.DownloadContext')
     def test_on_message_error(self, mock_download_context):
-        mock_settings = Mock(dest_directory='/tmp/dest')
+        mock_settings = Mock()
         mock_file_url = Mock(json_data={})
-        command = DownloadFilePartCommand(mock_settings, mock_file_url, 100, 200)
+        command = DownloadFilePartCommand(mock_settings, mock_file_url, '/tmp/dest/data.txt', 100, 200)
         with self.assertRaises(ValueError) as raised_error:
             command.on_message(('error', 'Oops'))
             self.assertEqual(str(raised_error.exception), 'Oops')
@@ -467,12 +474,12 @@ class TestDownloadFilePartRun(TestCase):
     @patch('ddsc.core.download.RetryChunkDownloader')
     @patch('ddsc.core.download.ProjectFile')
     def test_download_file_part_run(self, mock_project_file, mock_retry_chunk_downloader):
-        mock_context = Mock(params=('/tmp/dest', {}, 0, 100))
+        mock_context = Mock(params=({}, 0, 100, '/tmp/dest/data.txt', ))
 
         download_file_part_run(mock_context)
 
         mock_retry_chunk_downloader.assert_called_with(mock_project_file.return_value,
-                                                       mock_project_file.return_value.get_local_path.return_value,
+                                                       '/tmp/dest/data.txt',
                                                        0, 100, mock_context)
 
 

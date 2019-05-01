@@ -41,6 +41,14 @@ class KindType(object):
         return item.kind == KindType.project_str
 
 
+class NoOpProgressPrinter(object):
+    def transferring_item(self, item, increment_amt=1):
+        pass
+
+    def finished(self):
+        pass
+
+
 class ProgressPrinter(object):
     """
     Prints a progress bar(percentage) to the terminal, expects to have sending_item and finished called.
