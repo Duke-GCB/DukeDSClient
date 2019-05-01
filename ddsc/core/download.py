@@ -553,8 +553,7 @@ class FileHash(object):
         raise ValueError("Unsupported algorithm {}.".format(self.algorithm))
 
     def determine_status(self):
-        local_file_hash_value = self._get_hash_value()
-        if local_file_hash_value == self.expected_hash_value:
+        if self._get_hash_value() == self.expected_hash_value:
             return self.STATUS_OK
         else:
             return self.STATUS_FAILED

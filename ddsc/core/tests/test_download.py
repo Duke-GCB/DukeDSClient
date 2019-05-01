@@ -3,7 +3,7 @@ from unittest import TestCase
 import os
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
-    download_file_part_run, DownloadFilePartCommand, FileDownloader, ProjectFile, FileHash
+    download_file_part_run, DownloadFilePartCommand, FileDownloader, ProjectFile, FileHash, FileToDownload
 from mock import Mock, patch, mock_open, call, ANY
 
 
@@ -160,6 +160,21 @@ class TestProjectDownload(TestCase):
         project_download.path_filter.get_unused_paths.return_value = ["tmp/data.txt"]
         self.assertEqual(project_download.check_warnings().strip(), 'WARNING: Path(s) not found: tmp/data.txt.')
 
+    @patch('ddsc.core.download.FileToDownload')
+    def test_get_files_to_download(self, mock_file_to_download):
+        project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
+                                           self.mock_path_filter)
+        project_download.include_project_file = Mock()
+        project_download.include_project_file.return_value = True
+        files = project_download.get_files_to_download()
+        self.assertEqual(2, len(files))
+        self.assertEqual(files[0], mock_file_to_download.return_value)
+        self.assertEqual(files[1], mock_file_to_download.return_value)
+        mock_file_to_download.assert_has_calls([
+            call(self.mock_file1.json_data, self.mock_file1.get_local_path.return_value),
+            call(self.mock_file2.json_data, self.mock_file2.get_local_path.return_value),
+        ])
+
     @patch('ddsc.core.download.os')
     @patch('ddsc.core.download.HashUtil')
     def test_include_project_file(self, mock_hash_util, mock_os):
@@ -292,6 +307,21 @@ class TestDownloadContext(TestCase):
         context = DownloadContext(self.mock_settings, None, self.mock_message_queue, task_id='123')
         context.send_error_message('oops')
         self.mock_message_queue.put.assert_called_with(('123', ('error', 'oops')))
+
+
+class TestFileToDownload(TestCase):
+    def test_constructor(self):
+        project_file_json_data = {
+            'id': '123',
+            'name': 'somefile',
+            'size': 100,
+            'file_url': 'someurl',
+            'hashes': [],
+            'ancestors': [],
+        }
+        file_to_download = FileToDownload(json_data=project_file_json_data, local_path="/tmp/data.txt")
+        self.assertEqual(file_to_download.name, "somefile")
+        self.assertEqual(file_to_download.local_path, "/tmp/data.txt")
 
 
 class TestFileDownloader(TestCase):
