@@ -891,6 +891,38 @@ class TestProjectFile(TestCase):
         project_file = ProjectFile(self.project_file_dict)
         self.assertEqual('/tmp/data/docs/somefile', project_file.get_local_path('/tmp/'))
 
+    def test_create_for_dds_file_dict(self):
+        file_dict = {
+            "id": "123",
+            "name": "file1.txt",
+            "current_version": {
+                "upload": {
+                    "size": 100,
+                    "hashes": [
+                        {"algorithm": "md5", "value": "abc"}
+                    ]
+                }
+            },
+            "ancestors": [
+                {"name": "parentdir"}
+            ]
+        }
+        project_file = ProjectFile.create_for_dds_file_dict(file_dict)
+        self.assertEqual(project_file.id, "123")
+        self.assertEqual(project_file.name, "file1.txt")
+        self.assertEqual(project_file.size, 100)
+        self.assertEqual(project_file.file_url, None)
+        self.assertEqual(project_file.hashes, [{"algorithm": "md5", "value": "abc"}])
+        self.assertEqual(project_file.ancestors, [{"name": "parentdir"}])
+        self.assertEqual(project_file.json_data, {
+            'ancestors': [{'name': 'parentdir'}],
+            'file_url': None,
+            'hashes': [{'algorithm': 'md5', 'value': 'abc'}],
+            'id': '123',
+            'name': 'file1.txt',
+            'size': 100
+        })
+
 
 class TestRemoteFileUrl(TestCase):
     def test_constructor(self):
