@@ -331,10 +331,22 @@ class TestFileDownloader(TestCase):
         self.mock_file1 = Mock(path="data/file1.txt", size=200, local_path='/tmp/data2/data/file1.txt')
         self.mock_file1.get_remote_parent_path.return_value = 'data'
         self.mock_file1.get_local_path.return_value = '/tmp/data2/data/file1.txt'
-        self.mock_file_urls = [
+        self.mock_files_to_download = [
             self.mock_file1
         ]
         self.mock_watcher = Mock()
+
+    def test_run(self):
+        downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
+        downloader.make_local_directories = Mock()
+        downloader.make_big_empty_files = Mock()
+        downloader.download_files = Mock()
+
+        downloader.run()
+
+        downloader.make_local_directories.assert_called_with()
+        downloader.make_big_empty_files.assert_called_with()
+        downloader.download_files.assert_called_with()
 
     @patch('ddsc.core.download.TaskRunner')
     @patch('ddsc.core.download.TaskExecutor')
@@ -342,7 +354,7 @@ class TestFileDownloader(TestCase):
     def test_make_local_directories(self, mock_os, mock_task_executor, mock_task_runner):
         mock_os.path.exists.return_value = True
         mock_os.path = os.path
-        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
+        downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
         downloader.make_local_directories()
         mock_os.makedirs.assert_called_with('/tmp/data2/data')
 
@@ -352,7 +364,7 @@ class TestFileDownloader(TestCase):
     def test_make_big_empty_files(self, mock_os, mock_task_executor, mock_task_runner):
         mock_os.path.exists.return_value = True
         mock_os.path = os.path
-        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
+        downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
         fake_open = mock_open()
         with patch('ddsc.core.download.open', fake_open, create=True):
             downloader.make_big_empty_files()
@@ -363,7 +375,7 @@ class TestFileDownloader(TestCase):
     @patch('ddsc.core.download.TaskRunner')
     @patch('ddsc.core.download.TaskExecutor')
     def test_download_files(self, mock_task_executor, mock_task_runner):
-        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
+        downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
         downloader.group_files_by_size = Mock()
         mock_small_file = Mock(size=100)
         mock_small_files = [mock_small_file]
@@ -443,11 +455,11 @@ class TestFileDownloader(TestCase):
 
     def assert_make_ranges(self, workers, file_size, expected):
         self.mock_settings.config.download_workers = workers
-        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
+        downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
         self.assertEqual(expected, downloader.make_ranges(Mock(size=file_size)))
 
     def test_determine_bytes_per_chunk(self):
-        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
+        downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
         downloader.settings.config.download_workers = 2
         size = 10
         bytes_per_chunk = self.mock_config.download_bytes_per_chunk
@@ -458,7 +470,7 @@ class TestFileDownloader(TestCase):
         self.assertEqual(downloader.determine_bytes_per_chunk(size), bytes_per_chunk * 2.5)
 
     def test_group_files_by_size(self):
-        downloader = FileDownloader(self.mock_settings, self.mock_file_urls)
+        downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
         downloader.files_to_download = [
             Mock(size=90),
             Mock(size=100),
@@ -544,6 +556,8 @@ class TestRetryChunkDownloader(TestCase):
         self.assertTrue(downloader.get_url_and_headers_for_range.called)
         downloader.download_chunk.assert_called_with('someurl', ['headers'])
         self.assertFalse(downloader.remote_store.get_project_file.called)
+        mock_remote_file_url.assert_called_with(mock_project_file.file_url)
+        mock_context.create_remote_store.return_value.get_file_url.assert_not_called()
 
     @patch('ddsc.core.download.RemoteFileUrl')
     def test_retry_download_loop_retries_then_works(self, mock_remote_file_url):
@@ -579,6 +593,26 @@ class TestRetryChunkDownloader(TestCase):
 
         with self.assertRaises(DownloadInconsistentError):
             downloader.retry_download_loop()
+
+    @patch('ddsc.core.download.RemoteFileUrl')
+    def test_retry_download_loop_handles_no_file_url(self, mock_remote_file_url):
+        mock_project_file = Mock()
+        mock_context = Mock()
+        mock_project_file.file_url = None
+        downloader = RetryChunkDownloader(project_file=mock_project_file, local_path=None, seek_amt=None,
+                                          bytes_to_read=None, download_context=mock_context)
+
+        downloader.get_url_and_headers_for_range = Mock()
+        downloader.get_url_and_headers_for_range.return_value = 'someurl', ['headers']
+        downloader.download_chunk = Mock()
+
+        downloader.retry_download_loop()
+
+        self.assertTrue(downloader.get_url_and_headers_for_range.called)
+        downloader.download_chunk.assert_called_with('someurl', ['headers'])
+        self.assertFalse(downloader.remote_store.get_project_file.called)
+        mock_remote_file_url.assert_not_called()
+        mock_context.create_remote_store.return_value.get_file_url.assert_called_with(mock_project_file.id)
 
     def test_get_url_and_headers_for_range_with_no_slashes(self):
         mock_context = Mock()
