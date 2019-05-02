@@ -686,9 +686,10 @@ class ProjectFile(object):
     def create_for_dds_file_dict(file_dict):
         """
         Create a ProjectFile for a DukeDS File dict specifying None for file_url since this data is not present.
-        :param file_dict: dict: DukeDS API file response
+        :param file_dict: dict: DukeDS API file dict
         :return: ProjectFile
         """
+        # create a DukeDS ProjectFile dict based on input DukeDS File dict
         project_file_dict = {
             "id": file_dict["id"],
             "name": file_dict["name"],
