@@ -333,10 +333,10 @@ class DownloadFilePartCommand(object):
     def __init__(self, settings, file_to_download, seek_amt, bytes_to_read, local_path):
         """
         Setup passing in all necessary data to download part of a file.
-        :param settings:
-        :param file_to_download:
-        :param seek_amt:
-        :param bytes_to_read:
+        :param settings: DownloadSettings
+        :param file_to_download: FileToDownload
+        :param seek_amt: int
+        :param bytes_to_read: int
         """
         self.settings = settings
         self.file_to_download = file_to_download
