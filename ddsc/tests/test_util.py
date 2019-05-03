@@ -94,6 +94,8 @@ class TestProjectDetailsList(TestCase):
         self.mock_file_item = Mock()
         self.mock_file_item.id = '789'
         self.mock_file_item.name = 'results.csv'
+        self.mock_file_item.hash_alg = 'md5'
+        self.mock_file_item.file_hash = 'abcdefg'
 
     def test_visit_methods_short_format(self):
         project_details_list = ProjectDetailsList(long_format=False)
@@ -115,6 +117,6 @@ class TestProjectDetailsList(TestCase):
         expected_details = [
             '123 - Project mouse Contents:',
             '456\tdata',
-            '789\tdata/results.csv',
+            '789\tdata/results.csv\t(md5:abcdefg)',
         ]
         self.assertEqual(expected_details, project_details_list.details)

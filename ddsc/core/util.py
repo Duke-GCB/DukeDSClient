@@ -265,7 +265,7 @@ class ProjectDetailsList(object):
     def visit_file(self, item, parent):
         name = self.get_name(item, parent)
         if self.long_format:
-            self.details.append('{}\t{}'.format(item.id, name))
+            self.details.append('{}\t{}\t({}:{})'.format(item.id, name, item.hash_alg, item.file_hash))
         else:
             self.details.append(name)
 
