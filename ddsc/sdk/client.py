@@ -2,11 +2,11 @@ import os
 from collections import OrderedDict
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.config import create_config
-from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile
+from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
-from ddsc.core.download import FileHash
-from ddsc.core.util import KindType
+from ddsc.core.download import FileHash, DownloadSettings, FileDownloader, FileToDownload
+from ddsc.core.util import KindType, NoOpProgressPrinter
 from future.utils import python_2_unicode_compatible
 
 
@@ -385,12 +385,18 @@ class File(BaseResponseItem):
         Download the contents of this file to a local file path
         :param file_path: str: local filesystem path to write this file contents into, if none it will default to self.name
         """
-        file_download = self.dds_connection.get_file_download(self.id)
         path = file_path
         if not path:
             path = self.name
-        file_download.save_to_path(path)
-        file_hash = FileHash.create_for_first_supported_algorithm(self.current_version['hashes'], path)
+        project_file = ProjectFile.create_for_dds_file_dict(self._data_dict)
+        files_to_download = [FileToDownload(project_file.json_data, path)]
+        settings = DownloadSettings(self.dds_connection.data_service,
+                                    self.dds_connection.config,
+                                    NoOpProgressPrinter())
+        file_url_downloader = FileDownloader(settings, files_to_download)
+        file_url_downloader.run()
+
+        file_hash = FileHash.create_for_first_supported_algorithm(self.current_version['upload']['hashes'], path)
         file_hash.raise_for_status()
 
     def delete(self):
