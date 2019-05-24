@@ -87,7 +87,7 @@ class RemoteStore(object):
     def lookup_or_register_user_by_email_or_username(self, email, username):
         """
         Lookup user by email or username. Only fill in one field.
-        For username it will try to register if not found.
+        For both cases it will try to register if not found.
         :param email: str: email address of the user
         :param username: netid of the user to find
         :return: RemoteUser
