@@ -1,6 +1,8 @@
 from __future__ import absolute_import
+import logging
 from ddsc.sdk.client import Client, FileUpload, PathToFiles, ItemNotFound, DuplicateNameError
 from ddsc.config import create_config
+from ddsc.core.ddsuserutil import DDSUserUtil
 
 
 class DukeDS(object):
@@ -73,6 +75,16 @@ class DukeDS(object):
         :param remote_path: str: remote path specifying file to delete
         """
         Session().delete_file(project_name, remote_path)
+
+    @staticmethod
+    def can_deliver_to_user_with_email(email_address, logging_func=logging.info):
+        """
+        Determine if we can deliver a project to a user
+        :param email_address:
+        :param logging_func:
+        :return:
+        """
+        return Session().can_deliver_to_user_with_email(email_address, logging_func)
 
 
 class Session(object):
@@ -196,3 +208,8 @@ class Session(object):
         project = self._get_or_create_project(project_name)
         remote_file = project.get_child_for_path(remote_path)
         remote_file.delete()
+
+    def can_deliver_to_user_with_email(self, email_address, logging_func):
+        data_service = self.client.dds_connection.data_service
+        dds_user_util = DDSUserUtil(data_service, logging_func=logging_func)
+        return dds_user_util.valid_dds_user_or_affiliate_exists_for_email(email_address)
