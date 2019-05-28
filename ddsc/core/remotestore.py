@@ -137,7 +137,7 @@ class RemoteStore(object):
         util = UserUtil(self.data_service)
         user_json = util.find_dds_user_by_email(email)
         if not user_json:
-            user_json = util.register_user_with_email(email)
+            user_json = util.register_dds_user_with_email(email)
         return RemoteUser(user_json)
 
     def get_auth_providers(self):

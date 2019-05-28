@@ -577,7 +577,7 @@ class TestRemoteStore(TestCase):
         remote_store.get_or_register_user_by_username.assert_not_called()
         remote_store.get_or_register_user_by_email.assert_called_with("fakemail@duke.edu")
 
-    @patch('ddsc.core.remotestore.UserUtil')
+    @patch('ddsc.core.remotestore.UserUtil', autospec=True)
     @patch('ddsc.core.remotestore.RemoteUser')
     def test_get_or_register_user_by_username_finds_user(self, mock_remote_user, mock_user_util):
         mock_user_util.return_value.find_dds_user_by_username.return_value = {"id": "123"}
@@ -590,7 +590,7 @@ class TestRemoteStore(TestCase):
         mock_util.find_dds_user_by_username.assert_called_with("user123")
         mock_util.register_dds_user_by_username.assert_not_called()
 
-    @patch('ddsc.core.remotestore.UserUtil')
+    @patch('ddsc.core.remotestore.UserUtil', autospec=True)
     @patch('ddsc.core.remotestore.RemoteUser')
     def test_get_or_register_user_by_username_registers_user(self, mock_remote_user, mock_user_util):
         mock_user_util.return_value.find_dds_user_by_username.return_value = None
@@ -604,7 +604,7 @@ class TestRemoteStore(TestCase):
         mock_util.find_dds_user_by_username.assert_called_with("user123")
         mock_util.register_dds_user_by_username.assert_called_with("user123")
 
-    @patch('ddsc.core.remotestore.UserUtil')
+    @patch('ddsc.core.remotestore.UserUtil', autospec=True)
     @patch('ddsc.core.remotestore.RemoteUser')
     def test_get_or_register_user_by_email_finds_user(self, mock_remote_user, mock_user_util):
         mock_user_util.return_value.find_dds_user_by_email.return_value = {"id": "123"}
@@ -617,11 +617,11 @@ class TestRemoteStore(TestCase):
         mock_util.find_dds_user_by_email.assert_called_with("user@user.user")
         mock_util.register_dds_user_by_username.assert_not_called()
 
-    @patch('ddsc.core.remotestore.UserUtil')
+    @patch('ddsc.core.remotestore.UserUtil', autospec=True)
     @patch('ddsc.core.remotestore.RemoteUser')
     def test_get_or_register_user_by_email_registers_user(self, mock_remote_user, mock_user_util):
         mock_user_util.return_value.find_dds_user_by_email.return_value = None
-        mock_user_util.return_value.register_user_with_email.return_value = {"id": "456"}
+        mock_user_util.return_value.register_dds_user_with_email.return_value = {"id": "456"}
 
         remote_store = RemoteStore(config=MagicMock())
         result = remote_store.get_or_register_user_by_email("user@user.user")
@@ -629,7 +629,7 @@ class TestRemoteStore(TestCase):
         mock_remote_user.assert_called_with({"id": "456"})
         mock_util = mock_user_util.return_value
         mock_util.find_dds_user_by_email.assert_called_with("user@user.user")
-        mock_util.register_user_with_email.assert_called_with("user@user.user")
+        mock_util.register_dds_user_with_email.assert_called_with("user@user.user")
 
 
 class TestRemoteProjectChildren(TestCase):
