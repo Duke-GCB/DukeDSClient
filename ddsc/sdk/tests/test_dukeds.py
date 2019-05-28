@@ -156,22 +156,22 @@ class TestDukeDS(TestCase):
         mock_file1.delete.assert_called()
 
     @patch('ddsc.sdk.dukeds.Client')
-    @patch('ddsc.sdk.dukeds.DDSUserUtil')
-    def test_can_deliver_to_user_with_email(self, mock_dds_user_util, mock_client):
+    @patch('ddsc.sdk.dukeds.UserUtil')
+    def test_can_deliver_to_user_with_email(self, mock_user_util, mock_client):
         result = DukeDS.can_deliver_to_user_with_email(email_address='fakeuser@duke.edu')
-        mock_dds_user_util.assert_called_with(mock_client.return_value.dds_connection.data_service,
+        mock_user_util.assert_called_with(mock_client.return_value.dds_connection.data_service,
                                               logging_func=ANY)
-        dds_user_util = mock_dds_user_util.return_value
+        dds_user_util = mock_user_util.return_value
         dds_user_util.valid_dds_user_or_affiliate_exists_for_email.assert_called_with("fakeuser@duke.edu")
         self.assertEqual(result, dds_user_util.valid_dds_user_or_affiliate_exists_for_email.return_value)
 
     @patch('ddsc.sdk.dukeds.Client')
-    @patch('ddsc.sdk.dukeds.DDSUserUtil')
-    def test_can_deliver_to_user_with_email_with_logging_func(self, mock_dds_user_util, mock_client):
+    @patch('ddsc.sdk.dukeds.UserUtil')
+    def test_can_deliver_to_user_with_email_with_logging_func(self, mock_user_util, mock_client):
         mock_log_func = Mock()
         result = DukeDS.can_deliver_to_user_with_email(email_address='fakeuser@duke.edu', logging_func=mock_log_func)
-        mock_dds_user_util.assert_called_with(mock_client.return_value.dds_connection.data_service,
+        mock_user_util.assert_called_with(mock_client.return_value.dds_connection.data_service,
                                               logging_func=mock_log_func)
-        dds_user_util = mock_dds_user_util.return_value
+        dds_user_util = mock_user_util.return_value
         dds_user_util.valid_dds_user_or_affiliate_exists_for_email.assert_called_with("fakeuser@duke.edu")
         self.assertEqual(result, dds_user_util.valid_dds_user_or_affiliate_exists_for_email.return_value)

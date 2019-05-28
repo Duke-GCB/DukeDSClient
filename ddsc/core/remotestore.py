@@ -2,7 +2,7 @@ import os
 from ddsc.core.ddsapi import DataServiceApi, DataServiceError, DataServiceAuth
 from ddsc.core.util import KindType
 from ddsc.core.localstore import HashUtil
-from ddsc.core.ddsuserutil import DDSUserUtil
+from ddsc.core.userutil import UserUtil
 
 FETCH_ALL_USERS_PAGE_SIZE = 25
 DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
@@ -122,7 +122,7 @@ class RemoteStore(object):
         :param username: str: username to lookup
         :return: RemoteUser: user we found
         """
-        util = DDSUserUtil(self.data_service)
+        util = UserUtil(self.data_service)
         user_json = util.find_dds_user_by_username(username)
         if not user_json:
             user_json = util.register_dds_user_by_username(username)
@@ -134,32 +134,10 @@ class RemoteStore(object):
         :param username: str: username to lookup
         :return: RemoteUser: user we found
         """
-        util = DDSUserUtil(self.data_service)
+        util = UserUtil(self.data_service)
         user_json = util.find_dds_user_by_email(email)
         if not user_json:
             user_json = util.register_user_with_email(email)
-        return RemoteUser(user_json)
-
-    def register_user_by_username(self, username):
-        """
-        Register user based on username.
-        Raises ValueError if the data service doesn't have any non-deprecated providers.
-        :param username: str: netid of the user we are trying to register
-        :return: RemoteUser: user that was created for our username (netid)
-        """
-        util = DDSUserUtil(self.data_service)
-        user_json = util.register_dds_user_with_username(username)
-        return RemoteUser(user_json)
-
-    def register_user_by_email(self, email):
-        """
-        Register user based on email.
-        Raises ValueError if the data service doesn't have any non-deprecated providers.
-        :param email: str: email address we are trying to register a user with
-        :return: RemoteUser: user that was created for email
-        """
-        util = DDSUserUtil(self.data_service)
-        user_json = util.register_dds_user_with_email(email)
         return RemoteUser(user_json)
 
     def get_auth_providers(self):

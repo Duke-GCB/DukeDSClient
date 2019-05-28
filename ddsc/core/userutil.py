@@ -4,7 +4,7 @@ import logging
 DUKE_EMAIL_SUFFIX = "@duke.edu"
 
 
-class DDSUserUtil(object):
+class UserUtil(object):
     def __init__(self, data_service, logging_func=logging.info):
         self.data_service = data_service
         self.auth_provider_id = data_service.get_default_auth_provider_id()

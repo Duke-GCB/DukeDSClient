@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import logging
 from ddsc.sdk.client import Client, FileUpload, PathToFiles, ItemNotFound, DuplicateNameError
 from ddsc.config import create_config
-from ddsc.core.ddsuserutil import DDSUserUtil
+from ddsc.core.userutil import UserUtil
 
 
 class DukeDS(object):
@@ -211,5 +211,5 @@ class Session(object):
 
     def can_deliver_to_user_with_email(self, email_address, logging_func):
         data_service = self.client.dds_connection.data_service
-        dds_user_util = DDSUserUtil(data_service, logging_func=logging_func)
+        dds_user_util = UserUtil(data_service, logging_func=logging_func)
         return dds_user_util.valid_dds_user_or_affiliate_exists_for_email(email_address)
