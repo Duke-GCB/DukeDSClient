@@ -1,5 +1,5 @@
 from unittest import TestCase
-from mock import Mock, patch, call
+from mock import Mock, patch
 from ddsc.core.userutil import UserUtil, LookupUserByEmail
 
 
@@ -14,7 +14,7 @@ class UserUtilTestCase(TestCase):
                          self.data_service.get_default_auth_provider_id.return_value)
 
     @patch('ddsc.core.userutil.LookupUserByEmail')
-    def test_valid_dds_user_or_affiliate_exists_for_email__valid_user_exists(self, mock_lookup):
+    def test_valid_dds_user_or_affiliate_exists_for_email__valid_dds_user_exists(self, mock_lookup):
         mock_lookup.return_value.get_dds_user_with_valid_email.return_value = {"id": "123"}
         mock_lookup.return_value.get_affiliate_user_with_valid_email.return_value = None
         result = self.user_util.valid_dds_user_or_affiliate_exists_for_email("fakeuser@duke.edu")
@@ -23,7 +23,7 @@ class UserUtilTestCase(TestCase):
         self.logging_func.assert_not_called()
 
     @patch('ddsc.core.userutil.LookupUserByEmail')
-    def test_valid_dds_user_or_affiliate_exists_for_email__valid_user_exists(self, mock_lookup):
+    def test_valid_dds_user_or_affiliate_exists_for_email__valid_affiliate_exists(self, mock_lookup):
         mock_lookup.return_value.get_dds_user_with_valid_email.return_value = None
         mock_lookup.return_value.get_affiliate_user_with_valid_email.return_value = {"id": "123"}
         result = self.user_util.valid_dds_user_or_affiliate_exists_for_email("fakeuser@duke.edu")
@@ -32,7 +32,7 @@ class UserUtilTestCase(TestCase):
         self.logging_func.assert_not_called()
 
     @patch('ddsc.core.userutil.LookupUserByEmail')
-    def test_valid_dds_user_or_affiliate_exists_for_email__valid_user_exists(self, mock_lookup_user_by_email):
+    def test_valid_dds_user_or_affiliate_exists_for_email__no_valid_user_exists(self, mock_lookup_user_by_email):
         mock_lookup_user_by_email.return_value.get_dds_user_with_valid_email.return_value = None
         mock_lookup_user_by_email.return_value.get_affiliate_user_with_valid_email.return_value = None
         result = self.user_util.valid_dds_user_or_affiliate_exists_for_email("fakeuser@duke.edu")
@@ -80,7 +80,7 @@ class UserUtilTestCase(TestCase):
         mock_lookup.return_value.get_affiliate_user_with_valid_email.return_value = None
         self.data_service.auth_provider_add_user.return_value.json.return_value = {"id": "123"}
         with self.assertRaises(ValueError) as raised_exception:
-            result = self.user_util.register_dds_user_with_email("fakeuser@duke.edu")
+            self.user_util.register_dds_user_with_email("fakeuser@duke.edu")
         self.assertEqual(str(raised_exception.exception), 'Unable to register user with email address fakeuser@duke.edu')
         mock_lookup.assert_called_with(self.user_util, "fakeuser@duke.edu", self.logging_func)
         self.data_service.auth_provider_add_user.assert_not_called()
