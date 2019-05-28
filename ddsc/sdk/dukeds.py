@@ -80,9 +80,9 @@ class DukeDS(object):
     def can_deliver_to_user_with_email(email_address, logging_func=logging.info):
         """
         Determine if we can deliver a project to a user
-        :param email_address:
-        :param logging_func:
-        :return:
+        :param email_address: str: email address to lookup
+        :param logging_func: func(str): function that will receive log messages
+        :return: boolean: True if the specified user can receive deliveries
         """
         return Session().can_deliver_to_user_with_email(email_address, logging_func)
 
