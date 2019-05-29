@@ -1,4 +1,3 @@
-import re
 import logging
 
 DUKE_EMAIL_SUFFIX = "@duke.edu"
