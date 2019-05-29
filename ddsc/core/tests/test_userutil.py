@@ -38,6 +38,13 @@ class UserUtilTestCase(TestCase):
         self.data_service.get_auth_provider_affiliates.assert_called_with(self.user_util.auth_provider_id,
                                                                           email="fakeuser@duke.edu")
 
+    def test_find_affiliate_by_username(self):
+        self.data_service.get_auth_provider_affiliates.return_value.json.return_value = {"results": [{"id": "123"}]}
+        result = self.user_util.find_affiliate_by_username("fakeuser")
+        self.assertEqual(result, {"id": "123"})
+        self.data_service.get_auth_provider_affiliates.assert_called_with(self.user_util.auth_provider_id,
+                                                                          username="fakeuser")
+
     def test_user_or_affiliate_exists_for_email__dds_user_exists(self):
         self.user_util.find_user_by_email = Mock()
         self.user_util.find_user_by_email.return_value = {"id": "123"}
@@ -70,6 +77,39 @@ class UserUtilTestCase(TestCase):
         self.user_util.find_affiliate_by_email.assert_called_with("fakeuser@duke.edu")
         self.logging_func.assert_called_with(
             "No valid DukeDS user or affiliate found for email address fakeuser@duke.edu.")
+
+    def test_user_or_affiliate_exists_for_username__dds_user_exists(self):
+        self.user_util.find_user_by_username = Mock()
+        self.user_util.find_user_by_username.return_value = {"id": "123"}
+
+        self.assertTrue(self.user_util.user_or_affiliate_exists_for_username("fakeuser"))
+        self.user_util.find_user_by_username.assert_called_with("fakeuser")
+        self.logging_func.assert_called_with(
+            "Found DukeDS user for username fakeuser.")
+
+    def test_user_or_affiliate_exists_for_username__valid_affiliate_exists(self):
+        self.user_util.find_user_by_username = Mock()
+        self.user_util.find_user_by_username.return_value = None
+        self.user_util.find_affiliate_by_username = Mock()
+        self.user_util.find_affiliate_by_username.return_value = {"uid": "123"}
+
+        self.assertTrue(self.user_util.user_or_affiliate_exists_for_username("fakeuser"))
+        self.user_util.find_user_by_username.assert_called_with("fakeuser")
+        self.user_util.find_affiliate_by_username.assert_called_with("fakeuser")
+        self.logging_func.assert_called_with(
+            "Found affiliate for username fakeuser.")
+
+    def test_valid_dds_user_or_affiliate_exists_for_username__no_user_found(self):
+        self.user_util.find_user_by_username = Mock()
+        self.user_util.find_user_by_username.return_value = None
+        self.user_util.find_affiliate_by_username = Mock()
+        self.user_util.find_affiliate_by_username.return_value = None
+
+        self.assertFalse(self.user_util.user_or_affiliate_exists_for_username("fakeuser"))
+        self.user_util.find_user_by_username.assert_called_with("fakeuser")
+        self.user_util.find_affiliate_by_username.assert_called_with("fakeuser")
+        self.logging_func.assert_called_with(
+            "No valid DukeDS user or affiliate found for username fakeuser.")
 
     def test__get_single_user_or_none(self):
         response = Mock()

@@ -25,6 +25,10 @@ class UserUtil(object):
         response = self.data_service.get_auth_provider_affiliates(self.auth_provider_id, email=email_address)
         return self._get_single_user_or_none(response, email_address)
 
+    def find_affiliate_by_username(self, username):
+        response = self.data_service.get_auth_provider_affiliates(self.auth_provider_id, username=username)
+        return self._get_single_user_or_none(response, username)
+
     def user_or_affiliate_exists_for_email(self, email_address):
         if self.find_user_by_email(email_address):
             self.logging_func("Found DukeDS user for email address {}.".format(email_address))
@@ -33,6 +37,16 @@ class UserUtil(object):
             self.logging_func("Found affiliate for email address {}.".format(email_address))
             return True
         self.logging_func("No valid DukeDS user or affiliate found for email address {}.".format(email_address))
+        return False
+
+    def user_or_affiliate_exists_for_username(self, username):
+        if self.find_user_by_username(username):
+            self.logging_func("Found DukeDS user for username {}.".format(username))
+            return True
+        if self.find_affiliate_by_username(username):
+            self.logging_func("Found affiliate for username {}.".format(username))
+            return True
+        self.logging_func("No valid DukeDS user or affiliate found for username {}.".format(username))
         return False
 
     @staticmethod

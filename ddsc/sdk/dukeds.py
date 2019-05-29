@@ -86,6 +86,16 @@ class DukeDS(object):
         """
         return Session().can_deliver_to_user_with_email(email_address, logging_func)
 
+    @staticmethod
+    def can_deliver_to_user_with_username(username, logging_func=logging.info):
+        """
+        Determine if we can deliver a project to a user
+        :param username: str: username to lookup
+        :param logging_func: func(str): function that will receive log messages
+        :return: boolean: True if the specified user can receive deliveries
+        """
+        return Session().can_deliver_to_user_with_username(username, logging_func)
+
 
 class Session(object):
     """
@@ -213,3 +223,8 @@ class Session(object):
         data_service = self.client.dds_connection.data_service
         dds_user_util = UserUtil(data_service, logging_func=logging_func)
         return dds_user_util.user_or_affiliate_exists_for_email(email_address)
+
+    def can_deliver_to_user_with_username(self, username, logging_func):
+        data_service = self.client.dds_connection.data_service
+        dds_user_util = UserUtil(data_service, logging_func=logging_func)
+        return dds_user_util.user_or_affiliate_exists_for_username(username)
