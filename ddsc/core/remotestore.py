@@ -148,7 +148,6 @@ class RemoteStore(object):
         user_json = util.find_user_by_email(email)
         if user_json:
             return user_json
-        # Duke email addresses sometimes contain the username.
         potential_username = util.try_determine_username_from_email(email)
         if potential_username:
             user_json = util.find_user_by_username(potential_username)
