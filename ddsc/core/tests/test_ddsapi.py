@@ -247,6 +247,35 @@ class TestDataServiceApi(TestCase):
         mock_requests.get.assert_called_with('something.com/v1/auth_providers/provider_id_123/',
                                              headers=ANY, params=ANY)
 
+    def test_get_default_auth_provider_id(self):
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response(status_code=200, json_return_value={"results": [
+                {"id": "456", "is_default": False},
+                {"id": "123", "is_default": True},
+            ]})
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+        provider_id = api.get_default_auth_provider_id()
+        self.assertEqual('123', provider_id)
+        mock_requests.get.assert_called_with('something.com/v1/auth_providers', headers=ANY, params=ANY)
+
+    def test_get_default_auth_provider_id_no_default_provider(self):
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [
+            fake_response(status_code=200, json_return_value={"results": [
+                {"id": "456", "is_default": False},
+                {"id": "123", "is_default": False},
+            ]})
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+        with self.assertRaises(ValueError) as raised_exception:
+            api.get_default_auth_provider_id()
+        self.assertEqual(str(raised_exception.exception), 'Unable to find a default DukeDS auth provider.')
+        mock_requests.get.assert_called_with('something.com/v1/auth_providers', headers=ANY, params=ANY)
+
     def make_mock_requests_for_auth_provider_affiliates(self):
         user = {
             "id": "abc4e9-9987-47eb-bb4e-19f0203efbf6",

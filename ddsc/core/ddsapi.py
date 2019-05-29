@@ -972,6 +972,18 @@ class DataServiceApi(object):
         """
         return self._get_single_item('/auth_providers/{}/'.format(auth_provider_id), {})
 
+    def get_default_auth_provider_id(self):
+        """
+        Get default auth provider.
+        :return: str: uuid of auth provider
+        """
+        response = self.get_auth_providers()
+        auth_providers = response.json()["results"]
+        for auth_provider in auth_providers:
+            if auth_provider["is_default"]:
+                return auth_provider["id"]
+        raise ValueError("Unable to find a default DukeDS auth provider.")
+
     def get_auth_provider_affiliates(self, auth_provider_id, full_name_contains=None, email=None, username=None):
         """
         List affiliates for a specific auth provider.

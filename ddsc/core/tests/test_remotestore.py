@@ -9,7 +9,7 @@ from ddsc.core.remotestore import RemoteAuthRole
 from ddsc.core.remotestore import RemoteProjectChildren
 from ddsc.core.remotestore import RemoteAuthProvider
 from ddsc.core.remotestore import ProjectNameOrId
-from ddsc.core.remotestore import ProjectFile, RemoteFileUrl, NotFoundError
+from ddsc.core.remotestore import ProjectFile, RemoteFileUrl
 
 
 class TestProjectFolderFile(TestCase):
@@ -559,43 +559,90 @@ class TestRemoteStore(TestCase):
         self.assertEqual(users[0], mock_remote_user.return_value)
         mock_remote_user.assert_called_with(user_dict)
 
-    def test_lookup_user_by_username(self):
-        mock_user = Mock()
-        mock_user2 = Mock()
+    def test_lookup_or_register_user_by_email_or_username_with_username(self):
         remote_store = RemoteStore(config=MagicMock())
-        remote_store.fetch_users = Mock()
+        remote_store.get_or_register_user_by_username = Mock()
+        remote_store.get_or_register_user_by_email = Mock()
+        result = remote_store.lookup_or_register_user_by_email_or_username(email=None, username="myuser")
+        self.assertEqual(result, remote_store.get_or_register_user_by_username.return_value)
+        remote_store.get_or_register_user_by_username.assert_called_with("myuser")
+        remote_store.get_or_register_user_by_email.assert_not_called()
 
-        remote_store.fetch_users.return_value = []
-        with self.assertRaises(NotFoundError) as raised_exception:
-            remote_store.lookup_user_by_username('joe')
-        self.assertEqual(str(raised_exception.exception), 'Username not found: joe.')
-
-        remote_store.fetch_users.return_value = [mock_user]
-        self.assertEqual(remote_store.lookup_user_by_username('joe'), mock_user)
-
-        remote_store.fetch_users.return_value = [mock_user, mock_user2]
-        with self.assertRaises(ValueError) as raised_exception:
-            remote_store.lookup_user_by_username('joe')
-        self.assertEqual(str(raised_exception.exception), 'Multiple users with same username found: joe.')
-
-    def test_lookup_user_by_email(self):
-        mock_user = Mock()
-        mock_user2 = Mock()
+    def test_lookup_or_register_user_by_email_or_username_with_email(self):
         remote_store = RemoteStore(config=MagicMock())
-        remote_store.fetch_users = Mock()
+        remote_store.get_or_register_user_by_username = Mock()
+        remote_store.get_or_register_user_by_email = Mock()
+        result = remote_store.lookup_or_register_user_by_email_or_username(email="fakemail@duke.edu", username=None)
+        self.assertEqual(result, remote_store.get_or_register_user_by_email.return_value)
+        remote_store.get_or_register_user_by_username.assert_not_called()
+        remote_store.get_or_register_user_by_email.assert_called_with("fakemail@duke.edu")
 
-        remote_store.fetch_users.return_value = []
-        with self.assertRaises(NotFoundError) as raised_exception:
-            remote_store.lookup_user_by_email('joe@joe.com')
-        self.assertEqual(str(raised_exception.exception), 'Email not found: joe@joe.com.')
+    @patch('ddsc.core.remotestore.UserUtil', autospec=True)
+    @patch('ddsc.core.remotestore.RemoteUser')
+    def test_get_or_register_user_by_username__finds_user(self, mock_remote_user, mock_user_util):
+        mock_user_util.return_value.find_user_by_username.return_value = {"id": "123"}
 
-        remote_store.fetch_users.return_value = [mock_user]
-        self.assertEqual(remote_store.lookup_user_by_email('joe@joe.com'), mock_user)
+        remote_store = RemoteStore(config=MagicMock())
+        result = remote_store.get_or_register_user_by_username("user123")
+        self.assertEqual(result, mock_remote_user.return_value)
+        mock_remote_user.assert_called_with({"id": "123"})
+        mock_util = mock_user_util.return_value
+        mock_util.find_user_by_username.assert_called_with("user123")
+        mock_util.register_user_by_username.assert_not_called()
 
-        remote_store.fetch_users.return_value = [mock_user, mock_user2]
+    @patch('ddsc.core.remotestore.UserUtil', autospec=True)
+    @patch('ddsc.core.remotestore.RemoteUser')
+    def test_get_or_register_user_by_username__registers_user(self, mock_remote_user, mock_user_util):
+        mock_user_util.return_value.find_user_by_username.return_value = None
+        mock_user_util.return_value.register_user_by_username.return_value = {"id": "456"}
+
+        remote_store = RemoteStore(config=MagicMock())
+        result = remote_store.get_or_register_user_by_username("user123")
+        self.assertEqual(result, mock_remote_user.return_value)
+        mock_remote_user.assert_called_with({"id": "456"})
+        mock_util = mock_user_util.return_value
+        mock_util.find_user_by_username.assert_called_with("user123")
+        mock_util.register_user_by_username.assert_called_with("user123")
+
+    @patch('ddsc.core.remotestore.UserUtil', autospec=True)
+    @patch('ddsc.core.remotestore.RemoteUser')
+    def test_get_or_register_user_by_email__finds_user_by_email(self, mock_remote_user, mock_user_util):
+        mock_user_util.return_value.find_user_by_email.return_value = {"id": "123"}
+
+        remote_store = RemoteStore(config=MagicMock())
+        result = remote_store.get_or_register_user_by_email("user@user.user")
+        self.assertEqual(result, mock_remote_user.return_value)
+        mock_remote_user.assert_called_with({"id": "123"})
+        mock_util = mock_user_util.return_value
+        mock_util.find_user_by_email.assert_called_with("user@user.user")
+        mock_util.register_user_by_username.assert_not_called()
+
+    @patch('ddsc.core.remotestore.UserUtil', autospec=True)
+    @patch('ddsc.core.remotestore.RemoteUser')
+    def test_get_or_register_user_by_email__finds_affiliate_by_email(self, mock_remote_user, mock_user_util):
+        mock_user_util.return_value.find_user_by_email.return_value = None
+        mock_user_util.return_value.find_affiliate_by_email.return_value = {"uid": "user"}
+
+        remote_store = RemoteStore(config=MagicMock())
+        result = remote_store.get_or_register_user_by_email("user@user.user")
+        self.assertEqual(result, mock_remote_user.return_value)
+        mock_remote_user.assert_called_with(mock_user_util.return_value.register_user_by_username.return_value)
+        mock_util = mock_user_util.return_value
+        mock_util.find_user_by_email.assert_called_with("user@user.user")
+        mock_util.register_user_by_username.assert_called_with("user")
+
+    @patch('ddsc.core.remotestore.UserUtil', autospec=True)
+    @patch('ddsc.core.remotestore.RemoteUser')
+    def test_get_or_register_user_by_email__unable_to_find_user(self, mock_remote_user, mock_user_util):
+        mock_user_util.return_value.find_user_by_email.return_value = None
+        mock_user_util.return_value.find_affiliate_by_email.return_value = None
+
+        remote_store = RemoteStore(config=MagicMock())
         with self.assertRaises(ValueError) as raised_exception:
-            remote_store.lookup_user_by_email('joe@joe.com')
-        self.assertEqual(str(raised_exception.exception), 'Multiple users with same email found: joe@joe.com.')
+            remote_store.get_or_register_user_by_email("user@user.user")
+        self.assertEqual(str(raised_exception.exception), 'Unable to find or register a user with email user@user.user')
+        mock_util = mock_user_util.return_value
+        mock_util.find_user_by_email.assert_called_with("user@user.user")
 
 
 class TestRemoteProjectChildren(TestCase):
@@ -775,48 +822,6 @@ class TestRemoteAuthProvider(TestCase):
         providers = remote_store.get_auth_providers()
         self.assertEqual(len(providers), 1)
         self.assertEqual(providers[0].name, "Duke Authentication Service")
-
-    @patch("ddsc.core.remotestore.DataServiceApi")
-    def test_register_user_by_username(self, mock_data_service_api):
-        providers_response = MagicMock()
-        providers_response.json.return_value = {
-            "results": [self.provider_data1]
-        }
-        add_user_response = MagicMock()
-        add_user_response.json.return_value = {
-            "id": "123",
-            "username": "joe",
-            "full_name": "Joe Shoe",
-            "email": "",
-            "first_name": "Joe",
-            "last_name": "Shoe",
-        }
-        mock_data_service_api().get_auth_providers.return_value = providers_response
-        mock_data_service_api().auth_provider_add_user.return_value = add_user_response
-        remote_store = RemoteStore(MagicMock())
-        user = remote_store.register_user_by_username("joe")
-        self.assertEqual(user.id, "123")
-        self.assertEqual(user.username, "joe")
-        mock_data_service_api().auth_provider_add_user.assert_called_with(self.provider_data1['id'], 'joe')
-
-    @patch("ddsc.core.remotestore.DataServiceApi")
-    def test_register_user_by_username_with_no_default_provider(self, mock_data_service_api):
-        providers_response = MagicMock()
-        providers_response.json.return_value = {
-            "results": []
-        }
-        add_user_response = MagicMock()
-        add_user_response.json.return_value = {
-            "id": "123",
-            "username": "joe",
-            "full_name": "Joe Shoe",
-            "email": "",
-        }
-        mock_data_service_api().get_auth_providers.return_value = providers_response
-        mock_data_service_api().auth_provider_add_user.return_value = add_user_response
-        remote_store = RemoteStore(MagicMock())
-        with self.assertRaises(ValueError):
-            remote_store.register_user_by_username("joe")
 
 
 class TestProjectNameOrId(TestCase):
