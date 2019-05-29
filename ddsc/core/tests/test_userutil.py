@@ -1,5 +1,5 @@
 from unittest import TestCase
-from mock import Mock, patch
+from mock import Mock
 from ddsc.core.userutil import UserUtil, EmailUtil
 
 
