@@ -161,8 +161,8 @@ class TestDukeDS(TestCase):
         result = DukeDS.can_deliver_to_user_with_email(email_address='fakeuser@duke.edu')
         mock_user_util.assert_called_with(mock_client.return_value.dds_connection.data_service, logging_func=ANY)
         dds_user_util = mock_user_util.return_value
-        dds_user_util.valid_dds_user_or_affiliate_exists_for_email.assert_called_with("fakeuser@duke.edu")
-        self.assertEqual(result, dds_user_util.valid_dds_user_or_affiliate_exists_for_email.return_value)
+        dds_user_util.user_or_affiliate_exists_for_email.assert_called_with("fakeuser@duke.edu")
+        self.assertEqual(result, dds_user_util.user_or_affiliate_exists_for_email.return_value)
 
     @patch('ddsc.sdk.dukeds.Client')
     @patch('ddsc.sdk.dukeds.UserUtil')
@@ -172,5 +172,5 @@ class TestDukeDS(TestCase):
         mock_user_util.assert_called_with(mock_client.return_value.dds_connection.data_service,
                                           logging_func=mock_log_func)
         dds_user_util = mock_user_util.return_value
-        dds_user_util.valid_dds_user_or_affiliate_exists_for_email.assert_called_with("fakeuser@duke.edu")
-        self.assertEqual(result, dds_user_util.valid_dds_user_or_affiliate_exists_for_email.return_value)
+        dds_user_util.user_or_affiliate_exists_for_email.assert_called_with("fakeuser@duke.edu")
+        self.assertEqual(result, dds_user_util.user_or_affiliate_exists_for_email.return_value)

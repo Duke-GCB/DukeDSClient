@@ -10,42 +10,39 @@ class UserUtil(object):
         self.auth_provider_id = data_service.get_default_auth_provider_id()
         self.logging_func = logging_func
 
-    def valid_dds_user_or_affiliate_exists_for_email(self, email_address):
-        lookup = LookupUserByEmail(self, email_address, self.logging_func)
-        if lookup.get_dds_user_with_valid_email() or \
-                lookup.get_affiliate_user_with_valid_email():
-            return True
-        else:
-            self.logging_func("No valid DukeDS/Affiliate user found for email address {}.".format(email_address))
-            return False
-
-    def find_dds_user_by_email(self, email_address):
-        response = self.data_service.get_users(email=email_address)
-        return self._get_single_user_or_none(response, email_address)
-
-    def find_dds_user_by_username(self, username):
+    def find_user_by_username(self, username):
         response = self.data_service.get_users(username=username)
         return self._get_single_user_or_none(response, username)
 
-    def find_affiliate_user_by_email(self, email_address):
-        response = self.data_service.get_auth_provider_affiliates(self.auth_provider_id, email=email_address)
-        return self._get_single_user_or_none(response, email_address)
-
-    def find_affiliate_user_by_username(self, username):
-        response = self.data_service.get_auth_provider_affiliates(self.auth_provider_id, username=username)
-        return self._get_single_user_or_none(response, username)
-
-    def register_dds_user_by_username(self, username):
+    def register_user_by_username(self, username):
         response = self.data_service.auth_provider_add_user(self.auth_provider_id, username)
         return response.json()
 
-    def register_dds_user_with_email(self, email_address):
-        lookup = LookupUserByEmail(self, email_address, self.logging_func)
-        affiliate_user = lookup.get_affiliate_user_with_valid_email()
-        if affiliate_user:
-            return self.register_dds_user_by_username(affiliate_user["uid"])
-        else:
-            raise ValueError("Unable to register user with email address {}".format(email_address))
+    def find_user_by_email(self, email_address):
+        response = self.data_service.get_users(email=email_address)
+        return self._get_single_user_or_none(response, email_address)
+
+    def find_affiliate_by_email(self, email_address):
+        response = self.data_service.get_auth_provider_affiliates(self.auth_provider_id, email=email_address)
+        return self._get_single_user_or_none(response, email_address)
+
+    def find_affiliate_by_username(self, username):
+        response = self.data_service.get_auth_provider_affiliates(self.auth_provider_id, username=username)
+        return self._get_single_user_or_none(response, username)
+
+    def user_or_affiliate_exists_for_email(self, email_address):
+        if self.find_user_by_email(email_address):
+            self.logging_func("Found DukeDS user for email address {}.".format(email_address))
+            return True
+        if self.find_affiliate_by_email(email_address):
+            self.logging_func("Found affiliate for email address {}.".format(email_address))
+            return True
+        potential_username = EmailUtil.try_get_username_from_email(email_address)
+        if potential_username and self.find_affiliate_by_username(potential_username):
+            self.logging_func("Found DukeDS user for username {}.".format(potential_username))
+            return True
+        self.logging_func("No valid DukeDS user or affiliate found for email address {}.".format(email_address))
+        return False
 
     @staticmethod
     def _get_single_user_or_none(response, lookup_value):
@@ -56,53 +53,24 @@ class UserUtil(object):
             return results[0]
         raise ValueError("Found multiple users for {}.".format(lookup_value))
 
-
-class LookupUserByEmail(object):
-    def __init__(self, dds_user_util, email_address, logging_func):
-        self.dds_user_util = dds_user_util
-        self.email_address = email_address
-        self.logging_func = logging_func
-        self.possible_username = self._extract_username_or_none(email_address)
-
-    def get_dds_user_with_valid_email(self):
-        dds_user = self.dds_user_util.find_dds_user_by_email(self.email_address)
-        if dds_user:
-            if self._item_has_email(dds_user):
-                self.logging_func("Found valid DukeDS user for email address {}.".format(self.email_address))
-                return dds_user
+    def try_determine_username_from_email(self, email_address):
+        """
+        Tries to find a username based on an email address. First looks for an affiliate with that email address
+        and returns the 'uid' for that affiliate. Otherwise it tries to extract the username from the email address.
+        Returns None if no affiliate was found and the email address doesn't contain a username.
+        :param email_address: str: email address to find a username for
+        :return: str: username or None
+        """
+        affiliate = self.find_affiliate_by_email(email_address)
+        if affiliate:
+            return affiliate['uid']
         else:
-            # A user for the email address was not found. It could be the email is the format <username>@duke.edu.
-            # The <username>@duke.edu email is not typically stored in the DukeDS so we can try to find a user
-            # using the <username>.
-            if self.possible_username:
-                dds_user = self.dds_user_util.find_dds_user_by_username(self.possible_username)
-                if self._item_has_email(dds_user):
-                    self.logging_func("Found valid DukeDS user for username {}.".format(self.possible_username))
-                    return dds_user
-        return None
+            return EmailUtil.try_get_username_from_email(email_address)
 
-    def get_affiliate_user_with_valid_email(self):
-        affiliate_user = self.dds_user_util.find_affiliate_user_by_email(self.email_address)
-        if affiliate_user:
-            if self._item_has_email(affiliate_user):
-                self.logging_func("Found valid affiliate user for email address {}.".format(self.email_address))
-                return affiliate_user
-        else:
-            # An affiliate for the email address was not found. It could be the email is the format <username>@duke.edu.
-            # The <username>@duke.edu email is not typically stored in the affiliate list so we can try to find an
-            # affiliate using the <username>.
-            if self.possible_username:
-                affiliate_user = self.dds_user_util.find_affiliate_user_by_username(self.possible_username)
-                if self._item_has_email(affiliate_user):
-                    self.logging_func("Found valid affiliate user for username {}.".format(self.possible_username))
-                    return affiliate_user
-        return None
 
+class EmailUtil(object):
     @staticmethod
-    def _item_has_email(item):
-        return item and item['email']
-
-    def _extract_username_or_none(self, email_address):
+    def try_get_username_from_email(email_address):
         """
         If email_address ends in @duke.edu and the local part is a username return that username otherwise return None.
         Duke emails take two forms one with the full name and another where the local part is the username.
@@ -110,8 +78,8 @@ class LookupUserByEmail(object):
         :param email_address: str
         :return: bool: str or None
         """
-        if self.is_duke_email(email_address):
-            local_part = self.strip_email_suffix(email_address)
+        if EmailUtil.is_duke_email(email_address):
+            local_part = EmailUtil.strip_email_suffix(email_address)
             if local_part.islower() and local_part.isalnum():
                 return local_part
         return None
