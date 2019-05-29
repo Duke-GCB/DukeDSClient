@@ -1,6 +1,6 @@
 from unittest import TestCase
 from mock import Mock
-from ddsc.core.userutil import UserUtil, EmailUtil
+from ddsc.core.userutil import UserUtil
 
 
 class UserUtilTestCase(TestCase):
@@ -51,7 +51,7 @@ class UserUtilTestCase(TestCase):
         self.user_util.find_user_by_email = Mock()
         self.user_util.find_user_by_email.return_value = None
         self.user_util.find_affiliate_by_email = Mock()
-        self.user_util.find_affiliate_by_email.return_value = {"id": "123"}
+        self.user_util.find_affiliate_by_email.return_value = {"uid": "123"}
 
         self.assertTrue(self.user_util.user_or_affiliate_exists_for_email("fakeuser@duke.edu"))
         self.user_util.find_user_by_email.assert_called_with("fakeuser@duke.edu")
@@ -59,33 +59,15 @@ class UserUtilTestCase(TestCase):
         self.logging_func.assert_called_with(
             "Found affiliate for email address fakeuser@duke.edu.")
 
-    def test_user_or_affiliate_exists_for_emaill__fallback_username_exists(self):
-        self.user_util.find_user_by_email = Mock()
-        self.user_util.find_user_by_email.return_value = None
-        self.user_util.find_affiliate_by_email = Mock()
-        self.user_util.find_affiliate_by_email.return_value = None
-        self.user_util.find_affiliate_by_username = Mock()
-        self.user_util.find_affiliate_by_username.return_value = {"id": "123"}
-
-        self.assertTrue(self.user_util.user_or_affiliate_exists_for_email("fakeuser@duke.edu"))
-        self.user_util.find_user_by_email.assert_called_with("fakeuser@duke.edu")
-        self.user_util.find_affiliate_by_email.assert_called_with("fakeuser@duke.edu")
-        self.user_util.find_affiliate_by_username.assert_called_with("fakeuser")
-        self.logging_func.assert_called_with(
-            "Found DukeDS user for username fakeuser.")
-
     def test_valid_dds_user_or_affiliate_exists_for_email__no_user_found(self):
         self.user_util.find_user_by_email = Mock()
         self.user_util.find_user_by_email.return_value = None
         self.user_util.find_affiliate_by_email = Mock()
         self.user_util.find_affiliate_by_email.return_value = None
-        self.user_util.find_affiliate_by_username = Mock()
-        self.user_util.find_affiliate_by_username.return_value = None
 
         self.assertFalse(self.user_util.user_or_affiliate_exists_for_email("fakeuser@duke.edu"))
         self.user_util.find_user_by_email.assert_called_with("fakeuser@duke.edu")
         self.user_util.find_affiliate_by_email.assert_called_with("fakeuser@duke.edu")
-        self.user_util.find_affiliate_by_username.assert_called_with("fakeuser")
         self.logging_func.assert_called_with(
             "No valid DukeDS user or affiliate found for email address fakeuser@duke.edu.")
 
@@ -107,18 +89,3 @@ class UserUtilTestCase(TestCase):
         with self.assertRaises(ValueError) as raised_exception:
             self.user_util._get_single_user_or_none(response, lookup_value="fakeuser@duke.edu")
         self.assertEqual(str(raised_exception.exception), 'Found multiple users for fakeuser@duke.edu.')
-
-
-class EmailUtilTestCase(TestCase):
-    def test__extract_username_or_none(self):
-        self.assertEqual(EmailUtil.try_get_username_from_email('fakeuser123@duke.edu'), 'fakeuser123')
-        self.assertEqual(EmailUtil.try_get_username_from_email('Fake.User@duke.edu'), None)
-        self.assertEqual(EmailUtil.try_get_username_from_email('Fakeuser123@duke.edu'), None)
-        self.assertEqual(EmailUtil.try_get_username_from_email('fakeuser123@fake.com'), None)
-
-    def test_is_duke_email(self):
-        self.assertEqual(EmailUtil.is_duke_email('fakeuser@fake.com'), False)
-        self.assertEqual(EmailUtil.is_duke_email('fakeuser@duke.edu'), True)
-
-    def test_strip_email_suffix(self):
-        self.assertEqual(EmailUtil.strip_email_suffix('fakeuser@fake.com'), 'fakeuser')

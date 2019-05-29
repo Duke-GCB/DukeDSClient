@@ -135,26 +135,15 @@ class RemoteStore(object):
         :param email: str: email to lookup or register a user for
         :return: RemoteUser: user we found
         """
-        return RemoteUser(self._get_or_register_user_by_email_internal(email))
-
-    def _get_or_register_user_by_email_internal(self, email):
-        """
-        Try to find or register a user based on the specified email.
-        Raises ValueError when unable to find/register a user for the email.
-        :param email: str: email to lookup or register a user for
-        :return: dict: DukeDS API user response
-        """
         util = UserUtil(self.data_service)
         user_json = util.find_user_by_email(email)
-        if user_json:
-            return user_json
-        potential_username = util.try_determine_username_from_email(email)
-        if potential_username:
-            user_json = util.find_user_by_username(potential_username)
-            if user_json:
-                return user_json
-            return util.register_user_by_username(potential_username)
-        raise ValueError("Unable to find or register a user with email {}".format(email))
+        if not user_json:
+            affiliate = util.find_affiliate_by_email(email)
+            if affiliate:
+                user_json = util.register_user_by_username(affiliate['uid'])
+            else:
+                raise ValueError("Unable to find or register a user with email {}".format(email))
+        return RemoteUser(user_json)
 
     def get_auth_providers(self):
         """
