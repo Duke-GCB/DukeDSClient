@@ -6,9 +6,12 @@ list_files = DukeDS.list_files
 download_file = DukeDS.download_file
 upload_file = DukeDS.upload_file
 delete_file = DukeDS.delete_file
+move_file = DukeDS.move_file
+rename_file = DukeDS.rename_file
 can_deliver_to_user_with_email = DukeDS.can_deliver_to_user_with_email
 can_deliver_to_user_with_username = DukeDS.can_deliver_to_user_with_username
 
 __all__ = ['list_projects', 'create_project', 'delete_project',
            'list_files', 'download_file', 'upload_file', 'delete_file',
+           'move_file', 'rename_file',
            'can_deliver_to_user_with_email', 'can_deliver_to_user_with_username']

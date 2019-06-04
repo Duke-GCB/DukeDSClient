@@ -780,6 +780,46 @@ class TestDataServiceApi(TestCase):
                                               expected_data,
                                               headers=ANY)
 
+    def test_rename_file(self):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        api._put = Mock()
+        resp = api.rename_file(file_id='abc123', name='bettername.txt')
+        self.assertEqual(resp, api._put.return_value)
+        api._put.assert_called_with('/files/abc123/rename', {'name': 'bettername.txt'})
+
+    def test_move_file(self):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        api._put = Mock()
+        resp = api.move_file(file_id='abc123', parent_kind_str='dds-folder', parent_uuid='def456')
+        self.assertEqual(resp, api._put.return_value)
+        api._put.assert_called_with('/files/abc123/move', {'parent': {'kind': 'dds-folder', 'id': 'def456'}})
+
+    def test_rename_folder(self):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        api._put = Mock()
+        resp = api.rename_folder(folder_id='abc123', name='betterfolder')
+        self.assertEqual(resp, api._put.return_value)
+        api._put.assert_called_with('/folders/abc123/rename', {'name': 'betterfolder'})
+
+    def test_move_folder(self):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        api._put = Mock()
+        resp = api.move_folder(folder_id='abc123', parent_kind_str='dds-folder', parent_uuid='def456')
+        self.assertEqual(resp, api._put.return_value)
+        api._put.assert_called_with('/folders/abc123/move', {'parent': {'kind': 'dds-folder', 'id': 'def456'}})
+
 
 class TestDataServiceAuth(TestCase):
     @patch('ddsc.core.ddsapi.get_user_agent_str')

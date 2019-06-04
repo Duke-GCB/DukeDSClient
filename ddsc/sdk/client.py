@@ -2,7 +2,7 @@ import os
 from collections import OrderedDict
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.config import create_config
-from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile
+from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile, NotFoundError
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
 from ddsc.core.download import FileHash, DownloadSettings, FileDownloader, FileToDownload
@@ -35,6 +35,19 @@ class Client(object):
         :return: Project
         """
         return self.dds_connection.get_project_by_id(project_id)
+
+    def get_project_by_name(self, project_name):
+        """
+        Retrieve a single project.
+        :param project_name: name of the project to get.
+        :return: Project
+        """
+        projects = [project for project in self.get_projects() if project.name == project_name]
+        if not projects:
+            raise NotFoundError("No project named {} found.".format(project_name))
+        if len(projects) != 1:
+            raise ValueError("Multiple projects found with name:" + project_name)
+        return projects[0]
 
     def create_project(self, name, description):
         """
@@ -237,6 +250,30 @@ class DDSConnection(object):
     def delete_file(self, file_id):
         self.data_service.delete_file(file_id)
 
+    def rename_folder(self, folder_id, name):
+        return self._create_item_response(
+            self.data_service.rename_folder(folder_id, name),
+            Folder
+        )
+
+    def move_folder(self, folder_id, parent_kind_str, parent_uuid):
+        return self._create_item_response(
+            self.data_service.move_folder(folder_id, parent_kind_str, parent_uuid),
+            Folder
+        )
+
+    def rename_file(self, file_id, name):
+        return self._create_item_response(
+            self.data_service.rename_file(file_id, name),
+            File
+        )
+
+    def move_file(self, file_id, parent_kind_str, parent_uuid):
+        return self._create_item_response(
+            self.data_service.move_file(file_id, parent_kind_str, parent_uuid),
+            File
+        )
+
 
 class BaseResponseItem(object):
     """
@@ -363,6 +400,12 @@ class Folder(BaseResponseItem):
         """
         self.dds_connection.delete_folder(self.id)
 
+    def rename(self, name):
+        return self.dds_connection.rename_folder(self.id, name)
+
+    def move(self, parent):
+        return self.dds_connection.move_folder(self.id, parent.kind, parent.id)
+
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
 
@@ -417,6 +460,12 @@ class File(BaseResponseItem):
 
     def get_hash(self):
         return RemoteFile.get_hash_from_upload(self.current_version["upload"])
+
+    def rename(self, name):
+        return self.dds_connection.rename_file(self.id, name)
+
+    def move(self, parent):
+        return self.dds_connection.move_file(self.id, parent.kind, parent.id)
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
