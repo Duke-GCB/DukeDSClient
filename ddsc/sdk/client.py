@@ -2,7 +2,7 @@ import os
 from collections import OrderedDict
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.config import create_config
-from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile, NotFoundError
+from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
 from ddsc.core.download import FileHash, DownloadSettings, FileDownloader, FileToDownload
@@ -44,7 +44,7 @@ class Client(object):
         """
         projects = [project for project in self.get_projects() if project.name == project_name]
         if not projects:
-            raise NotFoundError("No project named {} found.".format(project_name))
+            raise ItemNotFound("No project named {} found.".format(project_name))
         if len(projects) != 1:
             raise ValueError("Multiple projects found with name:" + project_name)
         return projects[0]
