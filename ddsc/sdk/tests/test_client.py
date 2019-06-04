@@ -352,6 +352,42 @@ class TestDDSConnection(TestCase):
 
         mock_data_service_api.return_value.delete_file.assert_called_with('456')
 
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    @patch('ddsc.sdk.client.Folder')
+    def test_rename_folder(self, mock_folder, mock_data_service_auth, mock_data_service_api):
+        dds_connection = DDSConnection(Mock())
+        updated_folder = dds_connection.rename_folder('abc123', 'data-new')
+        self.assertEqual(updated_folder, mock_folder.return_value)
+        mock_data_service_api.return_value.rename_folder.assert_called_with('abc123', 'data-new')
+
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    @patch('ddsc.sdk.client.Folder')
+    def test_move_folder(self, mock_folder, mock_data_service_auth, mock_data_service_api):
+        dds_connection = DDSConnection(Mock())
+        updated_folder = dds_connection.move_folder('abc123', 'dds-folder', 'def456')
+        self.assertEqual(updated_folder, mock_folder.return_value)
+        mock_data_service_api.return_value.move_folder.assert_called_with('abc123', 'dds-folder', 'def456')
+
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    @patch('ddsc.sdk.client.File')
+    def test_rename_file(self, mock_file, mock_data_service_auth, mock_data_service_api):
+        dds_connection = DDSConnection(Mock())
+        updated_file = dds_connection.rename_file('abc123', 'dataold.txt')
+        self.assertEqual(updated_file, mock_file.return_value)
+        mock_data_service_api.return_value.rename_file.assert_called_with('abc123', 'dataold.txt')
+
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    @patch('ddsc.sdk.client.File')
+    def test_move_file(self, mock_file, mock_data_service_auth, mock_data_service_api):
+        dds_connection = DDSConnection(Mock())
+        updated_file = dds_connection.move_file('abc123', 'dds-folder', 'def456')
+        self.assertEqual(updated_file, mock_file.return_value)
+        mock_data_service_api.return_value.move_file.assert_called_with('abc123', 'dds-folder', 'def456')
+
 
 class TestBaseResponseItem(TestCase):
     def test_get_attr(self):
@@ -472,6 +508,21 @@ class TestFolder(TestCase):
         mock_parent_data.assert_called_with('dds-folder', '456')
         self.assertEqual(my_file, mock_file)
 
+    def test_rename(self):
+        mock_dds_connection = Mock()
+        folder = Folder(mock_dds_connection, self.folder_dict)
+        folder.rename('newfoldername')
+        mock_dds_connection.rename_folder.assert_called_with(self.folder_dict['id'], 'newfoldername')
+
+    def test_move(self):
+        mock_parent = Mock()
+        mock_parent.kind = 'dds-folder'
+        mock_parent.id = 'def123'
+        mock_dds_connection = Mock()
+        folder = Folder(mock_dds_connection, self.folder_dict)
+        folder.move(mock_parent)
+        mock_dds_connection.move_folder.assert_called_with(self.folder_dict['id'], 'dds-folder', 'def123')
+
 
 class TestFile(TestCase):
     def setUp(self):
@@ -536,6 +587,21 @@ class TestFile(TestCase):
         mock_dds_connection.upload_file.assert_called_with('/tmp/data2.dat', project_id='123',
                                                            parent_data=mock_parent_data.return_value,
                                                            existing_file_id='456')
+
+    def test_rename(self):
+        mock_dds_connection = Mock()
+        dds_file = File(mock_dds_connection, self.file_dict)
+        dds_file.rename('newfoldername')
+        mock_dds_connection.rename_file.assert_called_with(self.file_dict['id'], 'newfoldername')
+
+    def test_move(self):
+        mock_parent = Mock()
+        mock_parent.kind = 'dds-folder'
+        mock_parent.id = 'def123'
+        mock_dds_connection = Mock()
+        dds_file = File(mock_dds_connection, self.file_dict)
+        dds_file.move(mock_parent)
+        mock_dds_connection.move_file.assert_called_with(self.file_dict['id'], 'dds-folder', 'def123')
 
 
 class TestFileDownload(TestCase):
