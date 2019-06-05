@@ -196,52 +196,11 @@ class TestDukeDS(TestCase):
         self.assertEqual(result, dds_user_util.user_or_affiliate_exists_for_username.return_value)
 
     @patch('ddsc.sdk.dukeds.Client')
-    def test_move_file_to_folder(self, mock_client):
+    def test_move_file_or_folder(self, mock_client):
         mock_project = Mock()
         mock_project.name = 'myproject'
-        mock_client.return_value.get_projects.return_value = [mock_project]
-        mock_file = Mock(kind='dds-file')
-        mock_folder = Mock(kind='dds-folder')
-        mock_project.get_child_for_path.side_effect = [
-            mock_file,
-            mock_folder
+        mock_client.return_value.get_projects.return_value = [
+            mock_project
         ]
-        DukeDS.move_file('myproject', 'somedir/data.txt', 'otherdir')
-        mock_file.move.assert_called_with(mock_folder)
-
-    @patch('ddsc.sdk.dukeds.Client')
-    def test_move_file_to_top_level_project_folder(self, mock_client):
-        mock_project = Mock()
-        mock_project.name = 'myproject'
-        mock_client.return_value.get_projects.return_value = [mock_project]
-        mock_file = Mock(kind='dds-file')
-        mock_project.get_child_for_path.side_effect = [
-            mock_file,
-            None
-        ]
-        DukeDS.move_file('myproject', 'somedir/data.txt', '')
-        mock_file.move.assert_called_with(mock_project)
-
-    @patch('ddsc.sdk.dukeds.Client')
-    def test_move_file_parent_is_file(self, mock_client):
-        mock_project = Mock()
-        mock_project.name = 'myproject'
-        mock_client.return_value.get_projects.return_value = [mock_project]
-        mock_file = Mock(kind='dds-file')
-        mock_other_file = Mock(kind='dds-file')
-        mock_project.get_child_for_path.side_effect = [
-            mock_file,
-            mock_other_file
-        ]
-        with self.assertRaises(ValueError) as raised_exception:
-            DukeDS.move_file('myproject', 'somedir/data.txt', 'otherdir/somefile.txt')
-        self.assertEqual(str(raised_exception.exception), 'Parent path (otherdir/somefile.txt) must reference a folder.')
-
-    @patch('ddsc.sdk.dukeds.Client')
-    def test_rename_file(self, mock_client):
-        mock_project = Mock()
-        mock_project.name = 'myproject'
-        mock_client.return_value.get_projects.return_value = [mock_project]
-        DukeDS.rename_file('myproject', 'somedir/data.txt', 'data2.txt')
-        mock_project.get_child_for_path.assert_called_with("somedir/data.txt")
-        mock_project.get_child_for_path.return_value.rename.assert_called_with("data2.txt")
+        DukeDS.move_file_or_folder('myproject', '/data/file1.txt', '/data/file1_bak.txt')
+        mock_project.move_file_or_folder.assert_called_with('/data/file1.txt', '/data/file1_bak.txt')

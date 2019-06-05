@@ -57,27 +57,15 @@ class DukeDS(object):
         Session().download_file(project_name, remote_path, local_path)
 
     @staticmethod
-    def move_file(project_name, file_remote_path, parent_remote_path):
+    def move_file_or_folder(project_name, source_remote_path, target_remote_path):
         """
-        Moves file within a project to another location within the project.
-        This command also works for moving folders.
-        :param project_name: str: name of the project that we want to move a file within
-        :param file_remote_path: str: remote path to the file to move
-        :param parent_remote_path: str: remote path to folder to move the file into, use '' to specify the project
-        level directory
+        Move a file or folder specified by source_remote_path to target_remote_path.
+        This operation is loosely modeled after linux 'mv' command.
+        :param project_name: str: name of the project containing the file
+        :param source_remote_path: str: remote path specifying the file/folder to be moved
+        :param target_remote_path: str: remote path specifying where to move the file/folder to
         """
-        Session().move_file(project_name, file_remote_path, parent_remote_path)
-
-    @staticmethod
-    def rename_file(project_name, file_remote_path, name):
-        """
-        Changes the filename of the file at the specified remote path.
-        This command also works for renaming folders.
-        :param project_name: str: name of the project that contains the file
-        :param file_remote_path: str: remote path to the file to rename
-        :param name: str: new name of the file
-        """
-        Session().rename_file(project_name, file_remote_path, name)
+        Session().move_file_or_folder(project_name, source_remote_path, target_remote_path)
 
     @staticmethod
     def upload_file(project_name, local_path, remote_path=None):
@@ -252,18 +240,6 @@ class Session(object):
         dds_user_util = UserUtil(data_service, logging_func=logging_func)
         return dds_user_util.user_or_affiliate_exists_for_username(username)
 
-    def move_file(self, project_name, file_remote_path, parent_remote_path):
+    def move_file_or_folder(self, project_name, source_remote_path, target_remote_path):
         project = self._get_or_create_project(project_name)
-        file_to_move = project.get_child_for_path(file_remote_path)
-        if not parent_remote_path:
-            parent = project
-        else:
-            parent = project.get_child_for_path(parent_remote_path)
-        if parent.kind == KindType.file_str:
-            raise ValueError("Parent path ({}) must reference a folder.".format(parent_remote_path))
-        return file_to_move.move(parent)
-
-    def rename_file(self, project_name, file_remote_path, filename):
-        project = self._get_or_create_project(project_name)
-        dds_file = project.get_child_for_path(file_remote_path)
-        return dds_file.rename(filename)
+        project.move_file_or_folder(source_remote_path, target_remote_path)

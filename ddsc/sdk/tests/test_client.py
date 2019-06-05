@@ -514,13 +514,13 @@ class TestFolder(TestCase):
         folder.rename('newfoldername')
         mock_dds_connection.rename_folder.assert_called_with(self.folder_dict['id'], 'newfoldername')
 
-    def test_move(self):
+    def test_change_parent(self):
         mock_parent = Mock()
         mock_parent.kind = 'dds-folder'
         mock_parent.id = 'def123'
         mock_dds_connection = Mock()
         folder = Folder(mock_dds_connection, self.folder_dict)
-        folder.move(mock_parent)
+        folder.change_parent(mock_parent)
         mock_dds_connection.move_folder.assert_called_with(self.folder_dict['id'], 'dds-folder', 'def123')
 
 
@@ -594,13 +594,13 @@ class TestFile(TestCase):
         dds_file.rename('newfoldername')
         mock_dds_connection.rename_file.assert_called_with(self.file_dict['id'], 'newfoldername')
 
-    def test_move(self):
+    def test_change_parent(self):
         mock_parent = Mock()
         mock_parent.kind = 'dds-folder'
         mock_parent.id = 'def123'
         mock_dds_connection = Mock()
         dds_file = File(mock_dds_connection, self.file_dict)
-        dds_file.move(mock_parent)
+        dds_file.change_parent(mock_parent)
         mock_dds_connection.move_file.assert_called_with(self.file_dict['id'], 'dds-folder', 'def123')
 
 
@@ -712,6 +712,6 @@ class TestPathToFiles(TestCase):
         path_to_files.add_paths_for_children_of_node(mock_project)
 
         self.assertEqual({
-            'myfolder/myfile1': mock_file1,
-            'myfolder/myfile2': mock_file2
+            '/myfolder/myfile1': mock_file1,
+            '/myfolder/myfile2': mock_file2
         }, path_to_files.paths)

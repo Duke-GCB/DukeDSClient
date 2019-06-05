@@ -7,6 +7,7 @@ from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor,
 from ddsc.core.localstore import PathData
 from ddsc.core.download import FileHash, DownloadSettings, FileDownloader, FileToDownload
 from ddsc.core.util import KindType, NoOpProgressPrinter
+from ddsc.core.moveutil import MoveUtil
 from future.utils import python_2_unicode_compatible
 
 
@@ -319,12 +320,25 @@ class Project(BaseResponseItem):
 
     def get_child_for_path(self, path):
         """
-        Based on a remote path get a single remote child.
+        Based on a remote path get a single remote child. When not found raises ItemNotFound.
         :param path: str: path within a project specifying a file or folder to download
         :return: File|Folder
         """
         child_finder = ChildFinder(path, self)
         return child_finder.get_child()
+
+    def try_get_item_for_path(self, path):
+        """
+        Based on a remote path get a single remote child. When not found returns None.
+        :param path: str: path within a project specifying a file or folder to download
+        :return: File|Folder|Project|None
+        """
+        try:
+            if path == '/':
+                return self
+            return self.get_child_for_path(path)
+        except ItemNotFound:
+            return None
 
     def create_folder(self, folder_name):
         """
@@ -344,6 +358,17 @@ class Project(BaseResponseItem):
         parent_data = ParentData(self.kind, self.id)
         return self.dds_connection.upload_file(local_path, project_id=self.id, parent_data=parent_data,
                                                remote_filename=remote_filename)
+
+    def move_file_or_folder(self, source_remote_path, target_remote_path):
+        """
+        Move a file or folder specified by source_remote_path to target_remote_path.
+        This operation is loosely modeled after linux 'mv' command.
+        :param source_remote_path: str: remote path specifying the file/folder to be moved
+        :param target_remote_path: str: remote path specifying where to move the file/folder to
+        :return File|Folder: moved item with updated data
+        """
+        move_util = MoveUtil(self, source_remote_path, target_remote_path)
+        return move_util.run()
 
     def delete(self):
         """
@@ -403,7 +428,7 @@ class Folder(BaseResponseItem):
     def rename(self, name):
         return self.dds_connection.rename_folder(self.id, name)
 
-    def move(self, parent):
+    def change_parent(self, parent):
         return self.dds_connection.move_folder(self.id, parent.kind, parent.id)
 
     def __str__(self):
@@ -464,7 +489,7 @@ class File(BaseResponseItem):
     def rename(self, name):
         return self.dds_connection.rename_file(self.id, name)
 
-    def move(self, parent):
+    def change_parent(self, parent):
         return self.dds_connection.move_file(self.id, parent.kind, parent.id)
 
     def __str__(self):
@@ -553,7 +578,7 @@ class ChildFinder(object):
         Find file or folder at the remote_path
         :return: File|Folder
         """
-        path_parts = self.remote_path.split(os.sep)
+        path_parts = self.remote_path.lstrip("/").split(os.sep)
         return self._get_child_recurse(path_parts, self.node)
 
     def _get_child_recurse(self, path_parts, node):
@@ -571,7 +596,7 @@ class PathToFiles(object):
         self.paths = OrderedDict()
 
     def add_paths_for_children_of_node(self, node):
-        self._child_recurse(node, '')
+        self._child_recurse(node, '/')
 
     def _child_recurse(self, node, parent_path):
         for child in node.get_children():
