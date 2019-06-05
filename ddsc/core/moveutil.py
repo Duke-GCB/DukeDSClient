@@ -8,14 +8,6 @@ class MoveUtil(object):
         self.source_remote_path = source_remote_path
         self.target_remote_path = target_remote_path
 
-    @property
-    def target_parent_remote_path(self):
-        return os.path.dirname(self.target_remote_path)
-
-    @property
-    def source_parent_remote_path(self):
-        return os.path.dirname(self.source_remote_path)
-
     def run(self):
         source = self.project.get_child_for_path(self.source_remote_path)
         new_parent = self.get_new_parent()
@@ -42,9 +34,9 @@ class MoveUtil(object):
                     if self.is_folder_or_project(target_parent):
                         return target_parent
                     else:
-                        raise ValueError("Target parent directory {} is a file.".format(target_parent_remote_path))
+                        raise ValueError("Target parent {} is a file.".format(target_parent_remote_path))
                 else:
-                    raise ValueError("Target directory {} does not exist.".format(self.target_parent_remote_path))
+                    raise ValueError("Target parent directory {} does not exist.".format(target_parent_remote_path))
         return None
 
     def get_new_name(self):
