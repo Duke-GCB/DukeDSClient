@@ -85,7 +85,6 @@ class MoveUtilTestCase(TestCase):
 
     def test_get_new_parent__target_parent_not_found(self):
         mock_project = Mock()
-        mock_parent_folder = Mock(kind=KindType.file_str)
         move_util = MoveUtil(mock_project, '/data/file1.txt', '/data2/file1.txt')
         mock_project.try_get_item_for_path.side_effect = [
             None,
