@@ -68,15 +68,15 @@ class TestPathFilteredProject(TestCase):
         }
 
         self.project = RemoteProject(project_fields)
-        folder1 = RemoteFolder(folder1_fields, "")
+        folder1 = RemoteFolder(folder1_fields, "/")
         self.project.add_child(folder1)
-        folder2 = RemoteFolder(folder2_fields, "data")
+        folder2 = RemoteFolder(folder2_fields, "/data")
         folder1.add_child(folder2)
-        file1 = RemoteFile(file1_fields, "data")
+        file1 = RemoteFile(file1_fields, "/data")
         self.project.add_child(file1)
-        file2 = RemoteFile(file2_fields, "data/results")
+        file2 = RemoteFile(file2_fields, "/data/results")
         folder2.add_child(file2)
-        file3 = RemoteFile(file3_fields, "data/results")
+        file3 = RemoteFile(file3_fields, "/data/results")
         folder2.add_child(file3)
 
     def test_no_filter(self):
@@ -85,74 +85,74 @@ class TestPathFilteredProject(TestCase):
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
         expected = [
-            '',
-            'data',
-            'data/rg45.txt',
-            'data/results',
-            'data/results/results.doc',
-            'data/results/results.csv',
+            '/',
+            '/data',
+            '/data/rg45.txt',
+            '/data/results',
+            '/data/results/results.doc',
+            '/data/results/results.csv',
         ]
         self.assertEqual(set(expected), set(collector.visited_paths))
 
     def test_single_file_include_filter(self):
-        path_filter = PathFilter(include_paths=['data/rg45.txt'], exclude_paths=[])
+        path_filter = PathFilter(include_paths=['/data/rg45.txt'], exclude_paths=[])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
         expected = [
-            '',
-            'data',
-            'data/rg45.txt',
+            '/',
+            '/data',
+            '/data/rg45.txt',
         ]
         self.assertEqual(set(expected), set(collector.visited_paths))
 
     def test_single_dir_include_filter(self):
-        path_filter = PathFilter(include_paths=['stuff'], exclude_paths=[])
+        path_filter = PathFilter(include_paths=['/stuff'], exclude_paths=[])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
         expected = [
-            '',
+            '/',
         ]
         self.assertEqual(set(expected), set(collector.visited_paths))
-        self.assertEqual(["stuff"], path_filter.get_unused_paths())
+        self.assertEqual(["/stuff"], path_filter.get_unused_paths())
 
     def test_nested_dir_include_filter(self):
-        path_filter = PathFilter(include_paths=['data/results'], exclude_paths=[])
+        path_filter = PathFilter(include_paths=['/data/results'], exclude_paths=[])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
         expected = [
-            '',
-            'data',
-            'data/results',
-            'data/results/results.doc',
-            'data/results/results.csv',
+            '/',
+            '/data',
+            '/data/results',
+            '/data/results/results.doc',
+            '/data/results/results.csv',
         ]
         self.assertEqual(set(expected), set(collector.visited_paths))
 
     def test_nested_file_include_filter(self):
-        path_filter = PathFilter(include_paths=['data/results/results.csv'], exclude_paths=[])
+        path_filter = PathFilter(include_paths=['/data/results/results.csv'], exclude_paths=[])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
         expected = [
-            '',
-            'data',
-            'data/results',
-            'data/results/results.csv',
+            '/',
+            '/data',
+            '/data/results',
+            '/data/results/results.csv',
         ]
         self.assertEqual(set(expected), set(collector.visited_paths))
 
     def test_nested_dir_exclude_filter(self):
-        path_filter = PathFilter(include_paths=[], exclude_paths=['data/results'])
+        path_filter = PathFilter(include_paths=[], exclude_paths=['/data/results'])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
         expected = [
-            '',
-            'data',
-            'data/rg45.txt',
+            '/',
+            '/data',
+            '/data/rg45.txt',
         ]
         self.assertEqual(set(expected), set(collector.visited_paths))
 
