@@ -107,7 +107,7 @@ class TestPathFilteredProject(TestCase):
         self.assertEqual(set(expected), set(collector.visited_paths))
 
     def test_single_dir_include_filter(self):
-        path_filter = PathFilter(include_paths=['/stuff'], exclude_paths=[])
+        path_filter = PathFilter(include_paths=['stuff'], exclude_paths=[])
         collector = ItemPathCollector()
         path_filtered_project = PathFilteredProject(path_filter, collector)
         path_filtered_project.run(self.project)
@@ -181,80 +181,80 @@ class TestIncludeFilter(TestCase):
     def test_include_top_level_file(self):
         path_filter = IncludeFilter(["123.txt"])
         yes_values = [
-            "123.txt"
+            "/123.txt"
         ]
         no_values = [
-            "data",
-            ".txt",
-            "123",
-            "data/123.txt",
-            "results/123.txt"
+            "/data",
+            "/.txt",
+            "/123",
+            "/data/123.txt",
+            "/results/123.txt"
         ]
         self.check_filter(path_filter, yes_values, no_values)
 
     def test_include_top_level_dir(self):
         path_filter = IncludeFilter(["data"])
         yes_values = [
-            "data",
-            "data/raw_files",
-            "data/123.txt",
+            "/data",
+            "/data/raw_files",
+            "/data/123.txt",
         ]
         no_values = [
-            "123.txt"
-            ".txt",
-            "123",
-            "results/123.txt"
-            "results/data"
+            "/123.txt"
+            "/.txt",
+            "/123",
+            "/results/123.txt"
+            "/results/data"
         ]
         self.check_filter(path_filter, yes_values, no_values)
 
     def test_include_nested_dir(self):
         path_filter = IncludeFilter(["data/raw_files"])
         yes_values = [
-            "data",
-            "data/raw_files",
-            "data/raw_files/123.txt",
-            "data/raw_files/data",
-            "data/raw_files/one/two",
+            "/data",
+            "/data/raw_files",
+            "/data/raw_files/123.txt",
+            "/data/raw_files/data",
+            "/data/raw_files/one/two",
         ]
         no_values = [
-            "data/123.txt",
-            "some/raw_files"
-            "raw_files"
-            "raw_files/data.txt"
+            "/data/123.txt",
+            "/some/raw_files"
+            "/raw_files"
+            "/raw_files/data.txt"
         ]
         self.check_filter(path_filter, yes_values, no_values)
 
     def test_include_nested_file(self):
         path_filter = IncludeFilter(["data/raw_files/mine.txt"])
         yes_values = [
-            "data",
-            "data/raw_files",
-            "data/raw_files/mine.txt",
+            "/data",
+            "/data/raw_files",
+            "/data/raw_files/mine.txt",
         ]
         no_values = [
-            "mine.txt",
-            "raw_files/mine.txt",
-            "dat/raw_files/mine.txt"
-            "data/raw_files/other.txt",
+            "/mine.txt",
+            "/raw_files/mine.txt",
+            "/dat/raw_files/mine.txt"
+            "/data/raw_files/other.txt",
         ]
         self.check_filter(path_filter, yes_values, no_values)
 
     def test_include_multiple(self):
         path_filter = IncludeFilter(["data", "stuff/info.txt"])
         yes_values = [
-            "data",
-            "data/raw_files",
-            "data/raw_files/mine.txt",
-            "stuff",
-            "stuff/info.txt"
+            "/data",
+            "/data/raw_files",
+            "/data/raw_files/mine.txt",
+            "/stuff",
+            "/stuff/info.txt"
         ]
         no_values = [
-            "mine.txt",
-            "raw_files/mine.txt",
-            "dat/raw_files/mine.txt"
-            "data/raw_files/other.txt",
-            "stuff/other.txt"
+            "/mine.txt",
+            "/raw_files/mine.txt",
+            "/dat/raw_files/mine.txt"
+            "/data/raw_files/other.txt",
+            "/stuff/other.txt"
         ]
         self.check_filter(path_filter, yes_values, no_values)
 
@@ -269,58 +269,58 @@ class TestExcludeFilter(TestCase):
     def test_include_top_level_file(self):
         path_filter = ExcludeFilter(["123.txt"])
         yes_values = [
-            "data",
-            ".txt",
-            "123",
-            "data/123.txt",
-            "results/123.txt"
+            "/data",
+            "/.txt",
+            "/123",
+            "/data/123.txt",
+            "/results/123.txt"
         ]
         no_values = [
-            "123.txt"
+            "/123.txt"
         ]
         self.check_filter(path_filter, yes_values, no_values)
 
     def test_include_top_level_dir(self):
         path_filter = ExcludeFilter(["data"])
         yes_values = [
-            "123.txt",
-            ".txt",
-            "123",
-            "results/123.txt"
+            "/123.txt",
+            "/.txt",
+            "/123",
+            "/results/123.txt"
         ]
         no_values = [
-            "data",
-            "data/123.txt",
-            "data/something",
-            "data/something/123.txt"
+            "/data",
+            "/data/123.txt",
+            "/data/something",
+            "/data/something/123.txt"
         ]
         self.check_filter(path_filter, yes_values, no_values)
 
     def test_nested_dir(self):
         path_filter = ExcludeFilter(["data/results"])
         yes_values = [
-            "data",
-            "results"
-            "results/123.txt",
+            "/data",
+            "/results"
+            "/results/123.txt",
         ]
         no_values = [
-            "data/results",
-            "data/results/123.txt"
+            "/data/results",
+            "/data/results/123.txt"
         ]
         self.check_filter(path_filter, yes_values, no_values)
 
     def test_include_multiple(self):
         path_filter = ExcludeFilter(["data/results", "test/data.txt"])
         yes_values = [
-            "data",
-            "results"
-            "results/123.txt",
-            "test",
-            "test/data.doc"
+            "/data",
+            "/results"
+            "/results/123.txt",
+            "/test",
+            "/test/data.doc"
         ]
         no_values = [
-            "data/results",
-            "data/results/123.txt",
-            "test/data.txt"
+            "/data/results",
+            "/data/results/123.txt",
+            "/test/data.txt"
         ]
         self.check_filter(path_filter, yes_values, no_values)

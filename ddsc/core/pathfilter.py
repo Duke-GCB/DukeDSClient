@@ -81,13 +81,14 @@ class PathFilterUtil(object):
         return PathFilterUtil.is_child(path, some_path) or PathFilterUtil.is_child(some_path, path)
 
     @staticmethod
-    def strip_trailing_slash(paths):
-        """
-        Remove trailing slash from a list of paths
-        :param paths: [str]: paths to fix
-        :return: [str]: stripped paths
-        """
-        return [path.rstrip(os.sep) for path in paths]
+    def normalize_slashes(paths):
+        normalized_paths = []
+        for path in paths:
+            path = path.rstrip(os.sep)
+            if not path.startswith(os.sep):
+                path = os.sep + path
+            normalized_paths.append(path)
+        return normalized_paths
 
 
 class IncludeAll(object):
@@ -109,7 +110,7 @@ class IncludeFilter(object):
     Path filter that will include paths that are parent/children/equal to include_paths.
     """
     def __init__(self, paths):
-        self.paths = PathFilterUtil.strip_trailing_slash(paths)
+        self.paths = PathFilterUtil.normalize_slashes(paths)
 
     def include(self, some_path):
         if some_path in self.paths:
@@ -125,7 +126,7 @@ class ExcludeFilter(object):
     Path filter that will exclude paths that are children/equal to include_paths.
     """
     def __init__(self, paths):
-        self.paths = PathFilterUtil.strip_trailing_slash(paths)
+        self.paths = PathFilterUtil.normalize_slashes(paths)
 
     def include(self, some_path):
         if some_path in self.paths:
