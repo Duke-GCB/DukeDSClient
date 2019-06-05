@@ -35,6 +35,62 @@ class TestClient(TestCase):
 
     @patch('ddsc.sdk.client.create_config')
     @patch('ddsc.sdk.client.DDSConnection')
+    def test_get_project_by_name__find_one(self, mock_dss_connection, mock_create_config):
+        mock_project = Mock()
+        mock_project.name = 'myproject'
+        mock_dss_connection.return_value.get_projects.return_value = [
+            mock_project
+        ]
+
+        client = Client()
+        project = client.get_project_by_name('myproject')
+        self.assertEqual(project, mock_project)
+
+    @patch('ddsc.sdk.client.create_config')
+    @patch('ddsc.sdk.client.DDSConnection')
+    def test_get_project_by_name__none_found(self, mock_dss_connection, mock_create_config):
+        mock_project = Mock()
+        mock_project.name = 'myproject'
+        mock_dss_connection.return_value.get_projects.return_value = [
+            mock_project
+        ]
+
+        client = Client()
+        with self.assertRaises(ItemNotFound) as raised_exception:
+            client.get_project_by_name('myproject2')
+        self.assertEqual(str(raised_exception.exception), 'No project named myproject2 found.')
+
+    @patch('ddsc.sdk.client.create_config')
+    @patch('ddsc.sdk.client.DDSConnection')
+    def test_get_project_by_name__multiple_found(self, mock_dss_connection, mock_create_config):
+        mock_project = Mock()
+        mock_project.name = 'myproject'
+        mock_project2 = Mock()
+        mock_project2.name = 'myproject'
+        mock_dss_connection.return_value.get_projects.return_value = [
+            mock_project, mock_project2
+        ]
+
+        client = Client()
+        with self.assertRaises(ValueError) as raised_exception:
+            client.get_project_by_name('myproject')
+        self.assertEqual(str(raised_exception.exception), 'Multiple projects found with name myproject.')
+
+    # def get_project_by_name(self, project_name):
+    #     """
+    #     Retrieve a single project.
+    #     :param project_name: name of the project to get.
+    #     :return: Project
+    #     """
+    #     projects = [project for project in self.get_projects() if project.name == project_name]
+    #     if not projects:
+    #         raise ItemNotFound("No project named {} found.".format(project_name))
+    #     if len(projects) != 1:
+    #         raise ValueError("Multiple projects found with name:" + project_name)
+    #     return projects[0]
+
+    @patch('ddsc.sdk.client.create_config')
+    @patch('ddsc.sdk.client.DDSConnection')
     def test_create_project(self, mock_dss_connection, mock_create_config):
         some_project = Mock()
         mock_dss_connection.return_value.create_project.return_value = some_project
@@ -99,7 +155,7 @@ class TestClient(TestCase):
         client.get_projects.return_value = [project1, project2]
         with self.assertRaises(ValueError) as raised_exception:
             client.get_project_by_name('myproject')
-        self.assertEqual(str(raised_exception.exception), 'Multiple projects found with name:myproject')
+        self.assertEqual(str(raised_exception.exception), 'Multiple projects found with name myproject.')
 
 
 class TestDDSConnection(TestCase):
@@ -423,10 +479,36 @@ class TestProject(TestCase):
         mock_child_finder.return_value.get_child.return_value = mock_child
 
         project = Project(mock_dds_connection, self.project_dict)
-        child = project.get_child_for_path('data/file1.dat')
+        child = project.get_child_for_path('/data/file1.dat')
 
-        mock_child_finder.assert_called_with('data/file1.dat', project)
+        mock_child_finder.assert_called_with('/data/file1.dat', project)
         self.assertEqual(child, mock_child)
+
+    @patch('ddsc.sdk.client.ChildFinder')
+    def test_try_get_item_for_path__with_project(self, mock_child_finder):
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        project.get_child_for_path = Mock()
+        item = project.try_get_item_for_path('/')
+        self.assertEqual(item, project)
+        project.get_child_for_path.assert_not_called()
+
+    def test_try_get_item_for_path__with_child(self):
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        project.get_child_for_path = Mock()
+        item = project.try_get_item_for_path('/data/file1.dat')
+        self.assertEqual(item, project.get_child_for_path.return_value)
+        project.get_child_for_path.assert_called_with('/data/file1.dat')
+
+    def test_try_get_item_for_path__child_not_found(self):
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        project.get_child_for_path = Mock()
+        project.get_child_for_path.side_effect = ItemNotFound("Not Found")
+        item = project.try_get_item_for_path('/data/file1.dat')
+        self.assertEqual(item, None)
+        project.get_child_for_path.assert_called_with('/data/file1.dat')
 
     def test_create_folder(self):
         mock_dds_connection = Mock()
@@ -460,6 +542,14 @@ class TestProject(TestCase):
         project.delete()
 
         mock_dds_connection.delete_project.assert_called_with('123')
+
+    @patch('ddsc.sdk.client.MoveUtil')
+    def test_move_file_or_folder(self, mock_move_util):
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        project.move_file_or_folder('/data/file1.txt', '/data/file1.txt.bak')
+        mock_move_util.assert_called_with(project, '/data/file1.txt', '/data/file1.txt.bak')
+        mock_move_util.return_value.run.assert_called_with()
 
 
 class TestFolder(TestCase):

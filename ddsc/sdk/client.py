@@ -47,7 +47,7 @@ class Client(object):
         if not projects:
             raise ItemNotFound("No project named {} found.".format(project_name))
         if len(projects) != 1:
-            raise ValueError("Multiple projects found with name:" + project_name)
+            raise ValueError("Multiple projects found with name {}.".format(project_name))
         return projects[0]
 
     def create_project(self, name, description):
