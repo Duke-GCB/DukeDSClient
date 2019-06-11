@@ -1,5 +1,5 @@
 from unittest import TestCase
-from ddsc.core.pathfilter import PathFilter, IncludeFilter, ExcludeFilter, PathFilteredProject
+from ddsc.core.pathfilter import PathFilter, IncludeFilter, ExcludeFilter, PathFilteredProject, PathFilterUtil
 from ddsc.core.remotestore import RemoteProject, RemoteFolder, RemoteFile
 
 
@@ -7,6 +7,25 @@ class TestPathFilter(TestCase):
     def test_invalid_path_setup(self):
         with self.assertRaises(ValueError):
             PathFilter(include_paths=['data'], exclude_paths=['results'])
+
+
+class TestPathFilterUtil(TestCase):
+    def test_normalize_slashes(self):
+        paths = [
+            'path/no/leading/slash.txt',
+            '/path/with/leading_slash.txt',
+            'directory/with/trailing/slashes/',
+            '/directory/with/slashes/',
+            '/directory/with/no/trailing/slash',
+        ]
+        fixed_paths = PathFilterUtil.normalize_slashes(paths)
+        self.assertEqual(fixed_paths, [
+            '/path/no/leading/slash.txt',
+            '/path/with/leading_slash.txt',
+            '/directory/with/trailing/slashes',
+            '/directory/with/slashes',
+            '/directory/with/no/trailing/slash'
+        ])
 
 
 class TestPathFilteredProject(TestCase):

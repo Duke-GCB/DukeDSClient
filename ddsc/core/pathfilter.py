@@ -82,6 +82,11 @@ class PathFilterUtil(object):
 
     @staticmethod
     def normalize_slashes(paths):
+        """
+        Removes trailing slashes and make sure paths begin with a leading slash.
+        :param paths: [str]: paths to fix
+        :return: [str]: array of normalized paths
+        """
         normalized_paths = []
         for path in paths:
             path = path.rstrip(os.sep)
