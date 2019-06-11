@@ -887,11 +887,11 @@ class TestProjectFile(TestCase):
 
     def test_get_remote_parent_path(self):
         project_file = ProjectFile(self.project_file_dict)
-        self.assertEqual('data/docs', project_file.get_remote_parent_path())
+        self.assertEqual('/data/docs', project_file.get_remote_parent_path())
 
     def test_path(self):
         project_file = ProjectFile(self.project_file_dict)
-        self.assertEqual('data/docs/somefile', project_file.path)
+        self.assertEqual('/data/docs/somefile', project_file.path)
 
     def test_get_local_path(self):
         project_file = ProjectFile(self.project_file_dict)
