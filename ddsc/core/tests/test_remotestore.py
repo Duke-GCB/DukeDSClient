@@ -1,3 +1,4 @@
+import os
 import json
 from unittest import TestCase
 from ddsc.core.util import KindType
@@ -49,7 +50,7 @@ class TestProjectFolderFile(TestCase):
         self.assertEqual('test4', project.name)
         self.assertEqual('test4desc', project.description)
         self.assertEqual(False, project.is_deleted)
-        self.assertEqual('', project.remote_path)
+        self.assertEqual(os.sep, project.remote_path)
 
     def test_folder_item(self):
         projects_id_children_sample_json = """

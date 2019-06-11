@@ -338,7 +338,7 @@ class RemoteProject(object):
         self.description = json_data['description']
         self.is_deleted = json_data['is_deleted']
         self.children = []
-        self.remote_path = ''
+        self.remote_path = os.sep
 
     def add_child(self, child):
         """
@@ -530,7 +530,7 @@ class RemoteProjectChildren(object):
         Return array of RemoteFolders(with appropriate children)/RemoteFiles based on the values from constructor.
         :return: [RemoteFolder/RemoteFile]
         """
-        return self.get_tree_recur(self.project_id, '')
+        return self.get_tree_recur(self.project_id, os.sep)
 
     def get_tree_recur(self, parent_id, parent_path):
         """

@@ -279,6 +279,8 @@ class ProjectDetailsList(object):
 
     def get_name(self, item, parent):
         if parent:
+            if parent.kind == KindType.project_str:
+                return '{}{}'.format(os.sep, item.name)
             parent_name = self.id_to_path.get(parent.id)
             if parent_name:
                 return "{}/{}".format(parent_name, item.name)
