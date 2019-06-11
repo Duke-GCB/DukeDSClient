@@ -2,7 +2,7 @@ from unittest import TestCase
 import subprocess
 import os
 import tempfile
-from ddsc.core.util import mode_allows_group_or_other, verify_file_private, ProjectDetailsList
+from ddsc.core.util import mode_allows_group_or_other, verify_file_private, ProjectDetailsList, KindType
 from mock import patch, Mock
 
 
@@ -88,6 +88,7 @@ class TestProjectDetailsList(TestCase):
         self.mock_project_item = Mock()
         self.mock_project_item.id = '123'
         self.mock_project_item.name = 'mouse'
+        self.mock_project_item.kind = KindType.project_str
         self.mock_folder_item = Mock()
         self.mock_folder_item.id = '456'
         self.mock_folder_item.name = 'data'
@@ -104,8 +105,8 @@ class TestProjectDetailsList(TestCase):
         project_details_list.visit_file(self.mock_file_item, self.mock_folder_item)
         expected_details = [
             'Project mouse Contents:',
-            'data',
-            'data/results.csv',
+            '/data',
+            '/data/results.csv',
         ]
         self.assertEqual(expected_details, project_details_list.details)
 
@@ -116,7 +117,27 @@ class TestProjectDetailsList(TestCase):
         project_details_list.visit_file(self.mock_file_item, self.mock_folder_item)
         expected_details = [
             '123 - Project mouse Contents:',
-            '456\tdata',
-            '789\tdata/results.csv\t(md5:abcdefg)',
+            '456\t/data',
+            '789\t/data/results.csv\t(md5:abcdefg)',
         ]
         self.assertEqual(expected_details, project_details_list.details)
+
+    def test_get_name_with_project_parent(self):
+        item = Mock()
+        item.name = 'file1.txt'
+        parent = Mock()
+        parent.kind = KindType.project_str
+        parent.id = 'abc123'
+        project_details_list = ProjectDetailsList(long_format=True)
+        name = project_details_list.get_name(item, parent)
+        self.assertEqual(name, '/file1.txt')
+
+    def test_get_name_no_parent(self):
+        item = Mock()
+        item.name = 'file1.txt'
+        parent = Mock()
+        parent.kind = KindType.project_str
+        parent.id = 'abc123'
+        project_details_list = ProjectDetailsList(long_format=True)
+        name = project_details_list.get_name(item, parent)
+        self.assertEqual(name, '/file1.txt')
