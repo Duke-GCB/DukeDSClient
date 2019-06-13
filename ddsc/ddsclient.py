@@ -13,6 +13,7 @@ from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
 from ddsc.config import create_config
+from ddsc.sdk.client import Client
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 TWO_SECONDS = 2
@@ -48,6 +49,7 @@ class DDSClient(object):
         parser.register_deliver_command(self._setup_run_command(DeliverCommand))
         parser.register_delete_command(self._setup_run_command(DeleteCommand))
         parser.register_list_auth_roles_command(self._setup_run_command(ListAuthRolesCommand))
+        parser.register_move_command(self._setup_run_command(MoveCommand))
         return parser
 
     def _setup_run_command(self, command_constructor):
@@ -447,6 +449,37 @@ class ListAuthRolesCommand(BaseCommand):
                 print(auth_role.id, "-", auth_role.description)
         else:
             print("No authorization roles found.")
+
+
+class ClientCommand(object):
+    def __init__(self, config):
+        self.client = Client(config)
+
+    def get_project_by_name_or_id(self, args):
+        if args.project_name:
+            return self.client.get_project_by_name(args.project_name)
+        else:
+            return self.client.get_project_by_id(args.project_id)
+
+
+class MoveCommand(ClientCommand):
+    """
+    Move a file/folder within a single project in the duke-data-service.
+    """
+    def __init__(self, config):
+        """
+        Pass in the config who can create a remote_store so we can access the remote data.
+        :param config: Config global configuration for use with this command.
+        """
+        super(MoveCommand, self).__init__(config)
+
+    def run(self, args):
+        """
+        Deletes a single project specified by project_name in args.
+        :param args Namespace arguments parsed from the command line
+        """
+        project = self.get_project_by_name_or_id(args)
+        project.move_file_or_folder(args.source_remote_path, args.target_remote_path)
 
 
 def boolean_input_prompt(message):

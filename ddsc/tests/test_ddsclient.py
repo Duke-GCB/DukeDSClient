@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 from unittest import TestCase
-from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand
+from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand, ClientCommand, MoveCommand
 from ddsc.ddsclient import ShareCommand, DeliverCommand, read_argument_file_contents
 from mock import patch, MagicMock, Mock, call
 
@@ -318,3 +318,32 @@ class TestListCommand(TestCase):
         }
         self.assertEqual('mouse', ListCommand.get_project_info_line(project_dict, False))
         self.assertEqual('123\tmouse', ListCommand.get_project_info_line(project_dict, True))
+
+
+class TestClientCommand(TestCase):
+    @patch('ddsc.ddsclient.Client')
+    def test_get_project_by_name_or_id__with_name(self, mock_client):
+        client_command = ClientCommand(config=Mock())
+        project = client_command.get_project_by_name_or_id(Mock(project_name='mouse', project_id=None))
+        self.assertEqual(client_command.client, mock_client.return_value)
+        self.assertEqual(project, mock_client.return_value.get_project_by_name.return_value)
+        mock_client.return_value.get_project_by_name.assert_called_with('mouse')
+
+    @patch('ddsc.ddsclient.Client')
+    def test_get_project_by_name_or_id__with_id(self, mock_client):
+        client_command = ClientCommand(config=Mock())
+        project = client_command.get_project_by_name_or_id(Mock(project_name=None, project_id='123abc'))
+        self.assertEqual(client_command.client, mock_client.return_value)
+        self.assertEqual(project, mock_client.return_value.get_project_by_id.return_value)
+        mock_client.return_value.get_project_by_id.assert_called_with('123abc')
+
+
+class TestMoveCommand(TestCase):
+    @patch('ddsc.ddsclient.Client')
+    def test_run(self, mock_client):
+        move_command = MoveCommand(config=Mock())
+        move_command.run(Mock(project_name='mouse', project_id=None,
+                              source_remote_path='/data/file1.txt',
+                              target_remote_path='/data/file1.sv.txt'))
+        mock_project = mock_client.return_value.get_project_by_name.return_value
+        mock_project.move_file_or_folder.assert_called_with('/data/file1.txt', '/data/file1.sv.txt')
