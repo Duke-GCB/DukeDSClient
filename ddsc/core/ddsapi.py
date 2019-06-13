@@ -391,6 +391,34 @@ class DataServiceApi(object):
         """
         return self._get_single_item("/files/{}/url".format(file_id), {})
 
+    def rename_file(self, file_id, name):
+        """
+        Send PUT to /files{}/rename to rename a file
+        :param file_id: str: uuid of the file
+        :param name: str: new filename
+        :return: requests.Response containing the successful result
+        """
+        data = {
+            'name': name
+        }
+        return self._put("/files/{}/rename".format(file_id), data)
+
+    def move_file(self, file_id, parent_kind_str, parent_uuid):
+        """
+        Move a file to a new location within the same project by changing it's parent.
+        :param file_id: str: uuid of the file
+        :param parent_kind_str: type of parent (dds-folder,dds-project)
+        :param parent_uuid: str: uuid of the parent object
+        :return:
+        """
+        data = {
+            'parent': {
+                'kind': parent_kind_str,
+                'id': parent_uuid
+            }
+        }
+        return self._put("/files/{}/move".format(file_id), data)
+
     def create_folder(self, folder_name, parent_kind_str, parent_uuid):
         """
         Send POST to /folders to create a new folder with specified name and parent.
@@ -423,6 +451,34 @@ class DataServiceApi(object):
         :return: requests.Response containing the successful result
         """
         return self._delete("/folders/" + folder_id, {})
+
+    def rename_folder(self, folder_id, name):
+        """
+        Send PUT to /folders{}/rename to rename a folder
+        :param folder_id: str: uuid of the folder
+        :param name: str: new filename
+        :return: requests.Response containing the successful result
+        """
+        data = {
+            'name': name
+        }
+        return self._put("/folders/{}/rename".format(folder_id), data)
+
+    def move_folder(self, folder_id, parent_kind_str, parent_uuid):
+        """
+        Move a folder to a new location within the same project by changing it's parent.
+        :param folder_id: str: uuid of the folder
+        :param parent_kind_str: type of parent (dds-folder,dds-project)
+        :param parent_uuid: str: uuid of the parent object
+        :return: requests.Response containing the successful result
+        """
+        data = {
+            'parent': {
+                'kind': parent_kind_str,
+                'id': parent_uuid
+            }
+        }
+        return self._put("/folders/{}/move".format(folder_id), data)
 
     def get_project_children(self, project_id, name_contains, exclude_response_fields=None):
         """

@@ -35,6 +35,49 @@ class TestClient(TestCase):
 
     @patch('ddsc.sdk.client.create_config')
     @patch('ddsc.sdk.client.DDSConnection')
+    def test_get_project_by_name__find_one(self, mock_dss_connection, mock_create_config):
+        mock_project = Mock()
+        mock_project.name = 'myproject'
+        mock_dss_connection.return_value.get_projects.return_value = [
+            mock_project
+        ]
+
+        client = Client()
+        project = client.get_project_by_name('myproject')
+        self.assertEqual(project, mock_project)
+
+    @patch('ddsc.sdk.client.create_config')
+    @patch('ddsc.sdk.client.DDSConnection')
+    def test_get_project_by_name__none_found(self, mock_dss_connection, mock_create_config):
+        mock_project = Mock()
+        mock_project.name = 'myproject'
+        mock_dss_connection.return_value.get_projects.return_value = [
+            mock_project
+        ]
+
+        client = Client()
+        with self.assertRaises(ItemNotFound) as raised_exception:
+            client.get_project_by_name('myproject2')
+        self.assertEqual(str(raised_exception.exception), 'No project named myproject2 found.')
+
+    @patch('ddsc.sdk.client.create_config')
+    @patch('ddsc.sdk.client.DDSConnection')
+    def test_get_project_by_name__multiple_found(self, mock_dss_connection, mock_create_config):
+        mock_project = Mock()
+        mock_project.name = 'myproject'
+        mock_project2 = Mock()
+        mock_project2.name = 'myproject'
+        mock_dss_connection.return_value.get_projects.return_value = [
+            mock_project, mock_project2
+        ]
+
+        client = Client()
+        with self.assertRaises(ValueError) as raised_exception:
+            client.get_project_by_name('myproject')
+        self.assertEqual(str(raised_exception.exception), 'Multiple projects found with name myproject.')
+
+    @patch('ddsc.sdk.client.create_config')
+    @patch('ddsc.sdk.client.DDSConnection')
     def test_create_project(self, mock_dss_connection, mock_create_config):
         some_project = Mock()
         mock_dss_connection.return_value.create_project.return_value = some_project
@@ -235,7 +278,7 @@ class TestDDSConnection(TestCase):
     @patch('ddsc.sdk.client.DataServiceApi')
     @patch('ddsc.sdk.client.DataServiceAuth')
     @patch('ddsc.sdk.client.PathData')
-    @patch('ddsc.sdk.client.FileUploadOperations')
+    @patch('ddsc.sdk.client.FileUploadOperations', autospec=True)
     @patch('ddsc.sdk.client.ParallelChunkProcessor')
     def test_upload_file(self, mock_parallel_chunk_processor, mock_file_upload_operations, mock_path_data,
                          mock_data_service_auth, mock_data_service_api):
@@ -265,7 +308,7 @@ class TestDDSConnection(TestCase):
             mock_path_data.return_value,
             mock_path_data.return_value.get_hash.return_value,
             remote_filename='data.dat',
-            storage_provider=mock_config.storage_provider_id
+            storage_provider_id=mock_config.storage_provider_id
         )
         mock_parallel_chunk_processor.return_value.run.assert_called()
         mock_file_upload_operations.return_value.finish_upload.assert_called()
@@ -320,6 +363,42 @@ class TestDDSConnection(TestCase):
 
         mock_data_service_api.return_value.delete_file.assert_called_with('456')
 
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    @patch('ddsc.sdk.client.Folder')
+    def test_rename_folder(self, mock_folder, mock_data_service_auth, mock_data_service_api):
+        dds_connection = DDSConnection(Mock())
+        updated_folder = dds_connection.rename_folder('abc123', 'data-new')
+        self.assertEqual(updated_folder, mock_folder.return_value)
+        mock_data_service_api.return_value.rename_folder.assert_called_with('abc123', 'data-new')
+
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    @patch('ddsc.sdk.client.Folder')
+    def test_move_folder(self, mock_folder, mock_data_service_auth, mock_data_service_api):
+        dds_connection = DDSConnection(Mock())
+        updated_folder = dds_connection.move_folder('abc123', 'dds-folder', 'def456')
+        self.assertEqual(updated_folder, mock_folder.return_value)
+        mock_data_service_api.return_value.move_folder.assert_called_with('abc123', 'dds-folder', 'def456')
+
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    @patch('ddsc.sdk.client.File')
+    def test_rename_file(self, mock_file, mock_data_service_auth, mock_data_service_api):
+        dds_connection = DDSConnection(Mock())
+        updated_file = dds_connection.rename_file('abc123', 'dataold.txt')
+        self.assertEqual(updated_file, mock_file.return_value)
+        mock_data_service_api.return_value.rename_file.assert_called_with('abc123', 'dataold.txt')
+
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    @patch('ddsc.sdk.client.File')
+    def test_move_file(self, mock_file, mock_data_service_auth, mock_data_service_api):
+        dds_connection = DDSConnection(Mock())
+        updated_file = dds_connection.move_file('abc123', 'dds-folder', 'def456')
+        self.assertEqual(updated_file, mock_file.return_value)
+        mock_data_service_api.return_value.move_file.assert_called_with('abc123', 'dds-folder', 'def456')
+
 
 class TestBaseResponseItem(TestCase):
     def test_get_attr(self):
@@ -355,10 +434,36 @@ class TestProject(TestCase):
         mock_child_finder.return_value.get_child.return_value = mock_child
 
         project = Project(mock_dds_connection, self.project_dict)
-        child = project.get_child_for_path('data/file1.dat')
+        child = project.get_child_for_path('/data/file1.dat')
 
-        mock_child_finder.assert_called_with('data/file1.dat', project)
+        mock_child_finder.assert_called_with('/data/file1.dat', project)
         self.assertEqual(child, mock_child)
+
+    @patch('ddsc.sdk.client.ChildFinder')
+    def test_try_get_item_for_path__with_project(self, mock_child_finder):
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        project.get_child_for_path = Mock()
+        item = project.try_get_item_for_path('/')
+        self.assertEqual(item, project)
+        project.get_child_for_path.assert_not_called()
+
+    def test_try_get_item_for_path__with_child(self):
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        project.get_child_for_path = Mock()
+        item = project.try_get_item_for_path('/data/file1.dat')
+        self.assertEqual(item, project.get_child_for_path.return_value)
+        project.get_child_for_path.assert_called_with('/data/file1.dat')
+
+    def test_try_get_item_for_path__child_not_found(self):
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        project.get_child_for_path = Mock()
+        project.get_child_for_path.side_effect = ItemNotFound("Not Found")
+        item = project.try_get_item_for_path('/data/file1.dat')
+        self.assertEqual(item, None)
+        project.get_child_for_path.assert_called_with('/data/file1.dat')
 
     def test_create_folder(self):
         mock_dds_connection = Mock()
@@ -392,6 +497,14 @@ class TestProject(TestCase):
         project.delete()
 
         mock_dds_connection.delete_project.assert_called_with('123')
+
+    @patch('ddsc.sdk.client.MoveUtil')
+    def test_move_file_or_folder(self, mock_move_util):
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        project.move_file_or_folder('/data/file1.txt', '/data/file1.txt.bak')
+        mock_move_util.assert_called_with(project, '/data/file1.txt', '/data/file1.txt.bak')
+        mock_move_util.return_value.run.assert_called_with()
 
 
 class TestFolder(TestCase):
@@ -439,6 +552,21 @@ class TestFolder(TestCase):
                                                            parent_data=mock_parent_data.return_value)
         mock_parent_data.assert_called_with('dds-folder', '456')
         self.assertEqual(my_file, mock_file)
+
+    def test_rename(self):
+        mock_dds_connection = Mock()
+        folder = Folder(mock_dds_connection, self.folder_dict)
+        folder.rename('newfoldername')
+        mock_dds_connection.rename_folder.assert_called_with(self.folder_dict['id'], 'newfoldername')
+
+    def test_change_parent(self):
+        mock_parent = Mock()
+        mock_parent.kind = 'dds-folder'
+        mock_parent.id = 'def123'
+        mock_dds_connection = Mock()
+        folder = Folder(mock_dds_connection, self.folder_dict)
+        folder.change_parent(mock_parent)
+        mock_dds_connection.move_folder.assert_called_with(self.folder_dict['id'], 'dds-folder', 'def123')
 
 
 class TestFile(TestCase):
@@ -504,6 +632,21 @@ class TestFile(TestCase):
         mock_dds_connection.upload_file.assert_called_with('/tmp/data2.dat', project_id='123',
                                                            parent_data=mock_parent_data.return_value,
                                                            existing_file_id='456')
+
+    def test_rename(self):
+        mock_dds_connection = Mock()
+        dds_file = File(mock_dds_connection, self.file_dict)
+        dds_file.rename('newfoldername')
+        mock_dds_connection.rename_file.assert_called_with(self.file_dict['id'], 'newfoldername')
+
+    def test_change_parent(self):
+        mock_parent = Mock()
+        mock_parent.kind = 'dds-folder'
+        mock_parent.id = 'def123'
+        mock_dds_connection = Mock()
+        dds_file = File(mock_dds_connection, self.file_dict)
+        dds_file.change_parent(mock_parent)
+        mock_dds_connection.move_file.assert_called_with(self.file_dict['id'], 'dds-folder', 'def123')
 
 
 class TestFileDownload(TestCase):
@@ -614,6 +757,6 @@ class TestPathToFiles(TestCase):
         path_to_files.add_paths_for_children_of_node(mock_project)
 
         self.assertEqual({
-            'myfolder/myfile1': mock_file1,
-            'myfolder/myfile2': mock_file2
+            '/myfolder/myfile1': mock_file1,
+            '/myfolder/myfile2': mock_file2
         }, path_to_files.paths)

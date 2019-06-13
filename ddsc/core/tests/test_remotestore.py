@@ -1,4 +1,3 @@
-import os
 import json
 from unittest import TestCase
 from ddsc.core.util import KindType
@@ -50,7 +49,7 @@ class TestProjectFolderFile(TestCase):
         self.assertEqual('test4', project.name)
         self.assertEqual('test4desc', project.description)
         self.assertEqual(False, project.is_deleted)
-        self.assertEqual(os.sep, project.remote_path)
+        self.assertEqual('/', project.remote_path)
 
     def test_folder_item(self):
         projects_id_children_sample_json = """
@@ -92,12 +91,12 @@ class TestProjectFolderFile(TestCase):
         }"""
         blob = json.loads(projects_id_children_sample_json)
         folder_json = blob['results'][0]
-        folder = RemoteFolder(folder_json, 'tmp')
+        folder = RemoteFolder(folder_json, '/tmp')
         self.assertEqual('dds-folder', folder.kind)
         self.assertEqual('cf99a8f1-aebd-4640-8854-f34d03b7511e', folder.id)
         self.assertEqual('thistest', folder.name)
         self.assertEqual(False, folder.is_deleted)
-        self.assertEqual('tmp/thistest', folder.remote_path)
+        self.assertEqual('/tmp/thistest', folder.remote_path)
 
     def test_file_item_new_version(self):
         folders_id_children_sample_json = """
@@ -158,13 +157,13 @@ class TestProjectFolderFile(TestCase):
         """
         blob = json.loads(folders_id_children_sample_json)
         file_json = blob['results'][0]
-        file = RemoteFile(file_json, '')
+        file = RemoteFile(file_json, '/')
         self.assertEqual('dds-file', file.kind)
         self.assertEqual('3a14eac9-90f4-4667-9999-1625dd6c3d9a', file.id)
         self.assertEqual('bigWigToWig', file.name)
         self.assertEqual(False, file.is_deleted)
         self.assertEqual(1874572, file.size)
-        self.assertEqual('bigWigToWig', file.remote_path)
+        self.assertEqual('/bigWigToWig', file.remote_path)
 
     def test_file_item(self):
         folders_id_children_sample_json = """
@@ -225,13 +224,13 @@ class TestProjectFolderFile(TestCase):
         """
         blob = json.loads(folders_id_children_sample_json)
         file_json = blob['results'][0]
-        file = RemoteFile(file_json, 'test')
+        file = RemoteFile(file_json, '/test')
         self.assertEqual('dds-file', file.kind)
         self.assertEqual('3a14eac9-90f4-4667-9999-1625dd6c3d9a', file.id)
         self.assertEqual('bigWigToWig', file.name)
         self.assertEqual(False, file.is_deleted)
         self.assertEqual(1874572, file.size)
-        self.assertEqual('test/bigWigToWig', file.remote_path)
+        self.assertEqual('/test/bigWigToWig', file.remote_path)
 
 
 class TestRemoteUser(TestCase):

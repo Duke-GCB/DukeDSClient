@@ -57,6 +57,17 @@ class DukeDS(object):
         Session().download_file(project_name, remote_path, local_path)
 
     @staticmethod
+    def move_file_or_folder(project_name, source_remote_path, target_remote_path):
+        """
+        Move a file or folder specified by source_remote_path to target_remote_path.
+        This operation is loosely modeled after linux 'mv' command.
+        :param project_name: str: name of the project containing the file
+        :param source_remote_path: str: remote path specifying the file/folder to be moved
+        :param target_remote_path: str: remote path specifying where to move the file/folder to
+        """
+        Session().move_file_or_folder(project_name, source_remote_path, target_remote_path)
+
+    @staticmethod
     def upload_file(project_name, local_path, remote_path=None):
         """
         Upload a file into project creating a new version if it already exists.
@@ -228,3 +239,7 @@ class Session(object):
         data_service = self.client.dds_connection.data_service
         dds_user_util = UserUtil(data_service, logging_func=logging_func)
         return dds_user_util.user_or_affiliate_exists_for_username(username)
+
+    def move_file_or_folder(self, project_name, source_remote_path, target_remote_path):
+        project = self._get_or_create_project(project_name)
+        project.move_file_or_folder(source_remote_path, target_remote_path)

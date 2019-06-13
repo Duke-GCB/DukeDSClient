@@ -194,3 +194,13 @@ class TestDukeDS(TestCase):
         dds_user_util = mock_user_util.return_value
         dds_user_util.user_or_affiliate_exists_for_username.assert_called_with("fakeuser")
         self.assertEqual(result, dds_user_util.user_or_affiliate_exists_for_username.return_value)
+
+    @patch('ddsc.sdk.dukeds.Client')
+    def test_move_file_or_folder(self, mock_client):
+        mock_project = Mock()
+        mock_project.name = 'myproject'
+        mock_client.return_value.get_projects.return_value = [
+            mock_project
+        ]
+        DukeDS.move_file_or_folder('myproject', '/data/file1.txt', '/data/file1_bak.txt')
+        mock_project.move_file_or_folder.assert_called_with('/data/file1.txt', '/data/file1_bak.txt')

@@ -2,11 +2,12 @@ import os
 from collections import OrderedDict
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.config import create_config
-from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile
+from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile, RemotePath
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
 from ddsc.core.download import FileHash, DownloadSettings, FileDownloader, FileToDownload
-from ddsc.core.util import KindType, NoOpProgressPrinter
+from ddsc.core.util import KindType, NoOpProgressPrinter, REMOTE_PATH_SEP
+from ddsc.core.moveutil import MoveUtil
 from future.utils import python_2_unicode_compatible
 
 
@@ -35,6 +36,19 @@ class Client(object):
         :return: Project
         """
         return self.dds_connection.get_project_by_id(project_id)
+
+    def get_project_by_name(self, project_name):
+        """
+        Retrieve a single project.
+        :param project_name: name of the project to get.
+        :return: Project
+        """
+        projects = [project for project in self.get_projects() if project.name == project_name]
+        if not projects:
+            raise ItemNotFound("No project named {} found.".format(project_name))
+        if len(projects) != 1:
+            raise ValueError("Multiple projects found with name {}.".format(project_name))
+        return projects[0]
 
     def create_project(self, name, description):
         """
@@ -192,7 +206,7 @@ class DDSConnection(object):
         file_upload_operations = FileUploadOperations(self.data_service, None)
         upload_id = file_upload_operations.create_upload(project_id, path_data, hash_data,
                                                          remote_filename=remote_filename,
-                                                         storage_provider=self.config.storage_provider_id)
+                                                         storage_provider_id=self.config.storage_provider_id)
         context = UploadContext(self.config, self.data_service, upload_id, path_data)
         ParallelChunkProcessor(context).run()
         remote_file_data = file_upload_operations.finish_upload(upload_id, hash_data, parent_data, existing_file_id)
@@ -236,6 +250,30 @@ class DDSConnection(object):
 
     def delete_file(self, file_id):
         self.data_service.delete_file(file_id)
+
+    def rename_folder(self, folder_id, name):
+        return self._create_item_response(
+            self.data_service.rename_folder(folder_id, name),
+            Folder
+        )
+
+    def move_folder(self, folder_id, parent_kind_str, parent_uuid):
+        return self._create_item_response(
+            self.data_service.move_folder(folder_id, parent_kind_str, parent_uuid),
+            Folder
+        )
+
+    def rename_file(self, file_id, name):
+        return self._create_item_response(
+            self.data_service.rename_file(file_id, name),
+            File
+        )
+
+    def move_file(self, file_id, parent_kind_str, parent_uuid):
+        return self._create_item_response(
+            self.data_service.move_file(file_id, parent_kind_str, parent_uuid),
+            File
+        )
 
 
 class BaseResponseItem(object):
@@ -282,12 +320,25 @@ class Project(BaseResponseItem):
 
     def get_child_for_path(self, path):
         """
-        Based on a remote path get a single remote child.
+        Based on a remote path get a single remote child. When not found raises ItemNotFound.
         :param path: str: path within a project specifying a file or folder to download
         :return: File|Folder
         """
         child_finder = ChildFinder(path, self)
         return child_finder.get_child()
+
+    def try_get_item_for_path(self, path):
+        """
+        Based on a remote path get a single remote child. When not found returns None.
+        :param path: str: path within a project specifying a file or folder to download
+        :return: File|Folder|Project|None
+        """
+        try:
+            if path == REMOTE_PATH_SEP:
+                return self
+            return self.get_child_for_path(path)
+        except ItemNotFound:
+            return None
 
     def create_folder(self, folder_name):
         """
@@ -307,6 +358,17 @@ class Project(BaseResponseItem):
         parent_data = ParentData(self.kind, self.id)
         return self.dds_connection.upload_file(local_path, project_id=self.id, parent_data=parent_data,
                                                remote_filename=remote_filename)
+
+    def move_file_or_folder(self, source_remote_path, target_remote_path):
+        """
+        Move a file or folder specified by source_remote_path to target_remote_path.
+        This operation is loosely modeled after linux 'mv' command.
+        :param source_remote_path: str: remote path specifying the file/folder to be moved
+        :param target_remote_path: str: remote path specifying where to move the file/folder to
+        :return File|Folder: moved item with updated data
+        """
+        move_util = MoveUtil(self, source_remote_path, target_remote_path)
+        return move_util.run()
 
     def delete(self):
         """
@@ -363,6 +425,12 @@ class Folder(BaseResponseItem):
         """
         self.dds_connection.delete_folder(self.id)
 
+    def rename(self, name):
+        return self.dds_connection.rename_folder(self.id, name)
+
+    def change_parent(self, parent):
+        return self.dds_connection.move_folder(self.id, parent.kind, parent.id)
+
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
 
@@ -418,6 +486,12 @@ class File(BaseResponseItem):
     def get_hash(self):
         return RemoteFile.get_hash_from_upload(self.current_version["upload"])
 
+    def rename(self, name):
+        return self.dds_connection.rename_file(self.id, name)
+
+    def change_parent(self, parent):
+        return self.dds_connection.move_file(self.id, parent.kind, parent.id)
+
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
 
@@ -458,7 +532,7 @@ class FileUpload(object):
         self.local_path = local_path
 
     def run(self):
-        parts = self.remote_path.split(os.sep)
+        parts = RemotePath.split(self.remote_path)
         if len(parts) == 1:
             self._upload_to_parent(self.project)
         else:
@@ -504,7 +578,7 @@ class ChildFinder(object):
         Find file or folder at the remote_path
         :return: File|Folder
         """
-        path_parts = self.remote_path.split(os.sep)
+        path_parts = RemotePath.split(self.remote_path)
         return self._get_child_recurse(path_parts, self.node)
 
     def _get_child_recurse(self, path_parts, node):
@@ -522,7 +596,7 @@ class PathToFiles(object):
         self.paths = OrderedDict()
 
     def add_paths_for_children_of_node(self, node):
-        self._child_recurse(node, '')
+        self._child_recurse(node, REMOTE_PATH_SEP)
 
     def _child_recurse(self, node, parent_path):
         for child in node.get_children():
