@@ -486,7 +486,7 @@ class CommandParser(object):
                       "Otherwise Source will be renamed to the filename of Target and moved into the parent" \
                       " directory of Target. Target and Source are remote paths that must start with a '/'."
         parser = self.subparsers.add_parser('move', description=description)
-        add_project_name_or_id_arg(parser, help_text_suffix="move")
+        add_project_name_or_id_arg(parser, help_text_suffix="containing a file/folder to move")
         parser.add_argument("source_remote_path",
                             metavar='Source',
                             type=to_unicode,
