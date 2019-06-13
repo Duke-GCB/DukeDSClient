@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from ddsc.core.util import verify_terminal_encoding, ProgressBar, ProgressPrinter, KindType
+from ddsc.core.util import verify_terminal_encoding, ProgressBar, ProgressPrinter, KindType, RemotePath
 from mock import patch, Mock
 
 
@@ -172,3 +172,17 @@ class TestProgressPrinter(TestCase):
         progress_printer.done_waiting()
         self.assertEqual(False, progress_printer.waiting)
         self.assertEqual(1, progress_printer.progress_bar.show_running.call_count)
+
+
+class TestRemotePath(TestCase):
+    def test_add_leading_slash(self):
+        self.assertEqual(RemotePath.add_leading_slash('data'), '/data')
+
+    def test_strip_leading_slash(self):
+        self.assertEqual(RemotePath.strip_leading_slash('/data'), 'data')
+        self.assertEqual(RemotePath.strip_leading_slash('data'), 'data')
+
+    def test_split(self):
+        self.assertEqual(RemotePath.split('/data'), ['data'])
+        self.assertEqual(RemotePath.split('/data/file1.txt'), ['data', 'file1.txt'])
+        self.assertEqual(RemotePath.split('/data/other/file1.txt'), ['data', 'other', 'file1.txt'])

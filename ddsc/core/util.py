@@ -379,3 +379,18 @@ def mode_allows_group_or_other(st_mode):
     :return: bool: true when group or other has some permissions
     """
     return (st_mode & stat.S_IRWXO or st_mode & stat.S_IRWXG) != 0
+
+
+class RemotePath(object):
+    @staticmethod
+    def add_leading_slash(path):
+        return '{}{}'.format(REMOTE_PATH_SEP, path)
+
+    @staticmethod
+    def strip_leading_slash(path):
+        return path.lstrip(REMOTE_PATH_SEP)
+
+    @staticmethod
+    def split(remote_path):
+        remote_path_no_leading_slash = RemotePath.strip_leading_slash(remote_path)
+        return remote_path_no_leading_slash.split(REMOTE_PATH_SEP)

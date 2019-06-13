@@ -2,7 +2,7 @@ import os
 from collections import OrderedDict
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.config import create_config
-from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile
+from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile, RemotePath
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
 from ddsc.core.download import FileHash, DownloadSettings, FileDownloader, FileToDownload
@@ -532,8 +532,7 @@ class FileUpload(object):
         self.local_path = local_path
 
     def run(self):
-        remote_path_without_leading_slash = self.remote_path.lstrip(REMOTE_PATH_SEP)
-        parts = remote_path_without_leading_slash.split(REMOTE_PATH_SEP)
+        parts = RemotePath.split(self.remote_path)
         if len(parts) == 1:
             self._upload_to_parent(self.project)
         else:
@@ -579,8 +578,7 @@ class ChildFinder(object):
         Find file or folder at the remote_path
         :return: File|Folder
         """
-        remote_path_without_leading_slash = self.remote_path.lstrip(REMOTE_PATH_SEP)
-        path_parts = remote_path_without_leading_slash.split(REMOTE_PATH_SEP)
+        path_parts = RemotePath.split(self.remote_path)
         return self._get_child_recurse(path_parts, self.node)
 
     def _get_child_recurse(self, path_parts, node):
