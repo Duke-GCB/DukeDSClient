@@ -19,6 +19,8 @@ chmod 600 ~/.ddsclient
 
 """
 
+REMOTE_PATH_SEP = '/'
+
 
 class KindType(object):
     """
@@ -279,9 +281,11 @@ class ProjectDetailsList(object):
 
     def get_name(self, item, parent):
         if parent:
+            if parent.kind == KindType.project_str:
+                return '{}{}'.format(REMOTE_PATH_SEP, item.name)
             parent_name = self.id_to_path.get(parent.id)
             if parent_name:
-                return "{}/{}".format(parent_name, item.name)
+                return "{}{}{}".format(parent_name, REMOTE_PATH_SEP, item.name)
         return item.name
 
 

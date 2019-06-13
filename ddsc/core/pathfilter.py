@@ -3,7 +3,7 @@ Classes for filtering a list of paths based on either a list of paths to include
 """
 
 import os
-from ddsc.core.util import FilteredProject
+from ddsc.core.util import FilteredProject, REMOTE_PATH_SEP
 
 
 class PathFilter(object):
@@ -81,13 +81,19 @@ class PathFilterUtil(object):
         return PathFilterUtil.is_child(path, some_path) or PathFilterUtil.is_child(some_path, path)
 
     @staticmethod
-    def strip_trailing_slash(paths):
+    def normalize_slashes(paths):
         """
-        Remove trailing slash from a list of paths
+        Removes trailing slashes and make sure paths begin with a leading slash.
         :param paths: [str]: paths to fix
-        :return: [str]: stripped paths
+        :return: [str]: array of normalized paths
         """
-        return [path.rstrip(os.sep) for path in paths]
+        normalized_paths = []
+        for path in paths:
+            path = path.rstrip(REMOTE_PATH_SEP)
+            if not path.startswith(REMOTE_PATH_SEP):
+                path = REMOTE_PATH_SEP + path
+            normalized_paths.append(path)
+        return normalized_paths
 
 
 class IncludeAll(object):
@@ -109,7 +115,7 @@ class IncludeFilter(object):
     Path filter that will include paths that are parent/children/equal to include_paths.
     """
     def __init__(self, paths):
-        self.paths = PathFilterUtil.strip_trailing_slash(paths)
+        self.paths = PathFilterUtil.normalize_slashes(paths)
 
     def include(self, some_path):
         if some_path in self.paths:
@@ -125,7 +131,7 @@ class ExcludeFilter(object):
     Path filter that will exclude paths that are children/equal to include_paths.
     """
     def __init__(self, paths):
-        self.paths = PathFilterUtil.strip_trailing_slash(paths)
+        self.paths = PathFilterUtil.normalize_slashes(paths)
 
     def include(self, some_path):
         if some_path in self.paths:
