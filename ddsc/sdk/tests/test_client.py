@@ -76,19 +76,6 @@ class TestClient(TestCase):
             client.get_project_by_name('myproject')
         self.assertEqual(str(raised_exception.exception), 'Multiple projects found with name myproject.')
 
-    # def get_project_by_name(self, project_name):
-    #     """
-    #     Retrieve a single project.
-    #     :param project_name: name of the project to get.
-    #     :return: Project
-    #     """
-    #     projects = [project for project in self.get_projects() if project.name == project_name]
-    #     if not projects:
-    #         raise ItemNotFound("No project named {} found.".format(project_name))
-    #     if len(projects) != 1:
-    #         raise ValueError("Multiple projects found with name:" + project_name)
-    #     return projects[0]
-
     @patch('ddsc.sdk.client.create_config')
     @patch('ddsc.sdk.client.DDSConnection')
     def test_create_project(self, mock_dss_connection, mock_create_config):
@@ -124,38 +111,6 @@ class TestClient(TestCase):
 
         self.assertEqual(folder, some_file)
         mock_dss_connection.return_value.get_file_by_id.assert_called_with('456')
-
-    def test_get_project_by_name_not_found(self):
-        client = Client()
-        client.get_projects = Mock()
-        client.get_projects.return_value = []
-        with self.assertRaises(ItemNotFound) as raised_exception:
-            client.get_project_by_name('myproject')
-        self.assertEqual(str(raised_exception.exception), 'No project named myproject found.')
-        client.get_projects.assert_called_with()
-
-    def test_get_project_by_name_found_one(self):
-        client = Client()
-        client.get_projects = Mock()
-        project1 = Mock()
-        project1.name = 'myproject'
-        project2 = Mock()
-        project2.name = 'otherproject'
-        client.get_projects.return_value = [project1, project2]
-        project = client.get_project_by_name('myproject')
-        self.assertEqual(project, project1)
-
-    def test_get_project_by_name_found_many_with_same_name(self):
-        client = Client()
-        client.get_projects = Mock()
-        project1 = Mock()
-        project1.name = 'myproject'
-        project2 = Mock()
-        project2.name = 'myproject'
-        client.get_projects.return_value = [project1, project2]
-        with self.assertRaises(ValueError) as raised_exception:
-            client.get_project_by_name('myproject')
-        self.assertEqual(str(raised_exception.exception), 'Multiple projects found with name myproject.')
 
 
 class TestDDSConnection(TestCase):
