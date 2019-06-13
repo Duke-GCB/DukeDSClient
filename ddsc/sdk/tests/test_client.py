@@ -308,7 +308,7 @@ class TestDDSConnection(TestCase):
             mock_path_data.return_value,
             mock_path_data.return_value.get_hash.return_value,
             remote_filename='data.dat',
-            storage_provider=mock_config.storage_provider_id
+            storage_provider_id=mock_config.storage_provider_id
         )
         mock_parallel_chunk_processor.return_value.run.assert_called()
         mock_file_upload_operations.return_value.finish_upload.assert_called()

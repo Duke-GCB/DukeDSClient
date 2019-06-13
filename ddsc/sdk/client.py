@@ -206,7 +206,7 @@ class DDSConnection(object):
         file_upload_operations = FileUploadOperations(self.data_service, None)
         upload_id = file_upload_operations.create_upload(project_id, path_data, hash_data,
                                                          remote_filename=remote_filename,
-                                                         storage_provider=self.config.storage_provider_id)
+                                                         storage_provider_id=self.config.storage_provider_id)
         context = UploadContext(self.config, self.data_service, upload_id, path_data)
         ParallelChunkProcessor(context).run()
         remote_file_data = file_upload_operations.finish_upload(upload_id, hash_data, parent_data, existing_file_id)
@@ -532,7 +532,8 @@ class FileUpload(object):
         self.local_path = local_path
 
     def run(self):
-        parts = self.remote_path.split(REMOTE_PATH_SEP)
+        remote_path_without_leading_slash = self.remote_path.lstrip(REMOTE_PATH_SEP)
+        parts = remote_path_without_leading_slash.split(REMOTE_PATH_SEP)
         if len(parts) == 1:
             self._upload_to_parent(self.project)
         else:
