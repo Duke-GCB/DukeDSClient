@@ -481,15 +481,18 @@ class CommandParser(object):
         Add 'move' command to move a file/folder within a remote project.
         :param move_func: function: run when user choses this option.
         """
-        description = "Move/rename a file/folder within a project."
+        description = "Moves and/or renames a file or folder within a project. \n" \
+                      "When Target is a directory Source will be moved into it that directory. " \
+                      "Otherwise Source will be renamed to the filename of Target and moved into the parent" \
+                      " directory of Target. Target and Source are remote paths that must start with a '/'."
         parser = self.subparsers.add_parser('move', description=description)
         add_project_name_or_id_arg(parser, help_text_suffix="move")
         parser.add_argument("source_remote_path",
-                            metavar='SourceRemotePath',
+                            metavar='Source',
                             type=to_unicode,
                             help='remote path specifying the file/folder to be moved')
         parser.add_argument("target_remote_path",
-                            metavar='TargetRemotePath',
+                            metavar='Target',
                             type=to_unicode,
                             help='remote path specifying where to move the file/folder to')
         parser.set_defaults(func=move_func)
