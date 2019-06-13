@@ -49,4 +49,4 @@ class MoveUtil(object):
 
     @staticmethod
     def is_folder_or_project(item):
-        return item.kind == KindType.folder_str or item.kind == KindType.project_str
+        return KindType.is_folder(item) or KindType.is_project(item)

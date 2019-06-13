@@ -6,7 +6,7 @@ from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectF
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
 from ddsc.core.download import FileHash, DownloadSettings, FileDownloader, FileToDownload
-from ddsc.core.util import KindType, NoOpProgressPrinter
+from ddsc.core.util import KindType, NoOpProgressPrinter, REMOTE_PATH_SEP
 from ddsc.core.moveutil import MoveUtil
 from future.utils import python_2_unicode_compatible
 
@@ -334,7 +334,7 @@ class Project(BaseResponseItem):
         :return: File|Folder|Project|None
         """
         try:
-            if path == '/':
+            if path == REMOTE_PATH_SEP:
                 return self
             return self.get_child_for_path(path)
         except ItemNotFound:
@@ -532,7 +532,7 @@ class FileUpload(object):
         self.local_path = local_path
 
     def run(self):
-        parts = self.remote_path.split(os.sep)
+        parts = self.remote_path.split(REMOTE_PATH_SEP)
         if len(parts) == 1:
             self._upload_to_parent(self.project)
         else:
@@ -578,7 +578,7 @@ class ChildFinder(object):
         Find file or folder at the remote_path
         :return: File|Folder
         """
-        path_parts = self.remote_path.lstrip("/").split(os.sep)
+        path_parts = self.remote_path.lstrip(REMOTE_PATH_SEP).split(REMOTE_PATH_SEP)
         return self._get_child_recurse(path_parts, self.node)
 
     def _get_child_recurse(self, path_parts, node):
@@ -596,7 +596,7 @@ class PathToFiles(object):
         self.paths = OrderedDict()
 
     def add_paths_for_children_of_node(self, node):
-        self._child_recurse(node, '/')
+        self._child_recurse(node, REMOTE_PATH_SEP)
 
     def _child_recurse(self, node, parent_path):
         for child in node.get_children():
