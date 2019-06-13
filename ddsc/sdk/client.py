@@ -578,7 +578,8 @@ class ChildFinder(object):
         Find file or folder at the remote_path
         :return: File|Folder
         """
-        path_parts = self.remote_path.lstrip(REMOTE_PATH_SEP).split(REMOTE_PATH_SEP)
+        remote_path_without_leading_slash = self.remote_path.lstrip(REMOTE_PATH_SEP)
+        path_parts = remote_path_without_leading_slash.split(REMOTE_PATH_SEP)
         return self._get_child_recurse(path_parts, self.node)
 
     def _get_child_recurse(self, path_parts, node):
