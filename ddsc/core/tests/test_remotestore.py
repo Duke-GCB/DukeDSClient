@@ -1,4 +1,3 @@
-import os
 import json
 from unittest import TestCase
 from ddsc.core.util import KindType
