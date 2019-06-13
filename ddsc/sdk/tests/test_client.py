@@ -278,7 +278,7 @@ class TestDDSConnection(TestCase):
     @patch('ddsc.sdk.client.DataServiceApi')
     @patch('ddsc.sdk.client.DataServiceAuth')
     @patch('ddsc.sdk.client.PathData')
-    @patch('ddsc.sdk.client.FileUploadOperations')
+    @patch('ddsc.sdk.client.FileUploadOperations', autospec=True)
     @patch('ddsc.sdk.client.ParallelChunkProcessor')
     def test_upload_file(self, mock_parallel_chunk_processor, mock_file_upload_operations, mock_path_data,
                          mock_data_service_auth, mock_data_service_api):
