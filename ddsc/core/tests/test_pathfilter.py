@@ -1,5 +1,5 @@
 from unittest import TestCase
-from ddsc.core.pathfilter import PathFilter, IncludeFilter, ExcludeFilter, PathFilteredProject
+from ddsc.core.pathfilter import PathFilter, IncludeFilter, ExcludeFilter, PathFilteredProject, PathFilterUtil
 from ddsc.core.remotestore import RemoteProject, RemoteFolder, RemoteFile
 
 
@@ -7,6 +7,25 @@ class TestPathFilter(TestCase):
     def test_invalid_path_setup(self):
         with self.assertRaises(ValueError):
             PathFilter(include_paths=['data'], exclude_paths=['results'])
+
+
+class TestPathFilterUtil(TestCase):
+    def test_normalize_slashes(self):
+        paths = [
+            'path/no/leading/slash.txt',
+            '/path/with/leading_slash.txt',
+            'directory/with/trailing/slashes/',
+            '/directory/with/slashes/',
+            '/directory/with/no/trailing/slash',
+        ]
+        fixed_paths = PathFilterUtil.normalize_slashes(paths)
+        self.assertEqual(fixed_paths, [
+            '/path/no/leading/slash.txt',
+            '/path/with/leading_slash.txt',
+            '/directory/with/trailing/slashes',
+            '/directory/with/slashes',
+            '/directory/with/no/trailing/slash'
+        ])
 
 
 class TestPathFilteredProject(TestCase):
@@ -192,6 +211,20 @@ class TestIncludeFilter(TestCase):
         ]
         self.check_filter(path_filter, yes_values, no_values)
 
+    def test_include_top_level_file_with_leading_slash(self):
+        path_filter = IncludeFilter(["/123.txt"])
+        yes_values = [
+            "/123.txt"
+        ]
+        no_values = [
+            "/data",
+            "/.txt",
+            "/123",
+            "/data/123.txt",
+            "/results/123.txt"
+        ]
+        self.check_filter(path_filter, yes_values, no_values)
+
     def test_include_top_level_dir(self):
         path_filter = IncludeFilter(["data"])
         yes_values = [
@@ -258,6 +291,24 @@ class TestIncludeFilter(TestCase):
         ]
         self.check_filter(path_filter, yes_values, no_values)
 
+    def test_include_multiple_with_leading_slash(self):
+        path_filter = IncludeFilter(["/data", "/stuff/info.txt"])
+        yes_values = [
+            "/data",
+            "/data/raw_files",
+            "/data/raw_files/mine.txt",
+            "/stuff",
+            "/stuff/info.txt"
+        ]
+        no_values = [
+            "/mine.txt",
+            "/raw_files/mine.txt",
+            "/dat/raw_files/mine.txt"
+            "/data/raw_files/other.txt",
+            "/stuff/other.txt"
+        ]
+        self.check_filter(path_filter, yes_values, no_values)
+
 
 class TestExcludeFilter(TestCase):
     def check_filter(self, path_filter, yes_values, no_values):
@@ -268,6 +319,20 @@ class TestExcludeFilter(TestCase):
 
     def test_include_top_level_file(self):
         path_filter = ExcludeFilter(["123.txt"])
+        yes_values = [
+            "/data",
+            "/.txt",
+            "/123",
+            "/data/123.txt",
+            "/results/123.txt"
+        ]
+        no_values = [
+            "/123.txt"
+        ]
+        self.check_filter(path_filter, yes_values, no_values)
+
+    def test_include_top_level_file_with_leading_slash(self):
+        path_filter = ExcludeFilter(["/123.txt"])
         yes_values = [
             "/data",
             "/.txt",
@@ -311,6 +376,22 @@ class TestExcludeFilter(TestCase):
 
     def test_include_multiple(self):
         path_filter = ExcludeFilter(["data/results", "test/data.txt"])
+        yes_values = [
+            "/data",
+            "/results"
+            "/results/123.txt",
+            "/test",
+            "/test/data.doc"
+        ]
+        no_values = [
+            "/data/results",
+            "/data/results/123.txt",
+            "/test/data.txt"
+        ]
+        self.check_filter(path_filter, yes_values, no_values)
+
+    def test_include_multiple_with_leading_slash(self):
+        path_filter = ExcludeFilter(["/data/results", "/test/data.txt"])
         yes_values = [
             "/data",
             "/results"

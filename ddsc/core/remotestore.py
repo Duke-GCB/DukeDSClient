@@ -1,6 +1,6 @@
 import os
 from ddsc.core.ddsapi import DataServiceApi, DataServiceError, DataServiceAuth
-from ddsc.core.util import KindType
+from ddsc.core.util import KindType, REMOTE_PATH_SEP
 from ddsc.core.localstore import HashUtil
 from ddsc.core.userutil import UserUtil
 
@@ -338,7 +338,7 @@ class RemoteProject(object):
         self.description = json_data['description']
         self.is_deleted = json_data['is_deleted']
         self.children = []
-        self.remote_path = '/'
+        self.remote_path = REMOTE_PATH_SEP
 
     def add_child(self, child):
         """
@@ -530,7 +530,7 @@ class RemoteProjectChildren(object):
         Return array of RemoteFolders(with appropriate children)/RemoteFiles based on the values from constructor.
         :return: [RemoteFolder/RemoteFile]
         """
-        return self.get_tree_recur(self.project_id, '/')
+        return self.get_tree_recur(self.project_id, REMOTE_PATH_SEP)
 
     def get_tree_recur(self, parent_id, parent_path):
         """
@@ -633,20 +633,32 @@ class ProjectFile(object):
         self.json_data = json_data
         self.kind = KindType.file_str
 
+    @staticmethod
+    def add_leading_slash(path):
+        return '{}{}'.format(REMOTE_PATH_SEP, path)
+
+    @staticmethod
+    def strip_leading_slash(path):
+        return path.lstrip(REMOTE_PATH_SEP)
+
     @property
     def path(self):
         names = self._get_remote_parent_folder_names()
         names.append(self.name)
-        return os.sep.join(names)
+        return self.add_leading_slash(REMOTE_PATH_SEP.join(names))
 
     def get_remote_parent_path(self):
-        return os.sep.join(self._get_remote_parent_folder_names())
+        parent_folders_path = REMOTE_PATH_SEP.join(self._get_remote_parent_folder_names())
+        return self.add_leading_slash(parent_folders_path)
 
     def _get_remote_parent_folder_names(self):
         return [item['name'] for item in self.ancestors if item['kind'] == KindType.folder_str]
 
     def get_local_path(self, directory_path):
-        return os.path.join(directory_path, self.path)
+        # Removing leading slash from self.path because os.path.join ignores preceding paths if it encounters an
+        # absolute path.
+        path_without_leading_slash = self.strip_leading_slash(self.path)
+        return os.path.join(directory_path, path_without_leading_slash)
 
     def get_hash(self):
         return RemoteFile.get_hash_from_upload(self.json_data)
