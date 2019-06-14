@@ -476,6 +476,27 @@ class CommandParser(object):
         list_auth_roles_parser = self.subparsers.add_parser('list-auth-roles', description=description)
         list_auth_roles_parser.set_defaults(func=list_auth_roles_func)
 
+    def register_move_command(self, move_func):
+        """
+        Add 'move' command to move a file/folder within a remote project.
+        :param move_func: function: run when user choses this option.
+        """
+        description = "Moves and/or renames a file or folder within a project. \n" \
+                      "When Target is a directory Source will be moved into it that directory. " \
+                      "Otherwise Source will be renamed to the filename of Target and moved into the parent" \
+                      " directory of Target. Target and Source are remote paths that must start with a '/'."
+        parser = self.subparsers.add_parser('move', description=description)
+        add_project_name_or_id_arg(parser, help_text_suffix="containing a file/folder to move")
+        parser.add_argument("source_remote_path",
+                            metavar='Source',
+                            type=to_unicode,
+                            help='remote path specifying the file/folder to be moved')
+        parser.add_argument("target_remote_path",
+                            metavar='Target',
+                            type=to_unicode,
+                            help='remote path specifying where to move the file/folder to')
+        parser.set_defaults(func=move_func)
+
     def run_command(self, args):
         """
         Parse command line arguments and run function registered for the appropriate command.
