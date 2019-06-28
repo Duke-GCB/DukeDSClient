@@ -7,7 +7,7 @@ from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundErro
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
     retry_until_resource_is_consistent, retry_when_service_unavailable, CONNECTION_RETRY_MESSAGE, \
     CONNECTION_RETRY_SECONDS, SERVICE_DOWN_RETRY_SECONDS
-from mock import MagicMock, Mock, patch, ANY, call
+from mock import MagicMock, Mock, patch, ANY
 
 
 def fake_response_with_pages(status_code, json_return_value, num_pages=1):
