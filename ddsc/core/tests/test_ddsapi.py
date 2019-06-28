@@ -820,6 +820,15 @@ class TestDataServiceApi(TestCase):
         self.assertEqual(resp, api._put.return_value)
         api._put.assert_called_with('/folders/abc123/move', {'parent': {'kind': 'dds-folder', 'id': 'def456'}})
 
+    @patch('ddsc.core.ddsapi.print')
+    def test_implements_set_status_message(self, mock_print):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        api.set_status_message('Connection error')
+        mock_print.assert_called_with('Connection error')
+
 
 class TestDataServiceAuth(TestCase):
     @patch('ddsc.core.ddsapi.get_user_agent_str')
@@ -870,6 +879,13 @@ class TestDataServiceAuth(TestCase):
         error_message = str(err.exception)
         self.assertIn('500', error_message)
         self.assertIn('service down', error_message)
+
+    @patch('ddsc.core.ddsapi.print')
+    def test_implements_set_status_message(self, mock_print):
+        config = Mock(url='', user_key='', agent_key='abc')
+        auth = DataServiceAuth(config)
+        auth.set_status_message('Connection error')
+        mock_print.assert_called_with('Connection error')
 
 
 class TestMissingInitialSetupError(TestCase):
