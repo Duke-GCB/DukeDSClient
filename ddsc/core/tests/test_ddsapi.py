@@ -6,7 +6,7 @@ from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth,
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
     retry_until_resource_is_consistent, retry_when_service_unavailable, CONNECTION_RETRY_MESSAGE, \
-    CONNECTION_RETRY_SECONDS, SERVICE_DOWN_RETRY_SECONDS
+    CONNECTION_RETRY_SECONDS, SERVICE_DOWN_RETRY_SECONDS, CONNECTION_RETRY_TIMES
 from mock import MagicMock, Mock, patch, ANY
 
 
@@ -1026,7 +1026,7 @@ class TestRetryWhenServiceUnavailable(TestCase):
             self.assertEqual('result123', self.func('123'))
         except requests.exceptions.ConnectionError:
             pass
-        self.assertEqual(5, mock_time.sleep.call_count)
+        self.assertEqual(CONNECTION_RETRY_TIMES, mock_time.sleep.call_count)
         mock_time.sleep.assert_called_with(CONNECTION_RETRY_SECONDS)
         self.assertEqual(1, len(self.status_messages))
         self.assertEqual(CONNECTION_RETRY_MESSAGE, self.status_messages[0])
