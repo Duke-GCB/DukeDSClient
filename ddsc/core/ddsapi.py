@@ -16,6 +16,9 @@ The operation will be retried automatically, so no action is required. It will c
 
 To cancel this operation, press Ctrl+C.
 """
+CONNECTION_RETRY_TIMES = 5
+CONNECTION_RETRY_MESSAGE = "Connection failed. Retrying."
+CONNECTION_RETRY_SECONDS = 1
 
 
 def get_user_agent_str():
@@ -26,31 +29,43 @@ def get_user_agent_str():
     return '{}/{}'.format(APP_NAME, get_internal_version_str())
 
 
-def retry_when_service_down(func):
+def retry_when_service_unavailable(func):
     """
-    Decorator that will retry a function while it fails with status code 503
-    Assumes the first argument to the fuction will be an object with a set_status_message method.
-    :param func: function: will be called until it doesn't fail with DataServiceError status 503
+    Decorator that will retry a function while it fails with status code 503 and up to CONNECTION_RETRY_TIMES connection
+    errors. Assumes the first argument to the function will be an object with a set_status_message method.
+    :param func: function: will be called until it doesn't fail with DataServiceError status 503, or too many ConnectionErrors
     :return: value returned by func
     """
     def retry_function(*args, **kwds):
-        showed_status_msg = False
+        current_status_msg = None
+        sleep_seconds = 0
+        status_msg = None
         status_watcher = args[0]
+        connection_retries = 0
         while True:
             try:
                 result = func(*args, **kwds)
-                if showed_status_msg:
+                if current_status_msg:
                     status_watcher.set_status_message('')
                 return result
-            except DataServiceError as dse:
-                if dse.status_code == 503:
-                    if not showed_status_msg:
-                        message = SERVICE_DOWN_MESSAGE.format(datetime.datetime.utcnow())
-                        status_watcher.set_status_message(message)
-                        showed_status_msg = True
-                    time.sleep(SERVICE_DOWN_RETRY_SECONDS)
+            except requests.exceptions.ConnectionError:
+                connection_retries += 1
+                if connection_retries <= CONNECTION_RETRY_TIMES:
+                    # continue to retry and show message
+                    status_msg = CONNECTION_RETRY_MESSAGE
+                    sleep_seconds = CONNECTION_RETRY_SECONDS
                 else:
                     raise
+            except DataServiceError as dse:
+                if dse.status_code == 503:
+                    status_msg = SERVICE_DOWN_MESSAGE.format(datetime.datetime.utcnow())
+                    sleep_seconds = SERVICE_DOWN_RETRY_SECONDS
+                else:
+                    raise
+            time.sleep(sleep_seconds)
+            if status_msg != current_status_msg:
+                current_status_msg = status_msg
+                status_watcher.set_status_message(current_status_msg)
     return retry_function
 
 
@@ -90,7 +105,7 @@ class DataServiceAuth(object):
         self.claim_new_token()
         return self._auth
 
-    @retry_when_service_down
+    @retry_when_service_unavailable
     def claim_new_token(self):
         """
         Update internal state to have a new token using a no authorization data service.
@@ -151,6 +166,9 @@ class DataServiceAuth(object):
             now_with_skew = time.time() + AUTH_TOKEN_CLOCK_SKEW_MAX
             return now_with_skew > self._expires
         return True
+
+    def set_status_message(self, msg):
+        print(msg)
 
 
 class DataServiceError(Exception):
@@ -237,7 +255,7 @@ class DataServiceApi(object):
             headers['Authorization'] = self.auth.get_auth()
         return url, send_data, headers
 
-    @retry_when_service_down
+    @retry_when_service_unavailable
     def _post(self, url_suffix, data, content_type=ContentType.json):
         """
         Send POST request to API at url_suffix with post_data.
@@ -251,7 +269,7 @@ class DataServiceApi(object):
         resp = self.http.post(url, data_str, headers=headers)
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
-    @retry_when_service_down
+    @retry_when_service_unavailable
     def _put(self, url_suffix, data, content_type=ContentType.json):
         """
         Send PUT request to API at url_suffix with post_data.
@@ -265,7 +283,7 @@ class DataServiceApi(object):
         resp = self.http.put(url, data_str, headers=headers)
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
-    @retry_when_service_down
+    @retry_when_service_unavailable
     def _get_single_item(self, url_suffix, data, content_type=ContentType.json):
         """
         Send GET request to API at url_suffix with post_data.
@@ -279,7 +297,7 @@ class DataServiceApi(object):
         resp = self.http.get(url, headers=headers, params=data_str)
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
-    @retry_when_service_down
+    @retry_when_service_unavailable
     def _get_single_page(self, url_suffix, data, page_num):
         """
         Send GET request to API at url_suffix with post_data adding page and per_page parameters to
@@ -318,7 +336,7 @@ class DataServiceApi(object):
                 return multi_response
         return response
 
-    @retry_when_service_down
+    @retry_when_service_unavailable
     def _delete(self, url_suffix, data, content_type=ContentType.json):
         """
         Send DELETE request to API at url_suffix with post_data.

@@ -5,7 +5,8 @@ import json
 from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth, SETUP_GUIDE_URL
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
-    retry_until_resource_is_consistent, retry_when_service_down
+    retry_until_resource_is_consistent, retry_when_service_unavailable, CONNECTION_RETRY_MESSAGE, \
+    CONNECTION_RETRY_SECONDS, SERVICE_DOWN_RETRY_SECONDS, CONNECTION_RETRY_TIMES
 from mock import MagicMock, Mock, patch, ANY
 
 
@@ -820,6 +821,15 @@ class TestDataServiceApi(TestCase):
         self.assertEqual(resp, api._put.return_value)
         api._put.assert_called_with('/folders/abc123/move', {'parent': {'kind': 'dds-folder', 'id': 'def456'}})
 
+    @patch('ddsc.core.ddsapi.print')
+    def test_implements_set_status_message(self, mock_print):
+        mock_requests = MagicMock()
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100),
+                             url="something.com/v1",
+                             http=mock_requests)
+        api.set_status_message('Connection error')
+        mock_print.assert_called_with('Connection error')
+
 
 class TestDataServiceAuth(TestCase):
     @patch('ddsc.core.ddsapi.get_user_agent_str')
@@ -842,6 +852,7 @@ class TestDataServiceAuth(TestCase):
     @patch('ddsc.core.ddsapi.requests')
     def test_claim_new_token_missing_setup(self, mock_requests, mock_get_user_agent_str):
         config = Mock(url='', user_key='', agent_key='')
+        mock_requests.exceptions.ConnectionError = requests.exceptions.ConnectionError
         mock_requests.post.return_value = Mock(status_code=404)
         auth = DataServiceAuth(config)
         with self.assertRaises(MissingInitialSetupError):
@@ -851,6 +862,7 @@ class TestDataServiceAuth(TestCase):
     @patch('ddsc.core.ddsapi.requests')
     def test_claim_new_token_missing_agent(self, mock_requests, mock_get_user_agent_str):
         config = Mock(url='', user_key='', agent_key='abc')
+        mock_requests.exceptions.ConnectionError = requests.exceptions.ConnectionError
         mock_requests.post.return_value = Mock(status_code=404)
         auth = DataServiceAuth(config)
         with self.assertRaises(SoftwareAgentNotFoundError):
@@ -861,12 +873,20 @@ class TestDataServiceAuth(TestCase):
     def test_claim_new_token_error(self, mock_requests, mock_get_user_agent_str):
         config = Mock(url='', user_key='', agent_key='abc')
         mock_requests.post.return_value = Mock(status_code=500, text='service down')
+        mock_requests.exceptions.ConnectionError = requests.exceptions.ConnectionError
         auth = DataServiceAuth(config)
         with self.assertRaises(AuthTokenCreationError) as err:
             auth.claim_new_token()
         error_message = str(err.exception)
         self.assertIn('500', error_message)
         self.assertIn('service down', error_message)
+
+    @patch('ddsc.core.ddsapi.print')
+    def test_implements_set_status_message(self, mock_print):
+        config = Mock(url='', user_key='', agent_key='abc')
+        auth = DataServiceAuth(config)
+        auth.set_status_message('Connection error')
+        mock_print.assert_called_with('Connection error')
 
 
 class TestMissingInitialSetupError(TestCase):
@@ -954,17 +974,20 @@ class TestInconsistentResourceMonitoring(TestCase):
         self.assertEqual(1, monitor.done_waiting.call_count)
 
 
-class TestRetryWhenServiceDown(TestCase):
+class TestRetryWhenServiceUnavailable(TestCase):
     def setUp(self):
         self.raise_error_once = None
+        self.raise_error_always = None
         self.status_messages = []
 
-    @retry_when_service_down
+    @retry_when_service_unavailable
     def func(self, param):
         if self.raise_error_once:
             raise_error_once = self.raise_error_once
             self.raise_error_once = None
             raise raise_error_once
+        if self.raise_error_always:
+            raise self.raise_error_always
         return 'result' + param
 
     def set_status_message(self, msg):
@@ -977,14 +1000,36 @@ class TestRetryWhenServiceDown(TestCase):
         self.assertEqual([], self.status_messages)
 
     @patch('ddsc.core.ddsapi.time')
-    def test_will_retry_after_waiting(self, mock_time):
+    def test_will_retry_after_waiting_after_503(self, mock_time):
         mock_response = MagicMock(status_code=503)
         self.raise_error_once = DataServiceError(mock_response, '', '')
         self.assertEqual('result123', self.func('123'))
         self.assertEqual(1, mock_time.sleep.call_count)
+        mock_time.sleep.assert_called_with(SERVICE_DOWN_RETRY_SECONDS)
         self.assertEqual(2, len(self.status_messages))
         self.assertIn('Duke Data Service is currently unavailable', self.status_messages[0])
         self.assertEqual('', self.status_messages[1])
+
+    @patch('ddsc.core.ddsapi.time')
+    def test_will_retry_after_waiting_after_connection_error(self, mock_time):
+        self.raise_error_once = requests.exceptions.ConnectionError()
+        self.assertEqual('result123', self.func('123'))
+        self.assertEqual(1, mock_time.sleep.call_count)
+        self.assertEqual(2, len(self.status_messages))
+        self.assertEqual(CONNECTION_RETRY_MESSAGE, self.status_messages[0])
+        self.assertEqual('', self.status_messages[1])
+
+    @patch('ddsc.core.ddsapi.time')
+    def test_will_retry_after_waiting_after_continous_connection_errors(self, mock_time):
+        self.raise_error_always = requests.exceptions.ConnectionError()
+        try:
+            self.assertEqual('result123', self.func('123'))
+        except requests.exceptions.ConnectionError:
+            pass
+        self.assertEqual(CONNECTION_RETRY_TIMES, mock_time.sleep.call_count)
+        mock_time.sleep.assert_called_with(CONNECTION_RETRY_SECONDS)
+        self.assertEqual(1, len(self.status_messages))
+        self.assertEqual(CONNECTION_RETRY_MESSAGE, self.status_messages[0])
 
     @patch('ddsc.core.ddsapi.time')
     def test_will_just_raise_when_other_error(self, mock_time):
