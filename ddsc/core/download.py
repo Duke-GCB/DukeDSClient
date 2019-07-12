@@ -73,7 +73,7 @@ class ProjectDownload(object):
     def file_exists_with_same_hash(self, project_file):
         local_path = project_file.get_local_path(self.dest_directory)
         if os.path.exists(local_path):
-            file_hash = FileHash.create_for_first_supported_algorithm(project_file.hashes, local_path)
+            file_hash = FileHash.create_for_best_hash(project_file.hashes, local_path)
             return file_hash.status == FileHash.STATUS_OK
         return False
 
@@ -125,7 +125,7 @@ class ProjectDownload(object):
         had_hash_failures = False
         for file_to_download in files_to_download:
             local_path = file_to_download.get_local_path(self.dest_directory)
-            file_hash = FileHash.create_for_first_supported_algorithm(file_to_download.hashes, local_path)
+            file_hash = FileHash.create_for_best_hash(file_to_download.hashes, local_path)
             print(file_hash.get_status_line())
             if file_hash.status == FileHash.STATUS_FAILED:
                 had_hash_failures = True
@@ -540,11 +540,12 @@ class FileHash(object):
         MD5FileHash.algorithm: MD5FileHash.get_hash_value
     }
 
-    def __init__(self, algorithm, expected_hash_value, file_path):
+    def __init__(self, algorithm, expected_hash_value, file_path, conflicted=False):
         self.algorithm = algorithm
         self.expected_hash_value = expected_hash_value
         self.file_path = file_path
         self.status = self.determine_status()
+        self.conflicted = conflicted # True when there exist other hashes that have FAILED
 
     def _get_hash_value(self):
         get_hash_value_func = self.algorithm_to_get_hash_value.get(self.algorithm)
@@ -559,17 +560,50 @@ class FileHash(object):
             return self.STATUS_FAILED
 
     def get_status_line(self):
-        return "{} {} {} {}".format(self.file_path, self.expected_hash_value, self.algorithm, self.status)
+        hash_status = self.status
+        if self.conflicted:
+            hash_status = "CONFLICTED"
+        return "{} {} {} {}".format(self.file_path, self.expected_hash_value, self.algorithm, hash_status)
 
     def raise_for_status(self):
         if self.status == self.STATUS_FAILED:
             raise ValueError("Hash validation error: {}".format(self.get_status_line()))
 
     @staticmethod
-    def create_for_first_supported_algorithm(dds_hashes, file_path):
+    def create_for_best_hash(dds_hashes, file_path):
+        """
+        Returns a FileHash for the best hash in dds_hashes. If there are any valid hashes will return a FileHash
+        with STATUS_OK. If there are only failed hashes will return a FileHash with STATUS_FAILED.
+        Raises ValueError if no hashes found.
+        :param dds_hashes: [dict]: list of dicts with 'algorithm', and 'value' keys
+        :param file_path: str: path to file to have hash checked
+        :return: FileHash
+        """
+        file_hashes = FileHash.get_supported_file_hashes(dds_hashes, file_path)
+        ok_file_hashes = [fh for fh in file_hashes if fh.status == FileHash.STATUS_OK]
+        failed_file_hashes = [fh for fh in file_hashes if fh.status == FileHash.STATUS_FAILED]
+        if ok_file_hashes:
+            first_ok_file_hash = ok_file_hashes[0]
+            if failed_file_hashes:
+                first_ok_file_hash.conflicted = True
+            return first_ok_file_hash
+        else:
+            if failed_file_hashes:
+                return failed_file_hashes[0]
+        raise ValueError("Unable to validate: No supported hashes found for file {}".format(file_path))
+
+    @staticmethod
+    def get_supported_file_hashes(dds_hashes, file_path):
+        """
+        Returns a list of FileHashes for each dict in dds_hashes.
+        :param dds_hashes: [dict]: list of dicts with 'algorithm', and 'value' keys
+        :param file_path: str: path to file to have hash checked
+        :return: [FileHash]
+        """
+        file_hashes = []
         for hash_info in dds_hashes:
             algorithm = hash_info.get('algorithm')
             hash_value = hash_info.get('value')
             if algorithm in FileHash.algorithm_to_get_hash_value:
-                return FileHash(algorithm, hash_value, file_path)
-        raise ValueError("Unable to validate: No supported hashes found for file {}".format(file_path))
+                file_hashes.append(FileHash(algorithm, hash_value, file_path))
+        return file_hashes

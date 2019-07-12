@@ -610,9 +610,9 @@ class TestFile(TestCase):
         mock_file_downloader.assert_called_with(mock_download_settings.return_value,
                                                 [mock_file_to_download.return_value])
         mock_file_downloader.return_value.run.assert_called_with()
-        mock_file_hash.create_for_first_supported_algorithm.assert_called_with(
+        mock_file_hash.create_for_best_hash.assert_called_with(
             [{'algorithm': 'md5', 'value': 'abcd'}], "/tmp/data.dat")
-        mock_file_hash.create_for_first_supported_algorithm.return_value.raise_for_status.assert_called_with()
+        mock_file_hash.create_for_best_hash.return_value.raise_for_status.assert_called_with()
 
     def test_delete(self):
         mock_dds_connection = Mock()

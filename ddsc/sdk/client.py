@@ -464,7 +464,7 @@ class File(BaseResponseItem):
         file_url_downloader = FileDownloader(settings, files_to_download)
         file_url_downloader.run()
 
-        file_hash = FileHash.create_for_first_supported_algorithm(self.current_version['upload']['hashes'], path)
+        file_hash = FileHash.create_for_best_hash(self.current_version['upload']['hashes'], path)
         file_hash.raise_for_status()
 
     def delete(self):
