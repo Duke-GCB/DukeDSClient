@@ -142,7 +142,6 @@ class ProjectDownload(object):
                 print("All downloaded files have been verified successfully.")
 
 
-
 class DownloadSettings(object):
     """
     Settings used to download a project
