@@ -122,17 +122,25 @@ class ProjectDownload(object):
         Make sure the file contents are correct by hashing file and comparing against hash provided by DukeDS.
         Raises ValueError if there is one or more problematic files.
         """
-        had_hash_failures = False
+        had_failed_file_hashes = False
+        had_conflicted_file_hashes = False
         for file_to_download in files_to_download:
             local_path = file_to_download.get_local_path(self.dest_directory)
             file_hash_status = FileHashStatus.determine_for_hashes(file_to_download.hashes, local_path)
             print(file_hash_status.get_status_line())
             if not file_hash_status.has_a_valid_hash():
-                had_hash_failures = True
-        if had_hash_failures:
+                had_failed_file_hashes = True
+            if file_hash_status.status == FileHashStatus.STATUS_CONFLICTED:
+                had_conflicted_file_hashes = True
+        if had_failed_file_hashes:
             raise ValueError("ERROR: Downloaded file(s) do not match the expected hashes.")
         else:
-            print("All downloaded files have been verified successfully.")
+            if had_conflicted_file_hashes:
+                print("All downloaded files have at least one valid hash.")
+                print("\nWARNING: Some downloaded files also have invalid hashes.\n")
+            else:
+                print("All downloaded files have been verified successfully.")
+
 
 
 class DownloadSettings(object):

@@ -258,6 +258,20 @@ class TestProjectDownload(TestCase):
         exception_str = str(raised_exception.exception)
         self.assertEqual(exception_str, 'Unable to validate: No supported hashes found for file /tmp/data2/data.txt')
 
+    @patch('ddsc.core.download.HashUtil')
+    @patch('ddsc.core.download.print')
+    def test_check_downloaded_files_when_conflicted_hashes(self, mock_print, mock_hash_util):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.hashes = [{"algorithm": "md5", "value": "abc"}, {"algorithm": "md5", "value": "def"}]
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'abc'
+
+        downloader = ProjectDownload(None, None, dest_directory='/tmp/data2/', path_filter=None)
+        downloader.check_downloaded_files([project_file])
+        mock_print.assert_has_calls([
+            call('All downloaded files have a valid hash.'),
+            call("WARNING: Some files have invalid hashes in addition to their valid hashes.")
+        ])
+
 
 class TestDownloadSettings(TestCase):
     def test_get_data_service_auth_data(self):
