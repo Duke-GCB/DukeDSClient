@@ -545,7 +545,7 @@ class FileHash(object):
         self.expected_hash_value = expected_hash_value
         self.file_path = file_path
         self.status = self.determine_status()
-        self.conflicted = conflicted # True when there exist other hashes that have FAILED
+        self.conflicted = conflicted  # True when there exist other hashes that have FAILED
 
     def _get_hash_value(self):
         get_hash_value_func = self.algorithm_to_get_hash_value.get(self.algorithm)
