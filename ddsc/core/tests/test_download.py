@@ -268,8 +268,8 @@ class TestProjectDownload(TestCase):
         downloader = ProjectDownload(None, None, dest_directory='/tmp/data2/', path_filter=None)
         downloader.check_downloaded_files([project_file])
         mock_print.assert_has_calls([
-            call('All downloaded files have a valid hash.'),
-            call("WARNING: Some files have invalid hashes in addition to their valid hashes.")
+            call('All downloaded files have at least one valid hash.'),
+            call("\nWARNING: Some downloaded files also have invalid hashes.\n")
         ])
 
 
