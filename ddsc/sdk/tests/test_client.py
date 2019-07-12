@@ -595,9 +595,9 @@ class TestFile(TestCase):
     @patch('ddsc.sdk.client.FileToDownload')
     @patch('ddsc.sdk.client.DownloadSettings')
     @patch('ddsc.sdk.client.FileDownloader')
-    @patch('ddsc.sdk.client.FileHash')
-    def test_download_to_path(self, mock_file_hash, mock_file_downloader, mock_download_settings, mock_file_to_download,
-                              mock_project_file):
+    @patch('ddsc.sdk.client.FileHashStatus')
+    def test_download_to_path(self, mock_file_hash_status, mock_file_downloader, mock_download_settings,
+                              mock_file_to_download, mock_project_file):
         mock_dds_connection = Mock()
 
         file = File(mock_dds_connection, self.file_dict)
@@ -610,9 +610,9 @@ class TestFile(TestCase):
         mock_file_downloader.assert_called_with(mock_download_settings.return_value,
                                                 [mock_file_to_download.return_value])
         mock_file_downloader.return_value.run.assert_called_with()
-        mock_file_hash.create_for_best_hash.assert_called_with(
+        mock_file_hash_status.determine_for_hashes.assert_called_with(
             [{'algorithm': 'md5', 'value': 'abcd'}], "/tmp/data.dat")
-        mock_file_hash.create_for_best_hash.return_value.raise_for_status.assert_called_with()
+        mock_file_hash_status.determine_for_hashes.return_value.raise_for_status.assert_called_with()
 
     def test_delete(self):
         mock_dds_connection = Mock()

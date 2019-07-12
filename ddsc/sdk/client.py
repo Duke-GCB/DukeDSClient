@@ -5,7 +5,7 @@ from ddsc.config import create_config
 from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile, RemotePath
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
-from ddsc.core.download import FileHash, DownloadSettings, FileDownloader, FileToDownload
+from ddsc.core.download import FileHashStatus, DownloadSettings, FileDownloader, FileToDownload
 from ddsc.core.util import KindType, NoOpProgressPrinter, REMOTE_PATH_SEP
 from ddsc.core.moveutil import MoveUtil
 from future.utils import python_2_unicode_compatible
@@ -464,8 +464,8 @@ class File(BaseResponseItem):
         file_url_downloader = FileDownloader(settings, files_to_download)
         file_url_downloader.run()
 
-        file_hash = FileHash.create_for_best_hash(self.current_version['upload']['hashes'], path)
-        file_hash.raise_for_status()
+        file_hash_status = FileHashStatus.determine_for_hashes(self.current_version['upload']['hashes'], path)
+        file_hash_status.raise_for_status()
 
     def delete(self):
         """
