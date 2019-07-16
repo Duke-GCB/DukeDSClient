@@ -3,7 +3,8 @@ from unittest import TestCase
 import os
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
-    download_file_part_run, DownloadFilePartCommand, FileDownloader, ProjectFile, FileHash, FileToDownload
+    download_file_part_run, DownloadFilePartCommand, FileDownloader, ProjectFile, FileHash, FileToDownload, \
+    FileHashStatus, MISMATCHED_FILE_HASH_WARNING
 from mock import Mock, patch, mock_open, call, ANY
 
 
@@ -256,6 +257,34 @@ class TestProjectDownload(TestCase):
             downloader.check_downloaded_files([project_file])
         exception_str = str(raised_exception.exception)
         self.assertEqual(exception_str, 'Unable to validate: No supported hashes found for file /tmp/data2/data.txt')
+
+    @patch('ddsc.core.download.HashUtil')
+    @patch('ddsc.core.download.print')
+    def test_check_downloaded_files_when_conflicted_hashes(self, mock_print, mock_hash_util):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.hashes = [{"algorithm": "md5", "value": "abc"}, {"algorithm": "md5", "value": "def"}]
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'abc'
+
+        downloader = ProjectDownload(None, None, dest_directory='/tmp/data2/', path_filter=None)
+        downloader.check_downloaded_files([project_file])
+        mock_print.assert_has_calls([
+            call('All downloaded files have been verified successfully.'),
+            call(MISMATCHED_FILE_HASH_WARNING.format("1 file"))
+        ])
+
+    @patch('ddsc.core.download.HashUtil')
+    @patch('ddsc.core.download.print')
+    def test_check_downloaded_files_when_two_files_with_conflicted_hashes(self, mock_print, mock_hash_util):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.hashes = [{"algorithm": "md5", "value": "abc"}, {"algorithm": "md5", "value": "def"}]
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'abc'
+
+        downloader = ProjectDownload(None, None, dest_directory='/tmp/data2/', path_filter=None)
+        downloader.check_downloaded_files([project_file, project_file])
+        mock_print.assert_has_calls([
+            call('All downloaded files have been verified successfully.'),
+            call(MISMATCHED_FILE_HASH_WARNING.format("2 files"))
+        ])
 
 
 class TestDownloadSettings(TestCase):
@@ -784,83 +813,124 @@ class TestRetryChunkDownloader(TestCase):
 
 
 class TestFileHash(TestCase):
-    def test_create_for_first_supported_algorithm_no_supported_hash_found(self):
-        expected_error_msg = "Unable to validate: No supported hashes found for file /tmp/fakepath.dat"
+    def test_is_valid__no_supported_hash_found(self):
+        file_hash = FileHash(algorithm='sha1', expected_hash_value='abc', file_path='/tmp/fakepath.dat')
         with self.assertRaises(ValueError) as raised_exception:
-            FileHash.create_for_first_supported_algorithm(dds_hashes=[], file_path='/tmp/fakepath.dat')
-        self.assertEqual(str(raised_exception.exception), expected_error_msg)
-        with self.assertRaises(ValueError) as raised_exception:
-            FileHash.create_for_first_supported_algorithm(dds_hashes=[
-                {"algorithm": "sha1", "value": "abc"}
-            ], file_path='/tmp/fakepath.dat')
-        self.assertEqual(str(raised_exception.exception), expected_error_msg)
+            file_hash.is_valid()
+        self.assertEqual(str(raised_exception.exception), 'Unsupported algorithm sha1.')
 
     @patch('ddsc.core.download.HashUtil')
-    def test_create_for_first_supported_algorithm_md5_hash_ok(self, mock_hash_util):
-        mock_hash_util.return_value.hash.hexdigest.return_value = 'def'
-        file_hash = FileHash.create_for_first_supported_algorithm(dds_hashes=[
+    def test_is_valid__hash_matches(self, mock_hash_util):
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'abc'
+        file_hash = FileHash(algorithm='md5', expected_hash_value='abc', file_path='/tmp/fakepath.dat')
+        self.assertEqual(file_hash.is_valid(), True)
+
+    @patch('ddsc.core.download.HashUtil')
+    def test_is_valid__hash_mismatch(self, mock_hash_util):
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'abc'
+        file_hash = FileHash(algorithm='md5', expected_hash_value='def', file_path='/tmp/fakepath.dat')
+        self.assertEqual(file_hash.is_valid(), False)
+
+    def test_get_supported_file_hashes(self):
+        dds_hashes = [
             {"algorithm": "sha1", "value": "abc"},
             {"algorithm": "md5", "value": "def"},
-        ], file_path='/tmp/fakepath.dat')
-        self.assertEqual(file_hash.status, FileHash.STATUS_OK)
-        self.assertEqual(file_hash.get_status_line(), '/tmp/fakepath.dat def md5 OK')
-        file_hash.raise_for_status()
-
-    @patch('ddsc.core.download.HashUtil')
-    def test_create_for_first_supported_algorithm_md5_hash_failed(self, mock_hash_util):
-        mock_hash_util.return_value.hash.hexdigest.return_value = 'def'
-        file_hash = FileHash.create_for_first_supported_algorithm(dds_hashes=[
-            {"algorithm": "sha1", "value": "abc"},
             {"algorithm": "md5", "value": "hij"},
-        ], file_path='/tmp/fakepath.dat')
-        self.assertEqual(file_hash.status, FileHash.STATUS_FAILED)
-        self.assertEqual(file_hash.get_status_line(), '/tmp/fakepath.dat hij md5 FAILED')
+        ]
+        file_hashes = FileHash.get_supported_file_hashes(dds_hashes, '/tmp/data.txt')
+        self.assertEqual(len(file_hashes), 2)
+        self.assertEqual(file_hashes[0].expected_hash_value, 'def')
+        self.assertEqual(file_hashes[1].expected_hash_value, 'hij')
 
+    def test_separate_valid_and_failed_hashes(self):
+        valid_hash = Mock()
+        valid_hash.is_valid.return_value = True
+        failed_hash = Mock()
+        failed_hash.is_valid.return_value = False
+
+        valid_file_hashes, failed_file_hashes = FileHash.separate_valid_and_failed_hashes([failed_hash, valid_hash])
+
+        self.assertEqual(len(valid_file_hashes), 1)
+        self.assertEqual(valid_file_hashes[0], valid_hash)
+        self.assertEqual(len(failed_file_hashes), 1)
+        self.assertEqual(failed_file_hashes[0], failed_hash)
+
+
+class TestFileHashStatus(TestCase):
+    def setUp(self):
+        self.file_hash = FileHash(algorithm='md5', expected_hash_value='abc', file_path='/tmp/data.txt')
+        self.file_hash2 = FileHash(algorithm='md5', expected_hash_value='def', file_path='/tmp/data.txt')
+
+    def test_has_a_valid_hash(self):
+        file_hash_status = FileHashStatus(self.file_hash, status=FileHashStatus.STATUS_OK)
+        self.assertEqual(file_hash_status.has_a_valid_hash(), True)
+        file_hash_status.status = FileHashStatus.STATUS_WARNING
+        self.assertEqual(file_hash_status.has_a_valid_hash(), True)
+        file_hash_status.status = FileHashStatus.STATUS_FAILED
+        self.assertEqual(file_hash_status.has_a_valid_hash(), False)
+
+    def test_get_status_line(self):
+        file_hash_status = FileHashStatus(self.file_hash, status=FileHashStatus.STATUS_OK)
+        self.assertEqual(file_hash_status.get_status_line(), '/tmp/data.txt abc md5 OK')
+        file_hash_status.status = FileHashStatus.STATUS_WARNING
+        self.assertEqual(file_hash_status.get_status_line(), '/tmp/data.txt abc md5 WARNING')
+        file_hash_status.status = FileHashStatus.STATUS_FAILED
+        self.assertEqual(file_hash_status.get_status_line(), '/tmp/data.txt abc md5 FAILED')
+
+    def test_raise_for_status(self):
+        file_hash_status = FileHashStatus(self.file_hash, status=FileHashStatus.STATUS_OK)
+        file_hash_status.raise_for_status()
+
+        file_hash_status.status = FileHashStatus.STATUS_WARNING
+        file_hash_status.raise_for_status()
+
+        file_hash_status.status = FileHashStatus.STATUS_FAILED
         with self.assertRaises(ValueError) as raised_exception:
-            file_hash.raise_for_status()
-        self.assertEqual(str(raised_exception.exception), 'Hash validation error: /tmp/fakepath.dat hij md5 FAILED')
+            file_hash_status.raise_for_status()
+        self.assertEqual(str(raised_exception.exception), 'Hash validation error: /tmp/data.txt abc md5 FAILED')
 
+    @patch('ddsc.core.download.FileHash')
+    def test_determine_for_hashes__no_hashes_found(self, mock_file_hash):
+        mock_file_hash.separate_valid_and_failed_hashes.return_value = [], []
+        dds_hashes = []
+        with self.assertRaises(ValueError) as raised_exception:
+            FileHashStatus.determine_for_hashes(dds_hashes, file_path='/tmp/fakepath.dat')
+        self.assertEqual(str(raised_exception.exception),
+                         'Unable to validate: No supported hashes found for file /tmp/fakepath.dat')
+        mock_file_hash.get_supported_file_hashes.assert_called_with(dds_hashes, '/tmp/fakepath.dat')
+        mock_file_hash.separate_valid_and_failed_hashes.assert_called_with(
+            mock_file_hash.get_supported_file_hashes.return_value
+        )
 
-"""
-class FileHash(object):
-    STATUS_OK = "OK"
-    STATUS_FAILED = "FAILED"
-    algorithm_to_get_hash_value = {
-        MD5FileHash.algorithm: MD5FileHash.get_hash_value
-    }
+    @patch('ddsc.core.download.FileHash')
+    def test_determine_for_hashes__only_valid_hashes(self, mock_file_hash):
+        mock_file_hash.separate_valid_and_failed_hashes.return_value = [self.file_hash, self.file_hash2], []
+        dds_hashes = [
+            {"algorithm": "md5", "value": "abc"},
+            {"algorithm": "md5", "value": "def"}
+        ]
+        file_hash_status = FileHashStatus.determine_for_hashes(dds_hashes, file_path='/tmp/fakepath.dat')
+        self.assertEqual(file_hash_status.status, FileHashStatus.STATUS_OK)
+        self.assertEqual(file_hash_status.file_hash, self.file_hash)
 
-    def __init__(self, algorithm, expected_hash_value, file_path):
-        self.algorithm = algorithm
-        self.expected_hash_value = expected_hash_value
-        self.file_path = file_path
-        self.status = self.determine_status()
+    @patch('ddsc.core.download.FileHash')
+    def test_determine_for_hashes__only_failed_hashes(self, mock_file_hash):
+        mock_file_hash.separate_valid_and_failed_hashes.return_value = [], [self.file_hash, self.file_hash2]
+        dds_hashes = [
+            {"algorithm": "md5", "value": "abc"},
+            {"algorithm": "md5", "value": "def"}
+        ]
+        file_hash_status = FileHashStatus.determine_for_hashes(dds_hashes, file_path='/tmp/fakepath.dat')
+        self.assertEqual(file_hash_status.status, FileHashStatus.STATUS_FAILED)
+        self.assertEqual(file_hash_status.file_hash, self.file_hash)
 
-    def _get_hash_value(self):
-        get_hash_value_func = self.algorithm_to_get_hash_value.get(self.algorithm)
-        if get_hash_value_func:
-            return get_hash_value_func(self.file_path)
-        raise ValueError("Unsupported algorithm {}.".format(self.algorithm))
-
-    def determine_status(self):
-        if self._get_hash_value() == self.expected_hash_value:
-            return self.STATUS_OK
-        else:
-            return self.STATUS_FAILED
-
-    def get_status_line(self):
-        return "{} {} {} {}".format(self.file_path, self.expected_hash_value, self.algorithm, self.status)
-
-    def raise_for_status(self):
-        if self.status == self.STATUS_FAILED:
-            raise ValueError("Hash validation error: {}".format(self.get_status_line()))
-
-    @staticmethod
-    def create_for_first_supported_algorithm(dds_hashes, file_path):
-        for hash_info in dds_hashes:
-            algorithm = hash_info.get('algorithm')
-            hash_value = hash_info.get('value')
-            if algorithm in FileHash.algorithm_to_get_hash_value:
-                return FileHash(algorithm, hash_value, file_path)
-        raise ValueError("Unable to validate: No supported hashes found for file {}".format(file_path))
-
-"""
+    @patch('ddsc.core.download.FileHash')
+    def test_determine_for_hashes__both_valid_and_failed_hashes(self, mock_file_hash):
+        mock_file_hash.separate_valid_and_failed_hashes.return_value = [self.file_hash], [self.file_hash2]
+        dds_hashes = [
+            {"algorithm": "md5", "value": "abc"},
+            {"algorithm": "md5", "value": "def"}
+        ]
+        file_hash_status = FileHashStatus.determine_for_hashes(dds_hashes, file_path='/tmp/fakepath.dat')
+        self.assertEqual(file_hash_status.status, FileHashStatus.STATUS_WARNING)
+        self.assertEqual(file_hash_status.file_hash, self.file_hash)

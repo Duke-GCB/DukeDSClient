@@ -14,6 +14,12 @@ FETCH_EXTERNAL_RETRY_SECONDS = 20
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 SWIFT_EXPIRED_STATUS_CODE = 401
 S3_EXPIRED_STATUS_CODE = 403
+MISMATCHED_FILE_HASH_WARNING = """
+NOTICE: Data Service reports multiple hashes for {}.
+The downloaded files have been verified and confirmed to match one of these hashes.
+You do not need to retry the download.
+For more information, visit https://github.com/Duke-GCB/DukeDSClient/wiki/MD5-Hash-Conflicts.
+"""
 
 
 class ProjectDownload(object):
@@ -73,8 +79,8 @@ class ProjectDownload(object):
     def file_exists_with_same_hash(self, project_file):
         local_path = project_file.get_local_path(self.dest_directory)
         if os.path.exists(local_path):
-            file_hash = FileHash.create_for_first_supported_algorithm(project_file.hashes, local_path)
-            return file_hash.status == FileHash.STATUS_OK
+            file_hash_status = FileHashStatus.determine_for_hashes(project_file.hashes, local_path)
+            return file_hash_status.has_a_valid_hash()
         return False
 
     @staticmethod
@@ -122,17 +128,26 @@ class ProjectDownload(object):
         Make sure the file contents are correct by hashing file and comparing against hash provided by DukeDS.
         Raises ValueError if there is one or more problematic files.
         """
-        had_hash_failures = False
+        had_failed_file_hashes = False
+        mismatched_hashes_cnt = 0
         for file_to_download in files_to_download:
             local_path = file_to_download.get_local_path(self.dest_directory)
-            file_hash = FileHash.create_for_first_supported_algorithm(file_to_download.hashes, local_path)
-            print(file_hash.get_status_line())
-            if file_hash.status == FileHash.STATUS_FAILED:
-                had_hash_failures = True
-        if had_hash_failures:
+            file_hash_status = FileHashStatus.determine_for_hashes(file_to_download.hashes, local_path)
+            print(file_hash_status.get_status_line())
+            if not file_hash_status.has_a_valid_hash():
+                had_failed_file_hashes = True
+            if file_hash_status.status == FileHashStatus.STATUS_WARNING:
+                mismatched_hashes_cnt += 1
+        if had_failed_file_hashes:
             raise ValueError("ERROR: Downloaded file(s) do not match the expected hashes.")
         else:
             print("All downloaded files have been verified successfully.")
+            if mismatched_hashes_cnt:
+                if mismatched_hashes_cnt == 1:
+                    file_cnt_str = '1 file'
+                else:
+                    file_cnt_str = '{} files'.format(mismatched_hashes_cnt)
+                print(MISMATCHED_FILE_HASH_WARNING.format(file_cnt_str))
 
 
 class DownloadSettings(object):
@@ -534,8 +549,6 @@ class MD5FileHash(object):
 
 
 class FileHash(object):
-    STATUS_OK = "OK"
-    STATUS_FAILED = "FAILED"
     algorithm_to_get_hash_value = {
         MD5FileHash.algorithm: MD5FileHash.get_hash_value
     }
@@ -544,7 +557,6 @@ class FileHash(object):
         self.algorithm = algorithm
         self.expected_hash_value = expected_hash_value
         self.file_path = file_path
-        self.status = self.determine_status()
 
     def _get_hash_value(self):
         get_hash_value_func = self.algorithm_to_get_hash_value.get(self.algorithm)
@@ -552,24 +564,87 @@ class FileHash(object):
             return get_hash_value_func(self.file_path)
         raise ValueError("Unsupported algorithm {}.".format(self.algorithm))
 
-    def determine_status(self):
-        if self._get_hash_value() == self.expected_hash_value:
-            return self.STATUS_OK
-        else:
-            return self.STATUS_FAILED
+    def is_valid(self):
+        return self._get_hash_value() == self.expected_hash_value
+
+    @staticmethod
+    def get_supported_file_hashes(dds_hashes, file_path):
+        """
+        Returns a list of FileHashes for each dict in dds_hashes.
+        :param dds_hashes: [dict]: list of dicts with 'algorithm', and 'value' keys
+        :param file_path: str: path to file to have hash checked
+        :return: [FileHash]
+        """
+        file_hashes = []
+        for hash_info in dds_hashes:
+            algorithm = hash_info.get('algorithm')
+            hash_value = hash_info.get('value')
+            if algorithm in FileHash.algorithm_to_get_hash_value:
+                file_hashes.append(FileHash(algorithm, hash_value, file_path))
+        return file_hashes
+
+    @staticmethod
+    def separate_valid_and_failed_hashes(file_hashes):
+        """
+        Given a list of file hashes seperate them into a list of valid and a list of failed.
+        :param file_hashes: [FileHash]
+        :return: [FileHash], [FileHash]: valid_file_hashes, failed_file_hashes
+        """
+        valid_file_hashes = []
+        failed_file_hashes = []
+        for file_hash in file_hashes:
+            if file_hash.is_valid():
+                valid_file_hashes.append(file_hash)
+            else:
+                failed_file_hashes.append(file_hash)
+        return valid_file_hashes, failed_file_hashes
+
+
+class FileHashStatus(object):
+    STATUS_OK = "OK"
+    STATUS_WARNING = "WARNING"
+    STATUS_FAILED = "FAILED"
+
+    def __init__(self, file_hash, status):
+        self.file_hash = file_hash
+        self.status = status
+
+    def has_a_valid_hash(self):
+        return self.status in [self.STATUS_OK, self.STATUS_WARNING]
 
     def get_status_line(self):
-        return "{} {} {} {}".format(self.file_path, self.expected_hash_value, self.algorithm, self.status)
+        return "{} {} {} {}".format(self.file_hash.file_path,
+                                    self.file_hash.expected_hash_value,
+                                    self.file_hash.algorithm,
+                                    self.status)
 
     def raise_for_status(self):
         if self.status == self.STATUS_FAILED:
             raise ValueError("Hash validation error: {}".format(self.get_status_line()))
 
     @staticmethod
-    def create_for_first_supported_algorithm(dds_hashes, file_path):
-        for hash_info in dds_hashes:
-            algorithm = hash_info.get('algorithm')
-            hash_value = hash_info.get('value')
-            if algorithm in FileHash.algorithm_to_get_hash_value:
-                return FileHash(algorithm, hash_value, file_path)
+    def determine_for_hashes(dds_hashes, file_path):
+        """
+        Compares dds_hashes against file_path using the associated algorithms recording a status property.
+        The status property will bet set as follows:
+        STATUS_OK: there are only valid file hashes
+        STATUS_FAILED: there are only failed file hashes
+        STATUS_WARNING: there are both failed and valid hashes
+        Raises ValueError if no hashes found.
+        :param dds_hashes: [dict]: list of dicts with 'algorithm', and 'value' keys
+        :param file_path: str: path to file to have hash checked
+        :return: FileHashStatus
+        """
+        file_hashes = FileHash.get_supported_file_hashes(dds_hashes, file_path)
+        valid_file_hashes, failed_file_hashes = FileHash.separate_valid_and_failed_hashes(file_hashes)
+        if valid_file_hashes:
+            first_ok_file_hash = valid_file_hashes[0]
+            if failed_file_hashes:
+                return FileHashStatus(first_ok_file_hash, FileHashStatus.STATUS_WARNING)
+            else:
+                return FileHashStatus(first_ok_file_hash, FileHashStatus.STATUS_OK)
+        else:
+            if failed_file_hashes:
+                first_failed_file_hash = failed_file_hashes[0]
+                return FileHashStatus(first_failed_file_hash, FileHashStatus.STATUS_FAILED)
         raise ValueError("Unable to validate: No supported hashes found for file {}".format(file_path))
