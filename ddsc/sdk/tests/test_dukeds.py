@@ -1,5 +1,5 @@
 from unittest import TestCase
-from ddsc import DukeDS, ItemNotFound, DuplicateNameError
+from ddsc import DukeDS, ItemNotFound, DuplicateNameError, Session
 from mock import patch, Mock, ANY
 
 
@@ -204,3 +204,17 @@ class TestDukeDS(TestCase):
         ]
         DukeDS.move_file_or_folder('myproject', '/data/file1.txt', '/data/file1_bak.txt')
         mock_project.move_file_or_folder.assert_called_with('/data/file1.txt', '/data/file1_bak.txt')
+
+
+class TestSession(TestCase):
+    @patch('ddsc.sdk.dukeds.Client', autospec=True)
+    def test_constructor_default_args(self, mock_client):
+        session = Session()
+        mock_client.assert_called_with(None)
+
+    @patch('ddsc.sdk.dukeds.Client', autospec=True)
+    def test_constructor_passing_config(self, mock_client):
+        mock_config = Mock()
+        session = Session(mock_config)
+        mock_client.assert_called_with(mock_config)
+
