@@ -15,7 +15,7 @@ RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 SWIFT_EXPIRED_STATUS_CODE = 401
 S3_EXPIRED_STATUS_CODE = 403
 MISMATCHED_FILE_HASH_WARNING = """
-NOTICE: Data Service reports multiple hashes for {} files.
+NOTICE: Data Service reports multiple hashes for {}.
 The downloaded files have been verified and confirmed to match one of these hashes.
 You do not need to retry the download.
 For more information, visit https://github.com/Duke-GCB/DukeDSClient/wiki/MD5-Hash-Conflicts.
@@ -143,7 +143,11 @@ class ProjectDownload(object):
         else:
             print("All downloaded files have been verified successfully.")
             if mismatched_hashes_cnt:
-                print(MISMATCHED_FILE_HASH_WARNING.format(mismatched_hashes_cnt))
+                if mismatched_hashes_cnt == 1:
+                    file_cnt_str = '1 file'
+                else:
+                    file_cnt_str = '{} files'.format(mismatched_hashes_cnt)
+                print(MISMATCHED_FILE_HASH_WARNING.format(file_cnt_str))
 
 
 class DownloadSettings(object):

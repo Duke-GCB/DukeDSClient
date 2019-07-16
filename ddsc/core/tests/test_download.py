@@ -269,7 +269,21 @@ class TestProjectDownload(TestCase):
         downloader.check_downloaded_files([project_file])
         mock_print.assert_has_calls([
             call('All downloaded files have been verified successfully.'),
-            call(MISMATCHED_FILE_HASH_WARNING.format(1))
+            call(MISMATCHED_FILE_HASH_WARNING.format("1 file"))
+        ])
+
+    @patch('ddsc.core.download.HashUtil')
+    @patch('ddsc.core.download.print')
+    def test_check_downloaded_files_when_two_files_with_conflicted_hashes(self, mock_print, mock_hash_util):
+        project_file = ProjectFile(self.mock_file_json_data)
+        project_file.hashes = [{"algorithm": "md5", "value": "abc"}, {"algorithm": "md5", "value": "def"}]
+        mock_hash_util.return_value.hash.hexdigest.return_value = 'abc'
+
+        downloader = ProjectDownload(None, None, dest_directory='/tmp/data2/', path_filter=None)
+        downloader.check_downloaded_files([project_file, project_file])
+        mock_print.assert_has_calls([
+            call('All downloaded files have been verified successfully.'),
+            call(MISMATCHED_FILE_HASH_WARNING.format("2 files"))
         ])
 
 
