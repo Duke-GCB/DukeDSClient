@@ -9,14 +9,14 @@ class TestClient(TestCase):
     @patch('ddsc.sdk.client.create_config')
     @patch('ddsc.sdk.client.DDSConnection', autospec=True)
     def test_constructor_default_config(self, mock_dss_connection, mock_create_config):
-        client = Client()
+        Client()
         mock_create_config.assert_called_with()
 
     @patch('ddsc.sdk.client.create_config')
     @patch('ddsc.sdk.client.DDSConnection', autospec=True)
     def test_constructor_specify_config(self, mock_dss_connection, mock_create_config):
         mock_config = Mock()
-        client = Client(mock_config)
+        Client(mock_config)
         mock_create_config.assert_not_called()
 
     @patch('ddsc.sdk.client.create_config')

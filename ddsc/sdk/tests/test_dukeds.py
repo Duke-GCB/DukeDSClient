@@ -209,12 +209,11 @@ class TestDukeDS(TestCase):
 class TestSession(TestCase):
     @patch('ddsc.sdk.dukeds.Client', autospec=True)
     def test_constructor_default_args(self, mock_client):
-        session = Session()
+        Session()
         mock_client.assert_called_with(None)
 
     @patch('ddsc.sdk.dukeds.Client', autospec=True)
     def test_constructor_passing_config(self, mock_client):
         mock_config = Mock()
-        session = Session(mock_config)
+        Session(mock_config)
         mock_client.assert_called_with(mock_config)
-

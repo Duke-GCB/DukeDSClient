@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 import logging
 from ddsc.sdk.client import Client, FileUpload, PathToFiles, ItemNotFound, DuplicateNameError
-from ddsc.config import create_config
 from ddsc.core.userutil import UserUtil
 
 
