@@ -16,10 +16,12 @@ class Client(object):
     Client that connects to the DDSConnection base on ~/.ddsclient configuration.
     This configuration can be customized by passing in a ddsc.config.Config object
     """
-    def __init__(self, config=create_config()):
+    def __init__(self, config=None):
         """
         :param config: ddsc.config.Config: settings used to connect to DDSConnection
         """
+        if not config:
+            config = create_config()
         self.dds_connection = DDSConnection(config)
 
     def get_projects(self):
