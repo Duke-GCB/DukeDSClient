@@ -113,7 +113,7 @@ class Session(object):
     Contains methods for interacting with DukeDS using standard ddsclient config file and environment variables
     Same functionality as DukeDS but caches project list to improve performance.
     """
-    def __init__(self, config=create_config()):
+    def __init__(self, config=None):
         """
         :param config:  ddsc.config.Config: configuration specifying DukeDS endpoint and credential to use
         """
