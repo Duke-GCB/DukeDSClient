@@ -4,7 +4,7 @@ import os
 from ddsc.core.download import ProjectDownload, RetryChunkDownloader, DownloadInconsistentError, \
     PartialChunkDownloadError, TooLargeChunkDownloadError, DownloadSettings, DownloadContext, \
     download_file_part_run, DownloadFilePartCommand, FileDownloader, ProjectFile, FileHash, FileToDownload, \
-    FileHashStatus
+    FileHashStatus, MISMATCHED_FILE_HASH_WARNING
 from mock import Mock, patch, mock_open, call, ANY
 
 
@@ -268,8 +268,8 @@ class TestProjectDownload(TestCase):
         downloader = ProjectDownload(None, None, dest_directory='/tmp/data2/', path_filter=None)
         downloader.check_downloaded_files([project_file])
         mock_print.assert_has_calls([
-            call('All downloaded files have at least one valid hash.'),
-            call("\nWARNING: Some downloaded files also have invalid hashes.\n")
+            call('All downloaded files have been verified successfully.'),
+            call(MISMATCHED_FILE_HASH_WARNING.format(1))
         ])
 
 
@@ -850,7 +850,7 @@ class TestFileHashStatus(TestCase):
     def test_has_a_valid_hash(self):
         file_hash_status = FileHashStatus(self.file_hash, status=FileHashStatus.STATUS_OK)
         self.assertEqual(file_hash_status.has_a_valid_hash(), True)
-        file_hash_status.status = FileHashStatus.STATUS_CONFLICTED
+        file_hash_status.status = FileHashStatus.STATUS_WARNING
         self.assertEqual(file_hash_status.has_a_valid_hash(), True)
         file_hash_status.status = FileHashStatus.STATUS_FAILED
         self.assertEqual(file_hash_status.has_a_valid_hash(), False)
@@ -858,8 +858,8 @@ class TestFileHashStatus(TestCase):
     def test_get_status_line(self):
         file_hash_status = FileHashStatus(self.file_hash, status=FileHashStatus.STATUS_OK)
         self.assertEqual(file_hash_status.get_status_line(), '/tmp/data.txt abc md5 OK')
-        file_hash_status.status = FileHashStatus.STATUS_CONFLICTED
-        self.assertEqual(file_hash_status.get_status_line(), '/tmp/data.txt abc md5 CONFLICTED')
+        file_hash_status.status = FileHashStatus.STATUS_WARNING
+        self.assertEqual(file_hash_status.get_status_line(), '/tmp/data.txt abc md5 WARNING')
         file_hash_status.status = FileHashStatus.STATUS_FAILED
         self.assertEqual(file_hash_status.get_status_line(), '/tmp/data.txt abc md5 FAILED')
 
@@ -867,7 +867,7 @@ class TestFileHashStatus(TestCase):
         file_hash_status = FileHashStatus(self.file_hash, status=FileHashStatus.STATUS_OK)
         file_hash_status.raise_for_status()
 
-        file_hash_status.status = FileHashStatus.STATUS_CONFLICTED
+        file_hash_status.status = FileHashStatus.STATUS_WARNING
         file_hash_status.raise_for_status()
 
         file_hash_status.status = FileHashStatus.STATUS_FAILED
@@ -918,5 +918,5 @@ class TestFileHashStatus(TestCase):
             {"algorithm": "md5", "value": "def"}
         ]
         file_hash_status = FileHashStatus.determine_for_hashes(dds_hashes, file_path='/tmp/fakepath.dat')
-        self.assertEqual(file_hash_status.status, FileHashStatus.STATUS_CONFLICTED)
+        self.assertEqual(file_hash_status.status, FileHashStatus.STATUS_WARNING)
         self.assertEqual(file_hash_status.file_hash, self.file_hash)

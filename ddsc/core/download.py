@@ -14,6 +14,12 @@ FETCH_EXTERNAL_RETRY_SECONDS = 20
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 SWIFT_EXPIRED_STATUS_CODE = 401
 S3_EXPIRED_STATUS_CODE = 403
+MISMATCHED_FILE_HASH_WARNING = """
+NOTICE: Data Service reports multiple hashes for {} files.
+The downloaded files have been verified and confirmed to match one of these hashes.
+You do not need to retry the download.
+For more information, visit https://github.com/Duke-GCB/DukeDSClient/wiki/MD5-Hash-Conflicts.
+"""
 
 
 class ProjectDownload(object):
@@ -123,23 +129,21 @@ class ProjectDownload(object):
         Raises ValueError if there is one or more problematic files.
         """
         had_failed_file_hashes = False
-        had_conflicted_file_hashes = False
+        mismatched_hashes_cnt = 0
         for file_to_download in files_to_download:
             local_path = file_to_download.get_local_path(self.dest_directory)
             file_hash_status = FileHashStatus.determine_for_hashes(file_to_download.hashes, local_path)
             print(file_hash_status.get_status_line())
             if not file_hash_status.has_a_valid_hash():
                 had_failed_file_hashes = True
-            if file_hash_status.status == FileHashStatus.STATUS_CONFLICTED:
-                had_conflicted_file_hashes = True
+            if file_hash_status.status == FileHashStatus.STATUS_WARNING:
+                mismatched_hashes_cnt += 1
         if had_failed_file_hashes:
             raise ValueError("ERROR: Downloaded file(s) do not match the expected hashes.")
         else:
-            if had_conflicted_file_hashes:
-                print("All downloaded files have at least one valid hash.")
-                print("\nWARNING: Some downloaded files also have invalid hashes.\n")
-            else:
-                print("All downloaded files have been verified successfully.")
+            print("All downloaded files have been verified successfully.")
+            if mismatched_hashes_cnt:
+                print(MISMATCHED_FILE_HASH_WARNING.format(mismatched_hashes_cnt))
 
 
 class DownloadSettings(object):
@@ -594,7 +598,7 @@ class FileHash(object):
 
 class FileHashStatus(object):
     STATUS_OK = "OK"
-    STATUS_CONFLICTED = "CONFLICTED"
+    STATUS_WARNING = "WARNING"
     STATUS_FAILED = "FAILED"
 
     def __init__(self, file_hash, status):
@@ -602,7 +606,7 @@ class FileHashStatus(object):
         self.status = status
 
     def has_a_valid_hash(self):
-        return self.status in [self.STATUS_OK, self.STATUS_CONFLICTED]
+        return self.status in [self.STATUS_OK, self.STATUS_WARNING]
 
     def get_status_line(self):
         return "{} {} {} {}".format(self.file_hash.file_path,
@@ -621,7 +625,7 @@ class FileHashStatus(object):
         The status property will bet set as follows:
         STATUS_OK: there are only valid file hashes
         STATUS_FAILED: there are only failed file hashes
-        STATUS_CONFLICTED: there are both failed and valid hashes
+        STATUS_WARNING: there are both failed and valid hashes
         Raises ValueError if no hashes found.
         :param dds_hashes: [dict]: list of dicts with 'algorithm', and 'value' keys
         :param file_path: str: path to file to have hash checked
@@ -632,7 +636,7 @@ class FileHashStatus(object):
         if valid_file_hashes:
             first_ok_file_hash = valid_file_hashes[0]
             if failed_file_hashes:
-                return FileHashStatus(first_ok_file_hash, FileHashStatus.STATUS_CONFLICTED)
+                return FileHashStatus(first_ok_file_hash, FileHashStatus.STATUS_WARNING)
             else:
                 return FileHashStatus(first_ok_file_hash, FileHashStatus.STATUS_OK)
         else:
