@@ -11,11 +11,16 @@ from ddsc.core.util import ProgressQueue, wait_for_processes
 from ddsc.core.localstore import HashData
 import traceback
 import sys
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 SEND_EXTERNAL_PUT_RETRY_TIMES = 5
 SEND_EXTERNAL_RETRY_SECONDS = 20
 SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES = 2
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
+
+
+class ForbiddenSendExternalException(Exception):
+    pass
 
 
 class FileUploader(object):
@@ -385,27 +390,13 @@ class ChunkSender(object):
                 chunk_num += 1
                 sent_chunks += 1
 
+    @retry(retry=retry_if_exception_type(ForbiddenSendExternalException),
+           stop=stop_after_attempt(SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES))
     def _send_chunk(self, chunk, chunk_num):
         """
         Send a single chunk to the remote service.
         :param chunk: bytes data we are uploading
         :param chunk_num: int number associated with this chunk
         """
-        count = 0
-        while True:
-            try:
-                url_info = self.upload_operations.create_file_chunk_url(self.upload_id, chunk_num, chunk)
-                self.upload_operations.send_file_external(url_info, chunk)
-                return
-            except ForbiddenSendExternalException:
-                # Retry when we receive forbidden status code while uploading an chunk.
-                # We receive a response with status code 403 when the url is expired.
-                count += 1
-                if count <= SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES:
-                    pass  # retry
-                else:
-                    raise
-
-
-class ForbiddenSendExternalException(Exception):
-    pass
+        url_info = self.upload_operations.create_file_chunk_url(self.upload_id, chunk_num, chunk)
+        self.upload_operations.send_file_external(url_info, chunk)
