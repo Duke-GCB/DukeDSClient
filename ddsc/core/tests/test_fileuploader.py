@@ -309,3 +309,40 @@ class TestChunkSender(TestCase):
             chunk_size=100, index=0, num_chunks_to_send=1, progress_queue=Mock()
         )
         chunk_sender._send_chunk(chunk='abc', chunk_num=1)
+
+        mock_operations = mock_file_upload_operations.return_value
+        mock_operations.create_file_chunk_url.assert_called_with('abc123', 1, 'abc')
+        mock_operations.send_file_external.assert_called_with(
+            mock_operations.create_file_chunk_url.return_value, 'abc'
+        )
+        self.assertEqual(mock_operations.create_file_chunk_url.call_count, 1)
+        self.assertEqual(mock_operations.send_file_external.call_count, 1)
+
+    @patch('ddsc.core.fileuploader.FileUploadOperations')
+    def test__send_chunk_with_one_retry(self, mock_file_upload_operations):
+        mock_operations = mock_file_upload_operations.return_value
+        chunk_sender = ChunkSender(
+            data_service=Mock(), upload_id='abc123', filename='data.txt',
+            chunk_size=100, index=0, num_chunks_to_send=1, progress_queue=Mock()
+        )
+        mock_operations.send_file_external.side_effect = [
+            ForbiddenSendExternalException("Forbidden"),  # raise exception
+            None  # then return a value
+        ]
+        chunk_sender._send_chunk(chunk='abc', chunk_num=1)
+
+        self.assertEqual(mock_operations.create_file_chunk_url.call_count, 2)
+        self.assertEqual(mock_operations.send_file_external.call_count, 2)
+
+    @patch('ddsc.core.fileuploader.FileUploadOperations')
+    def test__send_chunk_with_only_forbidden(self, mock_file_upload_operations):
+        mock_operations = mock_file_upload_operations.return_value
+        chunk_sender = ChunkSender(
+            data_service=Mock(), upload_id='abc123', filename='data.txt',
+            chunk_size=100, index=0, num_chunks_to_send=1, progress_queue=Mock()
+        )
+        mock_operations.send_file_external.side_effect = ForbiddenSendExternalException('Forbidden')
+        with self.assertRaises(ForbiddenSendExternalException) as raised_exception:
+            chunk_sender._send_chunk(chunk='abc', chunk_num=1)
+
+        self.assertEqual(str(raised_exception.exception), 'Forbidden')

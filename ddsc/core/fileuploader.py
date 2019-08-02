@@ -391,7 +391,8 @@ class ChunkSender(object):
                 sent_chunks += 1
 
     @retry(retry=retry_if_exception_type(ForbiddenSendExternalException),
-           stop=stop_after_attempt(SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES))
+           stop=stop_after_attempt(SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES),
+           reraise=True)
     def _send_chunk(self, chunk, chunk_num):
         """
         Send a single chunk to the remote service.
