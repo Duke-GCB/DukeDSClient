@@ -1,6 +1,6 @@
 from unittest import TestCase
 from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async, FileUploadOperations, \
-    RESOURCE_NOT_CONSISTENT_RETRY_SECONDS
+    RESOURCE_NOT_CONSISTENT_RETRY_SECONDS, ForbiddenSendExternalException, ChunkSender
 from ddsc.core.ddsapi import DSResourceNotConsistentError, DataServiceError
 import requests
 from mock import MagicMock, Mock, patch, call
@@ -94,6 +94,22 @@ class TestFileUploadOperations(TestCase):
         }
         fop.send_file_external(url_json, chunk='DATADATADATA')
         self.assertEqual(2, data_service.send_external.call_count)
+
+    @patch('ddsc.core.fileuploader.time')
+    def test_send_file_external_403_exception(self, mock_time):
+        data_service = MagicMock()
+        data_service.send_external.side_effect = [Mock(status_code=403)]
+        fop = FileUploadOperations(data_service, MagicMock())
+        url_json = {
+            'http_verb': 'PUT',
+            'host': 'something.com',
+            'url': '/putdata',
+            'http_headers': [],
+        }
+        with self.assertRaises(ForbiddenSendExternalException) as raised_exception:
+            fop.send_file_external(url_json, chunk='DATADATADATA')
+        self.assertEqual(str(raised_exception.exception),
+                         'Failed to send file to external store. Error:403 something.com/putdata')
 
     @patch('ddsc.core.fileuploader.time')
     def test_send_file_external_retry_put_fail_after_5_times(self, mock_time):
@@ -283,3 +299,13 @@ class TestFileUploadOperations(TestCase):
             "http_verb": "PUT",
             "host": "duke_data_service_prod.s3.amazonaws.com",
         })
+
+
+class TestChunkSender(TestCase):
+    @patch('ddsc.core.fileuploader.FileUploadOperations')
+    def test__send_chunk(self, mock_file_upload_operations):
+        chunk_sender = ChunkSender(
+            data_service=Mock(), upload_id='abc123', filename='data.txt',
+            chunk_size=100, index=0, num_chunks_to_send=1, progress_queue=Mock()
+        )
+        chunk_sender._send_chunk(chunk='abc', chunk_num=1)

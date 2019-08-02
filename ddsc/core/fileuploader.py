@@ -14,6 +14,7 @@ import sys
 
 SEND_EXTERNAL_PUT_RETRY_TIMES = 5
 SEND_EXTERNAL_RETRY_SECONDS = 20
+SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES = 2
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 
 
@@ -187,7 +188,10 @@ class FileUploadOperations(object):
         http_headers = url_json['http_headers']
         resp = self._send_file_external_with_retry(http_verb, host, url, http_headers, chunk)
         if resp.status_code != 200 and resp.status_code != 201:
-            raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code) + host + url)
+            msg = "Failed to send file to external store. Error:" + str(resp.status_code) + " " + host + url
+            if resp.status_code == 403:
+                raise ForbiddenSendExternalException(msg)
+            raise ValueError(msg)
 
     def _send_file_external_with_retry(self, http_verb, host, url, http_headers, chunk):
         """
@@ -387,5 +391,21 @@ class ChunkSender(object):
         :param chunk: bytes data we are uploading
         :param chunk_num: int number associated with this chunk
         """
-        url_info = self.upload_operations.create_file_chunk_url(self.upload_id, chunk_num, chunk)
-        self.upload_operations.send_file_external(url_info, chunk)
+        count = 0
+        while True:
+            try:
+                url_info = self.upload_operations.create_file_chunk_url(self.upload_id, chunk_num, chunk)
+                self.upload_operations.send_file_external(url_info, chunk)
+                return
+            except ForbiddenSendExternalException:
+                # Retry when we receive forbidden status code while uploading an chunk.
+                # We receive a response with status code 403 when the url is expired.
+                count += 1
+                if count <= SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES:
+                    pass  # retry
+                else:
+                    raise
+
+
+class ForbiddenSendExternalException(Exception):
+    pass
