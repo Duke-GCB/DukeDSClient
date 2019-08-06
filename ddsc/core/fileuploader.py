@@ -11,10 +11,16 @@ from ddsc.core.util import ProgressQueue, wait_for_processes
 from ddsc.core.localstore import HashData
 import traceback
 import sys
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 SEND_EXTERNAL_PUT_RETRY_TIMES = 5
 SEND_EXTERNAL_RETRY_SECONDS = 20
+SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES = 2
 RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
+
+
+class ForbiddenSendExternalException(Exception):
+    pass
 
 
 class FileUploader(object):
@@ -187,7 +193,10 @@ class FileUploadOperations(object):
         http_headers = url_json['http_headers']
         resp = self._send_file_external_with_retry(http_verb, host, url, http_headers, chunk)
         if resp.status_code != 200 and resp.status_code != 201:
-            raise ValueError("Failed to send file to external store. Error:" + str(resp.status_code) + host + url)
+            msg = "Failed to send file to external store. Error:" + str(resp.status_code) + " " + host + url
+            if resp.status_code == 403:
+                raise ForbiddenSendExternalException(msg)
+            raise ValueError(msg)
 
     def _send_file_external_with_retry(self, http_verb, host, url, http_headers, chunk):
         """
@@ -381,6 +390,9 @@ class ChunkSender(object):
                 chunk_num += 1
                 sent_chunks += 1
 
+    @retry(retry=retry_if_exception_type(ForbiddenSendExternalException),
+           stop=stop_after_attempt(SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES),
+           reraise=True)
     def _send_chunk(self, chunk, chunk_num):
         """
         Send a single chunk to the remote service.
