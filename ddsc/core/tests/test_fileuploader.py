@@ -1,6 +1,6 @@
 from unittest import TestCase
 from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async, FileUploadOperations, \
-    RESOURCE_NOT_CONSISTENT_RETRY_SECONDS, ForbiddenSendExternalException, ChunkSender
+    RetrySettings, ForbiddenSendExternalException, ChunkSender
 from ddsc.core.ddsapi import DSResourceNotConsistentError, DataServiceError
 import requests
 from mock import MagicMock, Mock, patch, call
@@ -182,7 +182,7 @@ class TestFileUploadOperations(TestCase):
         path_data.name.return_value = '/tmp/data.dat'
         upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
         self.assertEqual(upload_id, '123')
-        mock_sleep.assert_called_with(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)
+        mock_sleep.assert_called_with(RetrySettings.RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)
 
     @patch('ddsc.core.fileuploader.time.sleep')
     def test_create_upload_with_two_pauses(self, mock_sleep):
@@ -200,8 +200,8 @@ class TestFileUploadOperations(TestCase):
         upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
         self.assertEqual(upload_id, '124')
         mock_sleep.assert_has_calls([
-            call(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS),
-            call(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)])
+            call(RetrySettings.RESOURCE_NOT_CONSISTENT_RETRY_SECONDS),
+            call(RetrySettings.RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)])
 
     @patch('ddsc.core.fileuploader.time.sleep')
     def test_create_upload_with_one_pause_then_failure(self, mock_sleep):
