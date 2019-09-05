@@ -3,7 +3,6 @@ Objects to upload a number of chunks from a file to a remote store as part of an
 """
 from __future__ import print_function
 import math
-import time
 import requests
 from multiprocessing import Process, Queue
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi, retry_until_resource_is_consistent
@@ -202,6 +201,7 @@ class FileUploadOperations(object):
         retry_times = 0
         if http_verb == 'PUT':
             retry_times = RetrySettings.SEND_EXTERNAL_PUT_RETRY_TIMES
+
         def after_failure(retry_state):
             if retry_state.attempt_number == 1:
                 self._show_retry_warning(host)
