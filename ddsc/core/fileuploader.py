@@ -215,6 +215,7 @@ class FileUploadOperations(object):
                     self.data_service.recreate_requests_session()
                 else:
                     raise
+
     @staticmethod
     def _show_retry_warning(host):
         """
