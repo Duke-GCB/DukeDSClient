@@ -83,7 +83,8 @@ class TestFileUploadOperations(TestCase):
         self.assertEqual(1, data_service.send_external.call_count)
         self.assertEqual(0, fop._show_retry_warning.call_count)
 
-    def test_send_file_external_retry_put(self):
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_send_file_external_retry_put(self, mock_sleep):
         data_service = MagicMock()
         data_service.send_external.side_effect = [requests.exceptions.ConnectionError, Mock(status_code=201)]
         fop = FileUploadOperations(data_service, MagicMock())
@@ -96,7 +97,8 @@ class TestFileUploadOperations(TestCase):
         fop.send_file_external(url_json, chunk='DATADATADATA')
         self.assertEqual(2, data_service.send_external.call_count)
 
-    def test_send_file_external_403_exception(self):
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_send_file_external_403_exception(self, mock_sleep):
         data_service = MagicMock()
         data_service.send_external.side_effect = [Mock(status_code=403)]
         fop = FileUploadOperations(data_service, MagicMock())
@@ -111,7 +113,8 @@ class TestFileUploadOperations(TestCase):
         self.assertEqual(str(raised_exception.exception),
                          'Failed to send file to external store. Error:403 something.com/putdata')
 
-    def test_send_file_external_retry_put_fail_after_4_retries(self):
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_send_file_external_retry_put_fail_after_4_retries(self, mock_sleep):
         data_service = MagicMock()
         connection_err = requests.exceptions.ConnectionError
         data_service.send_external.side_effect = [connection_err, connection_err, connection_err, connection_err,
@@ -127,10 +130,11 @@ class TestFileUploadOperations(TestCase):
         with self.assertRaises(requests.exceptions.ConnectionError):
             fop.send_file_external(url_json, chunk='DATADATADATA')
         self.assertEqual(4, data_service.send_external.call_count)
-        self.assertEqual(4, data_service.recreate_requests_session.call_count)
+        self.assertEqual(3, data_service.recreate_requests_session.call_count)
         self.assertEqual(1, fop._show_retry_warning.call_count)
 
-    def test_send_file_external_succeeds_3rd_time(self):
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_send_file_external_succeeds_3rd_time(self, mock_sleep):
         data_service = MagicMock()
         connection_err = requests.exceptions.ConnectionError
         data_service.send_external.side_effect = [connection_err, connection_err, Mock(status_code=201)]
@@ -145,7 +149,8 @@ class TestFileUploadOperations(TestCase):
         self.assertEqual(3, data_service.send_external.call_count)
         self.assertEqual(2, data_service.recreate_requests_session.call_count)
 
-    def test_send_file_external_no_retry_post(self):
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_send_file_external_no_retry_post(self, mock_sleep):
         data_service = MagicMock()
         data_service.send_external.side_effect = [requests.exceptions.ConnectionError]
         fop = FileUploadOperations(data_service, MagicMock())

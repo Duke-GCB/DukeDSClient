@@ -11,7 +11,8 @@ from ddsc.core.localstore import HashData
 from ddsc.core.retry import RetrySettings
 import traceback
 import sys
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, Retrying
+import time
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 
 class ForbiddenSendExternalException(Exception):
@@ -198,21 +199,22 @@ class FileUploadOperations(object):
         Send chunk to host, url using http_verb. If http_verb is PUT and a connection error occurs
         retry a few times. Pauses between retries. Raises if unsuccessful.
         """
-        retry_times = 0
+        count = 0
+        retry_times = 1
         if http_verb == 'PUT':
             retry_times = RetrySettings.SEND_EXTERNAL_PUT_RETRY_TIMES
-
-        def after_failure(retry_state):
-            if retry_state.attempt_number == 1:
-                self._show_retry_warning(host)
-            self.data_service.recreate_requests_session()
-
-        retrying = Retrying(stop=stop_after_attempt(retry_times),
-                            retry=retry_if_exception_type(requests.exceptions.ConnectionError),
-                            after=after_failure,
-                            reraise=True)
-        return retrying.call(self.data_service.send_external, http_verb, host, url, http_headers, chunk)
-
+        while True:
+            try:
+                return self.data_service.send_external(http_verb, host, url, http_headers, chunk)
+            except requests.exceptions.ConnectionError:
+                count += 1
+                if count < retry_times:
+                    if count == 1:  # Only show a warning the first time we fail to send a chunk
+                        self._show_retry_warning(host)
+                    time.sleep(RetrySettings.SEND_EXTERNAL_RETRY_SECONDS)
+                    self.data_service.recreate_requests_session()
+                else:
+                    raise
     @staticmethod
     def _show_retry_warning(host):
         """
