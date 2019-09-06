@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from ddsc.core.util import verify_terminal_encoding, ProgressBar, ProgressPrinter, KindType, RemotePath
+from ddsc.core.util import verify_terminal_encoding, ProgressBar, ProgressPrinter, KindType, RemotePath, humanize_bytes
 from mock import patch, Mock
 
 
@@ -186,3 +186,18 @@ class TestRemotePath(TestCase):
         self.assertEqual(RemotePath.split('/data'), ['data'])
         self.assertEqual(RemotePath.split('/data/file1.txt'), ['data', 'file1.txt'])
         self.assertEqual(RemotePath.split('/data/other/file1.txt'), ['data', 'other', 'file1.txt'])
+
+
+class TestHumanizeBytes(TestCase):
+    def test_humanize_bytes(self):
+        vals = [
+            (1, "1 B"),
+            (1023, "1023 B"),
+            (1024, "1 KiB"),
+            (1536, "1.5 KiB"),
+            (1024 ** 2, "1 MiB"),
+            (1024 ** 3, "1 GiB"),
+            (1024 ** 4, "1024 GiB"),
+        ]
+        for input_val, expected_result in vals:
+            self.assertEqual(humanize_bytes(input_val), expected_result)

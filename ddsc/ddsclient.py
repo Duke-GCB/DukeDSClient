@@ -9,7 +9,7 @@ from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, format_destination_path, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
-from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
+from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding, humanize_bytes
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
 from ddsc.config import create_config
@@ -50,6 +50,7 @@ class DDSClient(object):
         parser.register_delete_command(self._setup_run_command(DeleteCommand))
         parser.register_list_auth_roles_command(self._setup_run_command(ListAuthRolesCommand))
         parser.register_move_command(self._setup_run_command(MoveCommand))
+        parser.register_size_command(self._setup_run_command(SizeCommand))
         return parser
 
     def _setup_run_command(self, command_constructor):
@@ -480,6 +481,16 @@ class MoveCommand(ClientCommand):
         """
         project = self.get_project_by_name_or_id(args)
         project.move_file_or_folder(args.source_remote_path, args.target_remote_path)
+
+
+class SizeCommand(ClientCommand):
+    """
+    Prints size of a project in a human readable format.
+    """
+    def run(self, args):
+        project = self.get_project_by_name_or_id(args)
+        total_bytes = sum([f.current_version['upload']['size'] for f in project.get_all_files()])
+        print(humanize_bytes(total_bytes))
 
 
 def boolean_input_prompt(message):
