@@ -3,20 +3,16 @@ Objects to upload a number of chunks from a file to a remote store as part of an
 """
 from __future__ import print_function
 import math
-import time
 import requests
 from multiprocessing import Process, Queue
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi, retry_until_resource_is_consistent
 from ddsc.core.util import ProgressQueue, wait_for_processes
 from ddsc.core.localstore import HashData
+from ddsc.core.retry import RetrySettings
 import traceback
 import sys
+import time
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
-
-SEND_EXTERNAL_PUT_RETRY_TIMES = 5
-SEND_EXTERNAL_RETRY_SECONDS = 20
-SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES = 2
-RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 
 
 class ForbiddenSendExternalException(Exception):
@@ -206,7 +202,7 @@ class FileUploadOperations(object):
         count = 0
         retry_times = 1
         if http_verb == 'PUT':
-            retry_times = SEND_EXTERNAL_PUT_RETRY_TIMES
+            retry_times = RetrySettings.SEND_EXTERNAL_PUT_RETRY_TIMES
         while True:
             try:
                 return self.data_service.send_external(http_verb, host, url, http_headers, chunk)
@@ -215,7 +211,7 @@ class FileUploadOperations(object):
                 if count < retry_times:
                     if count == 1:  # Only show a warning the first time we fail to send a chunk
                         self._show_retry_warning(host)
-                    time.sleep(SEND_EXTERNAL_RETRY_SECONDS)
+                    time.sleep(RetrySettings.SEND_EXTERNAL_RETRY_SECONDS)
                     self.data_service.recreate_requests_session()
                 else:
                     raise
@@ -391,7 +387,7 @@ class ChunkSender(object):
                 sent_chunks += 1
 
     @retry(retry=retry_if_exception_type(ForbiddenSendExternalException),
-           stop=stop_after_attempt(SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES),
+           stop=stop_after_attempt(RetrySettings.SEND_EXTERNAL_FORBIDDEN_RETRY_TIMES),
            reraise=True)
     def _send_chunk(self, chunk, chunk_num):
         """

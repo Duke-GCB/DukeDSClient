@@ -1,6 +1,6 @@
 from unittest import TestCase
 from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async, FileUploadOperations, \
-    RESOURCE_NOT_CONSISTENT_RETRY_SECONDS, ForbiddenSendExternalException, ChunkSender
+    RetrySettings, ForbiddenSendExternalException, ChunkSender
 from ddsc.core.ddsapi import DSResourceNotConsistentError, DataServiceError
 import requests
 from mock import MagicMock, Mock, patch, call
@@ -72,6 +72,7 @@ class TestFileUploadOperations(TestCase):
         data_service = MagicMock()
         data_service.send_external.side_effect = [Mock(status_code=201)]
         fop = FileUploadOperations(data_service, MagicMock())
+        fop._show_retry_warning = Mock()
         url_json = {
             'http_verb': 'PUT',
             'host': 'something.com',
@@ -80,9 +81,10 @@ class TestFileUploadOperations(TestCase):
         }
         fop.send_file_external(url_json, chunk='DATADATADATA')
         self.assertEqual(1, data_service.send_external.call_count)
+        self.assertEqual(0, fop._show_retry_warning.call_count)
 
-    @patch('ddsc.core.fileuploader.time')
-    def test_send_file_external_retry_put(self, mock_time):
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_send_file_external_retry_put(self, mock_sleep):
         data_service = MagicMock()
         data_service.send_external.side_effect = [requests.exceptions.ConnectionError, Mock(status_code=201)]
         fop = FileUploadOperations(data_service, MagicMock())
@@ -95,8 +97,8 @@ class TestFileUploadOperations(TestCase):
         fop.send_file_external(url_json, chunk='DATADATADATA')
         self.assertEqual(2, data_service.send_external.call_count)
 
-    @patch('ddsc.core.fileuploader.time')
-    def test_send_file_external_403_exception(self, mock_time):
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_send_file_external_403_exception(self, mock_sleep):
         data_service = MagicMock()
         data_service.send_external.side_effect = [Mock(status_code=403)]
         fop = FileUploadOperations(data_service, MagicMock())
@@ -111,8 +113,8 @@ class TestFileUploadOperations(TestCase):
         self.assertEqual(str(raised_exception.exception),
                          'Failed to send file to external store. Error:403 something.com/putdata')
 
-    @patch('ddsc.core.fileuploader.time')
-    def test_send_file_external_retry_put_fail_after_5_times(self, mock_time):
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_send_file_external_retry_put_fail_after_4_retries(self, mock_sleep):
         data_service = MagicMock()
         connection_err = requests.exceptions.ConnectionError
         data_service.send_external.side_effect = [connection_err, connection_err, connection_err, connection_err,
@@ -124,13 +126,15 @@ class TestFileUploadOperations(TestCase):
             'url': '/putdata',
             'http_headers': [],
         }
+        fop._show_retry_warning = Mock()
         with self.assertRaises(requests.exceptions.ConnectionError):
             fop.send_file_external(url_json, chunk='DATADATADATA')
-        self.assertEqual(5, data_service.send_external.call_count)
-        self.assertEqual(4, data_service.recreate_requests_session.call_count)
+        self.assertEqual(4, data_service.send_external.call_count)
+        self.assertEqual(3, data_service.recreate_requests_session.call_count)
+        self.assertEqual(1, fop._show_retry_warning.call_count)
 
-    @patch('ddsc.core.fileuploader.time')
-    def test_send_file_external_succeeds_3rd_time(self, mock_time):
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_send_file_external_succeeds_3rd_time(self, mock_sleep):
         data_service = MagicMock()
         connection_err = requests.exceptions.ConnectionError
         data_service.send_external.side_effect = [connection_err, connection_err, Mock(status_code=201)]
@@ -145,7 +149,8 @@ class TestFileUploadOperations(TestCase):
         self.assertEqual(3, data_service.send_external.call_count)
         self.assertEqual(2, data_service.recreate_requests_session.call_count)
 
-    def test_send_file_external_no_retry_post(self):
+    @patch('ddsc.core.fileuploader.time.sleep')
+    def test_send_file_external_no_retry_post(self, mock_sleep):
         data_service = MagicMock()
         data_service.send_external.side_effect = [requests.exceptions.ConnectionError]
         fop = FileUploadOperations(data_service, MagicMock())
@@ -168,7 +173,7 @@ class TestFileUploadOperations(TestCase):
                           remote_file_id="456")
         data_service.complete_upload.assert_called()
 
-    @patch('ddsc.core.fileuploader.time.sleep')
+    @patch('ddsc.core.ddsapi.time.sleep')
     def test_create_upload_with_one_pause(self, mock_sleep):
         data_service = MagicMock()
         response = Mock()
@@ -182,9 +187,9 @@ class TestFileUploadOperations(TestCase):
         path_data.name.return_value = '/tmp/data.dat'
         upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
         self.assertEqual(upload_id, '123')
-        mock_sleep.assert_called_with(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)
+        mock_sleep.assert_called_with(RetrySettings.RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)
 
-    @patch('ddsc.core.fileuploader.time.sleep')
+    @patch('ddsc.core.ddsapi.time.sleep')
     def test_create_upload_with_two_pauses(self, mock_sleep):
         data_service = MagicMock()
         response = Mock()
@@ -200,10 +205,10 @@ class TestFileUploadOperations(TestCase):
         upload_id = fop.create_upload(project_id='12', path_data=path_data, hash_data=MagicMock())
         self.assertEqual(upload_id, '124')
         mock_sleep.assert_has_calls([
-            call(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS),
-            call(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)])
+            call(RetrySettings.RESOURCE_NOT_CONSISTENT_RETRY_SECONDS),
+            call(RetrySettings.RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)])
 
-    @patch('ddsc.core.fileuploader.time.sleep')
+    @patch('ddsc.core.ddsapi.time.sleep')
     def test_create_upload_with_one_pause_then_failure(self, mock_sleep):
         data_service = MagicMock()
         response = Mock()

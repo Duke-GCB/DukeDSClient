@@ -6,7 +6,7 @@ from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth,
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
     retry_until_resource_is_consistent, retry_when_service_unavailable, CONNECTION_RETRY_MESSAGE, \
-    CONNECTION_RETRY_SECONDS, SERVICE_DOWN_RETRY_SECONDS, CONNECTION_RETRY_TIMES
+    RetrySettings
 from mock import MagicMock, Mock, patch, ANY
 
 
@@ -1005,7 +1005,7 @@ class TestRetryWhenServiceUnavailable(TestCase):
         self.raise_error_once = DataServiceError(mock_response, '', '')
         self.assertEqual('result123', self.func('123'))
         self.assertEqual(1, mock_time.sleep.call_count)
-        mock_time.sleep.assert_called_with(SERVICE_DOWN_RETRY_SECONDS)
+        mock_time.sleep.assert_called_with(RetrySettings.SERVICE_DOWN_RETRY_SECONDS)
         self.assertEqual(2, len(self.status_messages))
         self.assertIn('Duke Data Service is currently unavailable', self.status_messages[0])
         self.assertEqual('', self.status_messages[1])
@@ -1026,8 +1026,8 @@ class TestRetryWhenServiceUnavailable(TestCase):
             self.assertEqual('result123', self.func('123'))
         except requests.exceptions.ConnectionError:
             pass
-        self.assertEqual(CONNECTION_RETRY_TIMES, mock_time.sleep.call_count)
-        mock_time.sleep.assert_called_with(CONNECTION_RETRY_SECONDS)
+        self.assertEqual(RetrySettings.CONNECTION_RETRY_TIMES, mock_time.sleep.call_count)
+        mock_time.sleep.assert_called_with(RetrySettings.CONNECTION_RETRY_SECONDS)
         self.assertEqual(1, len(self.status_messages))
         self.assertEqual(CONNECTION_RETRY_MESSAGE, self.status_messages[0])
 

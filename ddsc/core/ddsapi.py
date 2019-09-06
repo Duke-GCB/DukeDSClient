@@ -6,19 +6,16 @@ import time
 import datetime
 from ddsc.config import get_user_config_filename
 from ddsc.versioncheck import APP_NAME, get_internal_version_str
+from ddsc.core.retry import RetrySettings
 
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
-RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
-SERVICE_DOWN_RETRY_SECONDS = 60  # 1 minute
 SERVICE_DOWN_MESSAGE = """Duke Data Service is currently unavailable as, so this operation cannot complete right now. ({})
 The operation will be retried automatically, so no action is required. It will complete once Duke Data Service is available.
 
 To cancel this operation, press Ctrl+C.
 """
-CONNECTION_RETRY_TIMES = 5
 CONNECTION_RETRY_MESSAGE = "Connection failed. Retrying."
-CONNECTION_RETRY_SECONDS = 1
 
 
 def get_user_agent_str():
@@ -31,8 +28,9 @@ def get_user_agent_str():
 
 def retry_when_service_unavailable(func):
     """
-    Decorator that will retry a function while it fails with status code 503 and up to CONNECTION_RETRY_TIMES connection
-    errors. Assumes the first argument to the function will be an object with a set_status_message method.
+    Decorator that will retry a function while it fails with status code 503 and up to
+    RetrySettings.CONNECTION_RETRY_TIMES connection errors. Assumes the first argument to the function will be an
+    object with a set_status_message method.
     :param func: function: will be called until it doesn't fail with DataServiceError status 503, or too many ConnectionErrors
     :return: value returned by func
     """
@@ -50,16 +48,16 @@ def retry_when_service_unavailable(func):
                 return result
             except requests.exceptions.ConnectionError:
                 connection_retries += 1
-                if connection_retries <= CONNECTION_RETRY_TIMES:
+                if connection_retries <= RetrySettings.CONNECTION_RETRY_TIMES:
                     # continue to retry and show message
                     status_msg = CONNECTION_RETRY_MESSAGE
-                    sleep_seconds = CONNECTION_RETRY_SECONDS
+                    sleep_seconds = RetrySettings.CONNECTION_RETRY_SECONDS
                 else:
                     raise
             except DataServiceError as dse:
                 if dse.status_code == 503:
                     status_msg = SERVICE_DOWN_MESSAGE.format(datetime.datetime.utcnow())
-                    sleep_seconds = SERVICE_DOWN_RETRY_SECONDS
+                    sleep_seconds = RetrySettings.SERVICE_DOWN_RETRY_SECONDS
                 else:
                     raise
             time.sleep(sleep_seconds)
@@ -1216,4 +1214,4 @@ def retry_until_resource_is_consistent(func, monitor):
             if not waiting and monitor:
                 monitor.start_waiting()
                 waiting = True
-            time.sleep(RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)
+            time.sleep(RetrySettings.RESOURCE_NOT_CONSISTENT_RETRY_SECONDS)

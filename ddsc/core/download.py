@@ -8,10 +8,8 @@ from ddsc.core.util import ProgressPrinter
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.remotestore import RemoteStore, ProjectFile, RemoteFileUrl
+from ddsc.core.retry import RetrySettings
 
-FETCH_EXTERNAL_PUT_RETRY_TIMES = 5
-FETCH_EXTERNAL_RETRY_SECONDS = 20
-RESOURCE_NOT_CONSISTENT_RETRY_SECONDS = 2
 SWIFT_EXPIRED_STATUS_CODE = 401
 S3_EXPIRED_STATUS_CODE = 403
 MISMATCHED_FILE_HASH_WARNING = """
@@ -408,7 +406,7 @@ class RetryChunkDownloader(object):
         self.seek_amt = seek_amt
         self.bytes_to_read = bytes_to_read
         self.retry_times = 0
-        self.max_retry_times = FETCH_EXTERNAL_PUT_RETRY_TIMES
+        self.max_retry_times = RetrySettings.FETCH_EXTERNAL_PUT_RETRY_TIMES
         self.download_context = download_context
         self.actual_bytes_read = 0
         self.remote_store = download_context.create_remote_store()
