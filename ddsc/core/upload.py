@@ -1,7 +1,7 @@
 import datetime
 from ddsc.core.localstore import LocalProject
 from ddsc.core.remotestore import RemoteStore
-from ddsc.core.util import ProgressPrinter, ProjectWalker
+from ddsc.core.util import ProgressPrinter, ProjectWalker, plural_fmt
 from ddsc.core.projectuploader import UploadSettings, ProjectUploader, ProjectUploadDryRun
 
 
@@ -165,22 +165,11 @@ class LocalOnlyCounter(object):
         Return a string representing the totals contained herein.
         :return: str counts/types string
         """
-        return '{}, {}, {}'.format(LocalOnlyCounter.plural_fmt('project', self.projects),
-                                   LocalOnlyCounter.plural_fmt('folder', self.folders),
-                                   LocalOnlyCounter.plural_fmt('file', self.files))
+        return '{}, {}, {}'.format(plural_fmt('project', self.projects),
+                                   plural_fmt('folder', self.folders),
+                                   plural_fmt('file', self.files))
 
-    @staticmethod
-    def plural_fmt(name, cnt):
-        """
-        pluralize name if necessary and combine with cnt
-        :param name: str name of the item type
-        :param cnt: int number items of this type
-        :return: str name and cnt joined
-        """
-        if cnt == 1:
-            return '{} {}'.format(cnt, name)
-        else:
-            return '{} {}s'.format(cnt, name)
+
 
 
 class UploadReport(object):

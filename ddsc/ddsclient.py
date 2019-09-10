@@ -50,7 +50,7 @@ class DDSClient(object):
         parser.register_delete_command(self._setup_run_command(DeleteCommand))
         parser.register_list_auth_roles_command(self._setup_run_command(ListAuthRolesCommand))
         parser.register_move_command(self._setup_run_command(MoveCommand))
-        parser.register_size_command(self._setup_run_command(SizeCommand))
+        parser.register_info_command(self._setup_run_command(InfoCommand))
         return parser
 
     def _setup_run_command(self, command_constructor):
@@ -483,14 +483,19 @@ class MoveCommand(ClientCommand):
         project.move_file_or_folder(args.source_remote_path, args.target_remote_path)
 
 
-class SizeCommand(ClientCommand):
+class InfoCommand(ClientCommand):
     """
-    Prints size of a project in a human readable format.
+    Prints information about a project.
     """
     def run(self, args):
         project = self.get_project_by_name_or_id(args)
-        total_bytes = sum([f.current_version['upload']['size'] for f in project.get_all_files()])
-        print(humanize_bytes(total_bytes))
+        summary = project.get_summary()
+        print()
+        print("Name: {}".format(project.name))
+        print("ID: {}".format(project.id))
+        print("URL: {}".format(project.portal_url()))
+        print("Size: {}".format(summary))
+        print()
 
 
 def boolean_input_prompt(message):

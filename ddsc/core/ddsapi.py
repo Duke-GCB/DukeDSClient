@@ -1106,6 +1106,8 @@ class DataServiceApi(object):
     def set_status_message(self, msg):
         print(msg)
 
+    def portal_url(self, project_id):
+        return 'https://{}/#/project/{}'.format(self.auth.config.get_portal_url_base(), project_id)
 
 class MultiJSONResponse(object):
     """

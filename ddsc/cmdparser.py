@@ -497,15 +497,15 @@ class CommandParser(object):
                             help='remote path specifying where to move the file/folder to')
         parser.set_defaults(func=move_func)
 
-    def register_size_command(self, size_func):
+    def register_info_command(self, info_func):
         """
-        Add 'size' command to get the size of a remote project.
-        :param size_func: function: run when user choses this option.
+        Add 'info' command to get details of a remote project.
+        :param info_func: function: run when user choses this option.
         """
-        description = "Print the size of a project."
-        parser = self.subparsers.add_parser('size', description=description)
-        add_project_name_or_id_arg(parser, help_text_suffix="to show the size of")
-        parser.set_defaults(func=size_func)
+        description = "Print information about a project."
+        parser = self.subparsers.add_parser('info', description=description)
+        add_project_name_or_id_arg(parser, help_text_suffix="to show the information about")
+        parser.set_defaults(func=info_func)
 
     def run_command(self, args):
         """

@@ -196,11 +196,11 @@ class TestCommandParser(TestCase):
         self.assertEqual('/data/file1.txt', self.parsed_args.source_remote_path)
         self.assertEqual('/data/file1_bak.txt', self.parsed_args.target_remote_path)
 
-    def test_register_size_command(self):
+    def test_register_info_command(self):
         command_parser = CommandParser(version_str='1.0')
-        command_parser.register_size_command(self.set_parsed_args)
-        self.assertEqual(['size'], list(command_parser.subparsers.choices.keys()))
-        command_parser.run_command(['size', '-p', 'mouse'])
+        command_parser.register_info_command(self.set_parsed_args)
+        self.assertEqual(['info'], list(command_parser.subparsers.choices.keys()))
+        command_parser.run_command(['info', '-p', 'mouse'])
         self.assertEqual('mouse', self.parsed_args.project_name)
 
     @patch("ddsc.cmdparser.os")

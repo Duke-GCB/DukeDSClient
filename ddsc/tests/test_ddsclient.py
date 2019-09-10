@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand, ClientCommand, MoveCommand
-from ddsc.ddsclient import ShareCommand, DeliverCommand, SizeCommand, read_argument_file_contents
+from ddsc.ddsclient import ShareCommand, DeliverCommand, InfoCommand, read_argument_file_contents
 from mock import patch, MagicMock, Mock, call
 
 
@@ -349,14 +349,22 @@ class TestMoveCommand(TestCase):
         mock_project.move_file_or_folder.assert_called_with('/data/file1.txt', '/data/file1.sv.txt')
 
 
-class TestSizeCommand(TestCase):
+class TestInfoCommand(TestCase):
     @patch('ddsc.ddsclient.Client')
     @patch('ddsc.ddsclient.print')
     def test_run(self, mock_print, mock_client):
         mock_project = mock_client.return_value.get_project_by_name.return_value
-        mock_file = Mock()
-        mock_file.current_version = {'upload': {'size': 3 * 1024}}
-        mock_project.get_all_files.return_value = [mock_file]
-        size_command = SizeCommand(config=Mock())
+        mock_project.name = "Mouse"
+        mock_project.id = "1234"
+        mock_project.portal_url.return_value = "someurl"
+        mock_project.get_summary.return_value = '3 top level folders, 0 subfolders, 1 file (12 KiB)'
+        size_command = InfoCommand(config=Mock())
         size_command.run(Mock(project_name='mouse'))
-        mock_print.assert_called_with("3 KiB")
+        mock_print.assert_has_calls([
+            call(),
+            call("Name: Mouse"),
+            call("ID: 1234"),
+            call("URL: someurl"),
+            call("Size: 3 top level folders, 0 subfolders, 1 file (12 KiB)"),
+            call(),
+        ])

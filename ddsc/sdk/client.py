@@ -6,7 +6,7 @@ from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectF
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
 from ddsc.core.download import FileHashStatus, DownloadSettings, FileDownloader, FileToDownload
-from ddsc.core.util import KindType, NoOpProgressPrinter, REMOTE_PATH_SEP
+from ddsc.core.util import KindType, NoOpProgressPrinter, REMOTE_PATH_SEP, humanize_bytes, plural_fmt
 from ddsc.core.moveutil import MoveUtil
 from future.utils import python_2_unicode_compatible
 
@@ -386,8 +386,54 @@ class Project(BaseResponseItem):
         """
         self.dds_connection.delete_project(self.id)
 
+    def get_summary(self):
+        return ProjectSummary(self)
+
+    def portal_url(self):
+        return self.dds_connection.data_service.portal_url(self.id)
+
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
+
+
+class ProjectSummary(object):
+    def __init__(self, project):
+        self.total_size = 0
+        self.file_count = 0
+        self.folder_count = 0
+        self.root_folder_count = 0
+        self._recurse_children(project)
+        self.sub_folder_count = self.folder_count - self.root_folder_count
+
+    def _recurse_children(self, node):
+        parent_is_project = node.kind == KindType.project_str
+        for child in node.get_children():
+            if child.kind == KindType.file_str:
+                self._process_file(child)
+            elif child.kind == KindType.folder_str:
+                self._process_folder(parent_is_project)
+                self._recurse_children(child)
+
+    def _process_file(self, node):
+        self.file_count += 1
+        self.total_size += node.current_size()
+
+    def _process_folder(self, parent_is_project):
+        self.folder_count += 1
+        if parent_is_project:
+            self.root_folder_count += 1
+
+    def __str__(self):
+        parts = []
+        if self.folder_count:
+            parts.append(plural_fmt("top level folder", self.root_folder_count))
+            parts.append(plural_fmt("subfolder", self.sub_folder_count))
+        else:
+            parts.append(plural_fmt("folder", self.folder_count))
+        files_str = plural_fmt("file", self.file_count)
+        files_str += " ({})".format(humanize_bytes(self.total_size))
+        parts.append(files_str)
+        return ", ".join(parts)
 
 
 @python_2_unicode_compatible
@@ -501,6 +547,9 @@ class File(BaseResponseItem):
 
     def change_parent(self, parent):
         return self.dds_connection.move_file(self.id, parent.kind, parent.id)
+
+    def current_size(self):
+        return self.current_version['upload']['size']
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)

@@ -410,3 +410,16 @@ def humanize_bytes(num_bytes):
         suffix = "GiB"
     val = "{:0.1f} {}".format(val, suffix)
     return val.replace(".0", "")
+
+
+def plural_fmt(name, cnt):
+    """
+    pluralize name if necessary and combine with cnt
+    :param name: str name of the item type
+    :param cnt: int number items of this type
+    :return: str name and cnt joined
+    """
+    if cnt == 1:
+        return '{} {}'.format(cnt, name)
+    else:
+        return '{} {}s'.format(cnt, name)
