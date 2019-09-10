@@ -372,14 +372,6 @@ class Project(BaseResponseItem):
         move_util = MoveUtil(self, source_remote_path, target_remote_path)
         return move_util.run()
 
-    def get_paths_to_files(self):
-        path_to_nodes = PathToFiles()
-        path_to_nodes.add_paths_for_children_of_node(self)
-        return path_to_nodes.paths
-
-    def get_all_files(self):
-        return self.get_paths_to_files().values()
-
     def delete(self):
         """
         Delete this project and it's children.
