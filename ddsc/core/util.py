@@ -397,6 +397,11 @@ class RemotePath(object):
 
 
 def humanize_bytes(num_bytes):
+    """
+    Convert a number of bytes to human version
+    :param num_bytes: int: bytes to be converted to
+    :return: str
+    """
     val = num_bytes
     suffix = "B"
     if val >= 1024:
