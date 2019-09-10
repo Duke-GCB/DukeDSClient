@@ -9,7 +9,7 @@ from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
 from ddsc.core.upload import ProjectUpload
 from ddsc.cmdparser import CommandParser, format_destination_path, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
-from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding, humanize_bytes
+from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
 from ddsc.config import create_config

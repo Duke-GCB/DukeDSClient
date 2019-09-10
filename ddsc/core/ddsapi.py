@@ -1109,6 +1109,7 @@ class DataServiceApi(object):
     def portal_url(self, project_id):
         return 'https://{}/#/project/{}'.format(self.auth.config.get_portal_url_base(), project_id)
 
+
 class MultiJSONResponse(object):
     """
     Wraps up multiple requests.Response objects into an object that will return composite dictionary for json() method.

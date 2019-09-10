@@ -170,8 +170,6 @@ class LocalOnlyCounter(object):
                                    plural_fmt('file', self.files))
 
 
-
-
 class UploadReport(object):
     """
     Creates a text report of items that were sent to the remote store.
