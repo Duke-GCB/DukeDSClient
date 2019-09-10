@@ -1,6 +1,7 @@
 from unittest import TestCase
 
-from ddsc.core.util import verify_terminal_encoding, ProgressBar, ProgressPrinter, KindType, RemotePath, humanize_bytes
+from ddsc.core.util import verify_terminal_encoding, ProgressBar, ProgressPrinter, KindType, RemotePath, humanize_bytes,\
+    plural_fmt
 from mock import patch, Mock
 
 
@@ -201,3 +202,13 @@ class TestHumanizeBytes(TestCase):
         ]
         for input_val, expected_result in vals:
             self.assertEqual(humanize_bytes(input_val), expected_result)
+
+
+class TestPluralFmt(TestCase):
+    def test_plural_fmt(self):
+        self.assertEqual(plural_fmt("taco", 1), "1 taco")
+        self.assertEqual(plural_fmt("taco", 2), "2 tacos")
+        self.assertEqual(plural_fmt("folder", 0), "0 folders")
+        self.assertEqual(plural_fmt("folder", 1), "1 folder")
+        self.assertEqual(plural_fmt("folder", 2), "2 folders")
+        self.assertEqual(plural_fmt("folder", 3), "3 folders")
