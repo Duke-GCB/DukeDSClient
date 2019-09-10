@@ -1,6 +1,6 @@
 from unittest import TestCase
 from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File, FileDownload, FileUpload, \
-    ChildFinder, PathToFiles, ItemNotFound
+    ChildFinder, PathToFiles, ItemNotFound, ProjectSummary
 from ddsc.core.util import KindType
 from mock import patch, Mock, ANY
 
@@ -519,6 +519,20 @@ class TestProject(TestCase):
         mock_move_util.assert_called_with(project, '/data/file1.txt', '/data/file1.txt.bak')
         mock_move_util.return_value.run.assert_called_with()
 
+    @patch('ddsc.sdk.client.ProjectSummary')
+    def test_get_summary(self, mock_project_summary):
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        summary = project.get_summary()
+        self.assertEqual(summary, mock_project_summary.return_value)
+        mock_project_summary.assert_called_with(project)
+
+    def test_portal_url(self):
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        url = project.portal_url()
+        self.assertEqual(url, mock_dds_connection.data_service.portal_url.return_value)
+
 
 class TestFolder(TestCase):
     def setUp(self):
@@ -594,6 +608,7 @@ class TestFile(TestCase):
             },
             'current_version': {
                 'upload': {
+                    'size': 1234,
                     'hashes': [
                         {
                             'algorithm': 'md5',
@@ -660,6 +675,11 @@ class TestFile(TestCase):
         dds_file = File(mock_dds_connection, self.file_dict)
         dds_file.change_parent(mock_parent)
         mock_dds_connection.move_file.assert_called_with(self.file_dict['id'], 'dds-folder', 'def123')
+
+    def test_current_size(self):
+        mock_dds_connection = Mock()
+        folder = File(mock_dds_connection, self.file_dict)
+        self.assertEqual(folder.current_size(), 1234)
 
 
 class TestFileDownload(TestCase):
@@ -773,3 +793,26 @@ class TestPathToFiles(TestCase):
             '/myfolder/myfile1': mock_file1,
             '/myfolder/myfile2': mock_file2
         }, path_to_files.paths)
+
+
+class TestProjectSummary(TestCase):
+    def test_constructor(self):
+        mock_file1 = Mock(kind=KindType.file_str)
+        mock_file1.current_size.return_value = 1024
+        mock_file2 = Mock(kind=KindType.file_str)
+        mock_file2.current_size.return_value = 2048
+        mock_folder1 = Mock(kind=KindType.folder_str)
+        mock_folder1.get_children.return_value = [
+            mock_file1, mock_file2
+        ]
+        mock_folder2 = Mock(kind=KindType.folder_str)
+        mock_folder2.get_children.return_value = [
+            mock_folder1
+        ]
+        mock_project = Mock(kind=KindType.project_str)
+        mock_project.get_children.return_value = [
+            mock_folder2
+        ]
+        summary = ProjectSummary(mock_project)
+        expected = "1 top level folder, 1 subfolder, 2 files (3 KiB)"
+        self.assertEqual(str(summary), expected)

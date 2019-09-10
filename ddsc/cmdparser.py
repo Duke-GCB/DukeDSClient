@@ -497,6 +497,16 @@ class CommandParser(object):
                             help='remote path specifying where to move the file/folder to')
         parser.set_defaults(func=move_func)
 
+    def register_info_command(self, info_func):
+        """
+        Add 'info' command to get details of a remote project.
+        :param info_func: function: run when user choses this option.
+        """
+        description = "Print information about a project."
+        parser = self.subparsers.add_parser('info', description=description)
+        add_project_name_or_id_arg(parser, help_text_suffix="to show the information about")
+        parser.set_defaults(func=info_func)
+
     def run_command(self, args):
         """
         Parse command line arguments and run function registered for the appropriate command.

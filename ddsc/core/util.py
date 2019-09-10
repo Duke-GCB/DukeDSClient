@@ -394,3 +394,37 @@ class RemotePath(object):
     def split(remote_path):
         remote_path_no_leading_slash = RemotePath.strip_leading_slash(remote_path)
         return remote_path_no_leading_slash.split(REMOTE_PATH_SEP)
+
+
+def humanize_bytes(num_bytes):
+    """
+    Convert a number of bytes to human version
+    :param num_bytes: int: bytes to be converted to
+    :return: str
+    """
+    val = num_bytes
+    suffix = "B"
+    if val >= 1024:
+        val = val / 1024
+        suffix = "KiB"
+    if val >= 1024:
+        val = val / 1024
+        suffix = "MiB"
+    if val >= 1024:
+        val = val / 1024
+        suffix = "GiB"
+    val = "{:0.1f} {}".format(val, suffix)
+    return val.replace(".0", "")
+
+
+def plural_fmt(name, cnt):
+    """
+    pluralize name if necessary and combine with cnt
+    :param name: str name of the item type
+    :param cnt: int number items of this type
+    :return: str name and cnt joined
+    """
+    if cnt == 1:
+        return '{} {}'.format(cnt, name)
+    else:
+        return '{} {}s'.format(cnt, name)
