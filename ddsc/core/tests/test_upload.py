@@ -52,6 +52,5 @@ class TestProjectUpload(TestCase):
     def test_get_url_msg(self, mock_local_project, mock_remote_store):
         project_upload = ProjectUpload(config=Mock(), project_name_or_id=Mock(), folders=Mock(),
                                        follow_symlinks=False, file_upload_post_processor=None)
-        project_upload.local_project = Mock(remote_id='123')
-        project_upload.config.get_portal_url_base.return_value = '127.0.0.1'
+        mock_remote_store.return_value.data_service.portal_url.return_value = 'https://127.0.0.1/#/project/123'
         self.assertEqual(project_upload.get_url_msg(), 'URL to view project: https://127.0.0.1/#/project/123')

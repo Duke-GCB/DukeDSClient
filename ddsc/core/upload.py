@@ -103,7 +103,7 @@ class ProjectUpload(object):
         """
         msg = 'URL to view project'
         project_id = self.local_project.remote_id
-        url = '{}: https://{}/#/project/{}'.format(msg, self.config.get_portal_url_base(), project_id)
+        url = '{}: {}'.format(msg, self.remote_store.data_service.portal_url(project_id))
         return url
 
 

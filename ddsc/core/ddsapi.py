@@ -1107,6 +1107,11 @@ class DataServiceApi(object):
         print(msg)
 
     def portal_url(self, project_id):
+        """
+        Return a url to the DukeDS web portal for the specified project id.
+        :param project_id: str: uuid of the project to create a url for
+        :return: str: url to web portal
+        """
         return 'https://{}/#/project/{}'.format(self.auth.config.get_portal_url_base(), project_id)
 
 

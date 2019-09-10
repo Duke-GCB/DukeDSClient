@@ -830,6 +830,16 @@ class TestDataServiceApi(TestCase):
         api.set_status_message('Connection error')
         mock_print.assert_called_with('Connection error')
 
+    def test_portal_url(self):
+        mock_requests = MagicMock()
+        mock_auth = self.create_mock_auth(config_page_size=100)
+        mock_auth.config.get_portal_url_base.return_value = 'dataservice.duke.edu'
+        api = DataServiceApi(auth=mock_auth,
+                             url="something.com/v1",
+                             http=mock_requests)
+        url = api.portal_url('abc123')
+        self.assertEqual(url, 'https://dataservice.duke.edu/#/project/abc123')
+
 
 class TestDataServiceAuth(TestCase):
     @patch('ddsc.core.ddsapi.get_user_agent_str')
