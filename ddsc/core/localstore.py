@@ -5,6 +5,8 @@ import os
 from ddsc.core.ignorefile import FileFilter, IgnoreFilePatterns
 from ddsc.core.util import KindType
 
+FILE_CHECKER_SMALL_FILE_SIZE = 10 * 1024 * 1024
+
 
 class LocalProject(object):
     """
@@ -40,14 +42,33 @@ class LocalProject(object):
         for path in path_list:
             self.add_path(path)
 
-    def update_remote_ids(self, remote_project):
+    def update_with_remote_project(self, remote_project, always_check_hashes):
         """
-        Compare against remote_project saving off the matching uuids of of matching content.
+        Compare against remote_project saving off the matching uuids and updating need_to_send for files.
         :param remote_project: RemoteProject project to compare against
+        :param always_check_hashes: bool check hashes for large and small files to determine if they need to be resent
         """
         if remote_project:
             self.remote_id = remote_project.id
-            _update_remote_children(remote_project, self.children)
+            file_resend_checker = FileResendChecker(always_check_hashes)
+            self._update_children_with_remote_parent(remote_project, self.children, file_resend_checker)
+
+    def _update_children_with_remote_parent(self, remote_parent, children, file_resend_checker):
+        """
+        Update remote_ids based on on parent matching up the names of children.
+        :param remote_parent: RemoteProject/RemoteFolder who has children
+        :param children: [LocalFolder,LocalFile] children to set remote_ids based on remote children
+        :param file_resend_checker: FileResendChecker calculates need_to_send
+        """
+        name_to_child = _name_to_child_map(children)
+        for remote_child in remote_parent.children:
+            local_child = name_to_child.get(remote_child.name)
+            if local_child:
+                local_child.remote_id = remote_child.id
+                if local_child.is_file:
+                    local_child.need_to_send = file_resend_checker.need_to_send(local_child, remote_child)
+                else:
+                    self._update_children_with_remote_parent(remote_child, local_child.children, file_resend_checker)
 
     def set_remote_id_after_send(self, remote_id):
         """
@@ -72,19 +93,6 @@ def _name_to_child_map(children):
     for child in children:
         name_to_child[child.name] = child
     return name_to_child
-
-
-def _update_remote_children(remote_parent, children):
-    """
-    Update remote_ids based on on parent matching up the names of children.
-    :param remote_parent: RemoteProject/RemoteFolder who has children
-    :param children: [LocalFolder,LocalFile] children to set remote_ids based on remote children
-    """
-    name_to_child = _name_to_child_map(children)
-    for remote_child in remote_parent.children:
-        local_child = name_to_child.get(remote_child.name)
-        if local_child:
-            local_child.update_remote_ids(remote_child)
 
 
 def _build_project_tree(path, followsymlinks, file_filter):
@@ -165,14 +173,6 @@ class LocalFolder(object):
         """
         self.children.append(child)
 
-    def update_remote_ids(self, remote_folder):
-        """
-        Set remote id based on remote_folder and check children against this folder's children.
-        :param remote_folder: RemoteFolder to compare against
-        """
-        self.remote_id = remote_folder.id
-        _update_remote_children(remote_folder, self.children)
-
     def set_remote_id_after_send(self, remote_id):
         """
         Set remote id after we sent this folder to a remote store.
@@ -219,16 +219,6 @@ class LocalFile(object):
         :return: str: hash value
         """
         return self.path_data.get_hash().value
-
-    def update_remote_ids(self, remote_file):
-        """
-        Based on a remote file try to assign a remote_id and compare hash info.
-        :param remote_file: RemoteFile remote data pull remote_id from
-        """
-        self.remote_id = remote_file.id
-        hash_data = self.path_data.get_hash()
-        if hash_data.matches(remote_file.hash_alg, remote_file.file_hash):
-            self.need_to_send = False
 
     def set_remote_id_after_send(self, remote_id):
         """
@@ -383,3 +373,41 @@ class HashUtil(object):
         :return: (str,str) -> (algorithm,value)
         """
         return HashUtil.HASH_NAME, self.hash.hexdigest()
+
+
+class FileResendChecker(object):
+    def __init__(self, always_check_hashes, small_file_size=FILE_CHECKER_SMALL_FILE_SIZE):
+        """
+        Determines if a file needs to be sent when a remote file exists.
+        :param always_check_hashes: bool check hashes for large and small files to determine if they need to be resent
+        :param small_file_size: specifies what the cutoff for small files
+        """
+        self.always_check_hashes = always_check_hashes
+        self.small_file_size = small_file_size
+
+    def need_to_send(self, local_file, remote_file):
+        """
+        :param local_file: LocalFile
+        :param remote_file: RemoteFile
+        :return: bool: True when we should resend the file (ie local doesn't match remote)
+        """
+        if local_file.size != remote_file.size:
+            return True
+        if self.should_check_hash(local_file):
+            if self.hash_matches(local_file, remote_file):
+                return False
+            else:
+                return True
+        else:
+            return False
+
+    def should_check_hash(self, local_file):
+        if self.always_check_hashes:
+            return True
+        else:
+            return local_file.size <= self.small_file_size
+
+    @staticmethod
+    def hash_matches(local_file, remote_file):
+        hash_data = local_file.path_data.get_hash()
+        return hash_data.matches(remote_file.hash_alg, remote_file.file_hash)

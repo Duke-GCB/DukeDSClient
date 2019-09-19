@@ -1,8 +1,8 @@
 import shutil
 import tarfile
 from unittest import TestCase
-from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, KindType
-from mock import patch
+from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, KindType, FileResendChecker
+from mock import patch, Mock
 
 
 INCLUDE_ALL = ''
@@ -202,3 +202,48 @@ class TestLocalFile(TestCase):
         for file_size, bytes_per_chunk, expected in values:
             f.size = file_size
             self.assertEqual(expected, f.count_chunks(bytes_per_chunk))
+
+
+class TestFileResendChecker(TestCase):
+    def setUp(self):
+        self.checker = FileResendChecker(always_check_hashes=True, small_file_size=100)
+
+    def test_need_to_send__different_sizes(self):
+        self.assertTrue(self.checker.need_to_send(local_file=Mock(size=100), remote_file=Mock(size=200)))
+
+    def test_need_to_send__no_check_hash(self):
+        self.checker.should_check_hash = Mock()
+        self.checker.should_check_hash.return_value = False
+        self.assertFalse(self.checker.need_to_send(local_file=Mock(size=100), remote_file=Mock(size=100)))
+
+    def test_need_to_send__hash_matches(self):
+        self.checker.should_check_hash = Mock()
+        self.checker.should_check_hash.return_value = True
+        self.checker.hash_matches = Mock()
+        self.checker.hash_matches.return_value = True
+        self.assertFalse(self.checker.need_to_send(local_file=Mock(size=100), remote_file=Mock(size=100)))
+
+    def test_need_to_send__hash_doesnt_matches(self):
+        self.checker.should_check_hash = Mock()
+        self.checker.should_check_hash.return_value = True
+        self.checker.hash_matches = Mock()
+        self.checker.hash_matches.return_value = False
+        self.assertTrue(self.checker.need_to_send(local_file=Mock(size=100), remote_file=Mock(size=100)))
+
+    def test_should_check_hash__always_check_hashes(self):
+        self.checker.always_check_hashes = True
+        self.assertEqual(self.checker.should_check_hash(Mock(size=10)), True)
+        self.assertEqual(self.checker.should_check_hash(Mock(size=200)), True)
+
+    def test_should_check_hash__check_small_file_hashes(self):
+        self.checker.always_check_hashes = False
+        self.assertEqual(self.checker.should_check_hash(Mock(size=10)), True)
+        self.assertEqual(self.checker.should_check_hash(Mock(size=200)), False)
+
+    def test_hash_matches(self):
+        mock_local_file = Mock()
+        mock_remote_file = Mock(hash_alg='md5', file_hash='abc')
+        result = FileResendChecker.hash_matches(mock_local_file, mock_remote_file)
+        mock_hash_data = mock_local_file.path_data.get_hash.return_value
+        self.assertEqual(result, mock_hash_data.matches.return_value)
+        mock_hash_data.matches.assert_called_with('md5', 'abc')

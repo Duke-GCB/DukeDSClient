@@ -9,7 +9,8 @@ class ProjectUpload(object):
     """
     Allows uploading a local project to a remote duke-data-service.
     """
-    def __init__(self, config, project_name_or_id, folders, follow_symlinks=False, file_upload_post_processor=None):
+    def __init__(self, config, project_name_or_id, folders, follow_symlinks=False, file_upload_post_processor=None,
+                 always_check_hashes=False):
         """
         Setup for uploading folders dictionary of paths to project_name using config.
         :param config: Config configuration for performing the upload(url, keys, etc)
@@ -23,7 +24,7 @@ class ProjectUpload(object):
         self.project_name_or_id = project_name_or_id
         self.remote_project = self.remote_store.fetch_remote_project(project_name_or_id)
         self.local_project = ProjectUpload._load_local_project(folders, follow_symlinks, config.file_exclude_regex)
-        self.local_project.update_remote_ids(self.remote_project)
+        self.local_project.update_with_remote_project(self.remote_project, always_check_hashes)
         self.different_items = self._count_differences()
         self.file_upload_post_processor = file_upload_post_processor
 
