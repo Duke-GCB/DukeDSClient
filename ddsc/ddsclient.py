@@ -164,8 +164,10 @@ class UploadCommand(BaseCommand):
         folders = args.folders                  # list of local files/folders to upload into the project
         follow_symlinks = args.follow_symlinks  # should we follow symlinks when traversing folders
         dry_run = args.dry_run                  # do not upload anything, instead print out what you would upload
+        existing_files_full_compare = args.existing_files_full_compare  # enable slower hash checking of existing files
 
-        project_upload = ProjectUpload(self.config, project_name_or_id, folders, follow_symlinks=follow_symlinks)
+        project_upload = ProjectUpload(self.config, project_name_or_id, folders, follow_symlinks=follow_symlinks,
+                                       always_check_hashes=existing_files_full_compare)
         if dry_run:
             print(project_upload.dry_run_report())
         else:

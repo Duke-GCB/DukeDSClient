@@ -208,3 +208,25 @@ class TestCommandParser(TestCase):
         mock_os.path.exists.return_value = True
         mock_os.listdir.return_value = ['stuff']
         format_destination_path(path='/tmp/somepath')
+
+    @patch("ddsc.cmdparser._paths_must_exists")
+    def test_register_upload_command(self, mock_paths_must_exists):
+        command_parser = CommandParser(version_str='1.0')
+        command_parser.register_upload_command(self.set_parsed_args)
+        self.assertEqual(['upload'], list(command_parser.subparsers.choices.keys()))
+        command_parser.run_command(['upload', '-p', 'myproj', 'myfile.txt'])
+        self.assertEqual('myproj', self.parsed_args.project_name)
+        self.assertEqual(None, self.parsed_args.project_id)
+        self.assertEqual([mock_paths_must_exists.return_value], self.parsed_args.folders)
+        self.assertEqual(False, self.parsed_args.existing_files_full_compare)
+
+    @patch("ddsc.cmdparser._paths_must_exists")
+    def test_register_upload_command__full_compare(self, mock_paths_must_exists):
+        command_parser = CommandParser(version_str='1.0')
+        command_parser.register_upload_command(self.set_parsed_args)
+        self.assertEqual(['upload'], list(command_parser.subparsers.choices.keys()))
+        command_parser.run_command(['upload', '-p', 'myproj', 'myfile.txt', '--existing-files-full-compare'])
+        self.assertEqual('myproj', self.parsed_args.project_name)
+        self.assertEqual(None, self.parsed_args.project_id)
+        self.assertEqual([mock_paths_must_exists.return_value], self.parsed_args.folders)
+        self.assertEqual(True, self.parsed_args.existing_files_full_compare)

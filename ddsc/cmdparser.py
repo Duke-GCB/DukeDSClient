@@ -8,6 +8,7 @@ from builtins import str
 
 DESCRIPTION_STR = "DukeDSClient ({}) Manage projects/folders/files in the duke-data-service"
 INVALID_PATH_CHARS = (':', '/', '\\')
+EXISTING_FILES_FULL_COMPARE_HELP = "Perform full comparision when determining if a file needs to be uploaded again."
 
 
 def replace_invalid_path_chars(path):
@@ -354,6 +355,9 @@ class CommandParser(object):
         add_project_name_or_id_arg(upload_parser, help_text_suffix="upload files/folders to.")
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
+        upload_parser.add_argument("--existing-files-full-compare",
+                                   help=EXISTING_FILES_FULL_COMPARE_HELP,
+                                   action='store_true')
         upload_parser.set_defaults(func=upload_func)
 
     def register_add_user_command(self, add_user_func):
