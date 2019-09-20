@@ -5,7 +5,7 @@ import os
 from ddsc.core.ignorefile import FileFilter, IgnoreFilePatterns
 from ddsc.core.util import KindType
 
-FILE_CHECKER_SMALL_FILE_SIZE = 10 * 1024 * 1024
+FILE_CHECKER_SMALL_FILE_SIZE = 10 * 1024 * 1024  # For comparing remote files use checksum for files <= 10 MiB
 
 
 class LocalProject(object):
