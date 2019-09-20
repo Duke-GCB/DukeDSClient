@@ -204,6 +204,77 @@ class TestLocalFile(TestCase):
             self.assertEqual(expected, f.count_chunks(bytes_per_chunk))
 
 
+class TestLocalProject(TestCase):
+    def setUp(self):
+        self.remote_file1 = Mock()
+        self.remote_file1.name = 'data.txt'
+        self.remote_file1.id = 'abc123'
+        self.remote_file1.is_file = True
+        self.remote_project = Mock()
+        self.remote_project.children = []
+        self.local_file1 = Mock()
+        self.local_file1.name = 'data.txt'
+        self.local_file1.remote_id = None
+        self.local_file1.need_to_send = True
+
+    @patch('ddsc.core.localstore.FileResendChecker')
+    def test_update_with_remote_project__not_found(self, mock_file_resend_checker):
+        mock_file_resend_checker.return_value.need_to_send.return_value = True
+        project = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
+        self.local_file1.name = 'data2.txt'
+        project.children = [self.local_file1]
+        self.remote_project.children.append(self.remote_file1)
+
+        project.update_with_remote_project(self.remote_project, always_check_hashes=False)
+
+        self.assertEqual(self.local_file1.remote_id, None)
+        self.assertEqual(self.local_file1.need_to_send, True)
+
+    @patch('ddsc.core.localstore.FileResendChecker')
+    def test_update_with_remote_project__need_to_send(self, mock_file_resend_checker):
+        mock_file_resend_checker.return_value.need_to_send.return_value = True
+        project = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
+        project.children = [self.local_file1]
+        self.remote_project.children.append(self.remote_file1)
+
+        project.update_with_remote_project(self.remote_project, always_check_hashes=False)
+
+        self.assertEqual(self.local_file1.remote_id, 'abc123')
+        self.assertEqual(self.local_file1.need_to_send, True)
+
+    @patch('ddsc.core.localstore.FileResendChecker')
+    def test_update_with_remote_project__nested_file_need_to_send(self, mock_file_resend_checker):
+        mock_file_resend_checker.return_value.need_to_send.return_value = True
+        project = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
+        local_folder = Mock()
+        local_folder.children = [self.local_file1]
+        local_folder.is_file = False
+        local_folder.name = 'files'
+        project.children = [local_folder]
+
+        remote_folder = Mock()
+        remote_folder.name = 'files'
+        remote_folder.children = [self.remote_file1]
+        self.remote_project.children.append(remote_folder)
+
+        project.update_with_remote_project(self.remote_project, always_check_hashes=False)
+
+        self.assertEqual(self.local_file1.remote_id, 'abc123')
+        self.assertEqual(self.local_file1.need_to_send, True)
+
+    @patch('ddsc.core.localstore.FileResendChecker')
+    def test_update_with_remote_project__doesnt_need_to_send(self, mock_file_resend_checker):
+        mock_file_resend_checker.return_value.need_to_send.return_value = False
+        project = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
+        project.children = [self.local_file1]
+        self.remote_project.children.append(self.remote_file1)
+
+        project.update_with_remote_project(self.remote_project, always_check_hashes=False)
+
+        self.assertEqual(self.local_file1.remote_id, 'abc123')
+        self.assertEqual(self.local_file1.need_to_send, False)
+
+
 class TestFileResendChecker(TestCase):
     def setUp(self):
         self.checker = FileResendChecker(always_check_hashes=True, small_file_size=100)
