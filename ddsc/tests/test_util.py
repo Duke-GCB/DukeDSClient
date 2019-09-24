@@ -2,7 +2,8 @@ from unittest import TestCase
 import subprocess
 import os
 import tempfile
-from ddsc.core.util import mode_allows_group_or_other, verify_file_private, ProjectDetailsList, KindType
+from ddsc.core.util import mode_allows_group_or_other, verify_file_private, ProjectDetailsList, KindType, \
+    parse_bytes_str, parse_checksum_size_limit, ChecksumSizeLimit
 from mock import patch, Mock
 
 
@@ -82,6 +83,20 @@ class TestUtil(TestCase):
         tempfilename = './file.never.gonna.exist'
         verify_file_private(tempfilename)
 
+    def test_parse_bytes_str(self):
+        value_and_expected = {
+            (1, 1),
+            (2, 2),
+            ("1", 1),
+            ("2", 2),
+            ("1MB", 1024 * 1024),
+            ("1 MB", 1024 * 1024),
+            ("3MB", 3 * 1024 * 1024),
+            ("100MB", 100 * 1024 * 1024),
+        }
+        for value, exp in value_and_expected:
+            self.assertEqual(exp, parse_bytes_str(value))
+
 
 class TestProjectDetailsList(TestCase):
     def setUp(self):
@@ -141,3 +156,23 @@ class TestProjectDetailsList(TestCase):
         project_details_list = ProjectDetailsList(long_format=True)
         name = project_details_list.get_name(item, parent)
         self.assertEqual(name, '/file1.txt')
+
+
+class ChecksumSizeLimitTestCase(TestCase):
+    def test_parse_checksum_size_limit(self):
+        csl = parse_checksum_size_limit('100')
+        self.assertEqual(csl.always_hash, False)
+        self.assertEqual(csl.file_size_limit, 100)
+        csl = parse_checksum_size_limit('None')
+        self.assertEqual(csl.always_hash, True)
+        self.assertEqual(csl.file_size_limit, 0)
+
+    def test_should_check_hash(self):
+        csl = ChecksumSizeLimit(100)
+        self.assertEqual(True, csl.should_check_hash(99))
+        self.assertEqual(True, csl.should_check_hash(100))
+        self.assertEqual(False, csl.should_check_hash(101))
+        csl = ChecksumSizeLimit(0, always_hash=True)
+        self.assertEqual(True, csl.should_check_hash(99))
+        self.assertEqual(True, csl.should_check_hash(100))
+        self.assertEqual(True, csl.should_check_hash(101))

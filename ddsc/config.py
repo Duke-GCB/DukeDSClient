@@ -4,7 +4,7 @@ import re
 import math
 import yaml
 import multiprocessing
-from ddsc.core.util import verify_file_private
+from ddsc.core.util import verify_file_private, MB_TO_BYTES, parse_bytes_str
 
 try:
     from urllib.parse import urlparse
@@ -16,7 +16,6 @@ LOCAL_CONFIG_FILENAME = '~/.ddsclient'
 LOCAL_CONFIG_ENV = 'DDSCLIENT_CONF'
 DUKE_DATA_SERVICE_URL = 'https://api.dataservice.duke.edu/api/v1'
 D4S2_SERVICE_URL = 'https://datadelivery.genome.duke.edu/api/v1'
-MB_TO_BYTES = 1024 * 1024
 DDS_DEFAULT_UPLOAD_CHUNKS = 100 * MB_TO_BYTES
 DDS_DEFAULT_DOWNLOAD_CHUNK_SIZE = 20 * MB_TO_BYTES
 AUTH_ENV_KEY_NAME = 'DUKE_DATA_SERVICE_AUTH'
@@ -144,7 +143,7 @@ class Config(object):
         :return: int bytes per upload chunk
         """
         value = self.values.get(Config.UPLOAD_BYTES_PER_CHUNK, DDS_DEFAULT_UPLOAD_CHUNKS)
-        return Config.parse_bytes_str(value)
+        return parse_bytes_str(value)
 
     @property
     def upload_workers(self):

@@ -5,10 +5,20 @@ import os
 import argparse
 import six
 from builtins import str
+from ddsc.core.util import parse_checksum_size_limit, MB_TO_BYTES, ChecksumSizeLimit
 
 DESCRIPTION_STR = "DukeDSClient ({}) Manage projects/folders/files in the duke-data-service"
 INVALID_PATH_CHARS = (':', '/', '\\')
-EXISTING_FILES_FULL_COMPARE_HELP = "Perform full comparision when determining if a file needs to be uploaded again."
+DEFAULT_COMPARE_CHECKSUM_SIZE_LIMIT = 10 * MB_TO_BYTES
+COMPARE_CHECKSUM_SIZE_LIMIT_HELP = """Default 10MB. Prior to upload, changes to local files are
+detected by comparing file name and size. If both name and size match, and the file is below
+ this limit, checksums are computed as a last resort. If file is above this limit, modifications
+that do not change the size of the file will not be detected for uploads. Pass the value "None"
+to compare checksums for all files.
+
+Checksums take more time to compute on larger files, but the size may be more likely to
+change. If file modifications not detected for upload, consider raising this limit.
+"""
 
 
 def replace_invalid_path_chars(path):
@@ -355,9 +365,11 @@ class CommandParser(object):
         add_project_name_or_id_arg(upload_parser, help_text_suffix="upload files/folders to.")
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
-        upload_parser.add_argument("--existing-files-full-compare",
-                                   help=EXISTING_FILES_FULL_COMPARE_HELP,
-                                   action='store_true')
+        upload_parser.add_argument("--compare-checksum-size-limit",
+                                   type=parse_checksum_size_limit,
+                                   metavar='FileSizeLimit',
+                                   help=COMPARE_CHECKSUM_SIZE_LIMIT_HELP,
+                                   default=ChecksumSizeLimit(DEFAULT_COMPARE_CHECKSUM_SIZE_LIMIT))
         upload_parser.set_defaults(func=upload_func)
 
     def register_add_user_command(self, add_user_func):

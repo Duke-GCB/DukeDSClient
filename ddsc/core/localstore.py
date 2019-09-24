@@ -42,15 +42,15 @@ class LocalProject(object):
         for path in path_list:
             self.add_path(path)
 
-    def update_with_remote_project(self, remote_project, always_check_hashes):
+    def update_with_remote_project(self, remote_project, compare_checksum_size_limit):
         """
         Compare against remote_project saving off the matching uuids and updating need_to_send for files.
         :param remote_project: RemoteProject project to compare against
-        :param always_check_hashes: bool check hashes for large and small files to determine if they need to be resent
+        :param compare_checksum_size_limit: ChecksumSizeLimit: determines if we should compare checksums or file sizes
         """
         if remote_project:
             self.remote_id = remote_project.id
-            file_resend_checker = FileResendChecker(always_check_hashes)
+            file_resend_checker = FileResendChecker(compare_checksum_size_limit)
             self._update_children_with_remote_parent(remote_project, self.children, file_resend_checker)
 
     def _update_children_with_remote_parent(self, remote_parent, children, file_resend_checker):
@@ -376,14 +376,12 @@ class HashUtil(object):
 
 
 class FileResendChecker(object):
-    def __init__(self, always_check_hashes, small_file_size=FILE_CHECKER_SMALL_FILE_SIZE):
+    def __init__(self, compare_checksum_size_limit):
         """
         Determines if a file needs to be sent when a remote file exists.
-        :param always_check_hashes: bool check hashes for large and small files to determine if they need to be resent
-        :param small_file_size: specifies what the cutoff for small files
+        :param compare_checksum_size_limit: ChecksumSizeLimit: determines if we should compare checksums or file sizes
         """
-        self.always_check_hashes = always_check_hashes
-        self.small_file_size = small_file_size
+        self.compare_checksum_size_limit = compare_checksum_size_limit
 
     def need_to_send(self, local_file, remote_file):
         """
@@ -402,10 +400,7 @@ class FileResendChecker(object):
             return False
 
     def should_check_hash(self, local_file):
-        if self.always_check_hashes:
-            return True
-        else:
-            return local_file.size <= self.small_file_size
+        return self.compare_checksum_size_limit.should_check_hash(local_file.size)
 
     @staticmethod
     def hash_matches(local_file, remote_file):

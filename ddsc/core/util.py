@@ -20,6 +20,7 @@ chmod 600 ~/.ddsclient
 """
 
 REMOTE_PATH_SEP = '/'
+MB_TO_BYTES = 1024 * 1024
 
 
 class KindType(object):
@@ -428,3 +429,38 @@ def plural_fmt(name, cnt):
         return '{} {}'.format(cnt, name)
     else:
         return '{} {}s'.format(cnt, name)
+
+
+def parse_bytes_str(value):
+    """
+    Given a value return the integer number of bytes it represents.
+    Trailing "MB" causes the value multiplied by 1024*1024
+    :param value:
+    :return: int number of bytes represented by value.
+    """
+    if type(value) == str:
+        if "MB" in value:
+            return int(value.replace("MB", "")) * MB_TO_BYTES
+        else:
+            return int(value)
+    else:
+        return value
+
+
+def parse_checksum_size_limit(value):
+    if value.lower() == 'none':
+        return ChecksumSizeLimit(always_hash=True, file_size_limit=0)
+    else:
+        num_bytes = parse_bytes_str(value)
+        return ChecksumSizeLimit(file_size_limit=num_bytes)
+
+
+class ChecksumSizeLimit(object):
+    def __init__(self, file_size_limit, always_hash=False):
+        self.always_hash = always_hash
+        self.file_size_limit = file_size_limit
+
+    def should_check_hash(self, local_file_size):
+        if self.always_hash:
+            return True
+        return local_file_size <= self.file_size_limit

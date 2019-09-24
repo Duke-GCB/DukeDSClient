@@ -85,20 +85,6 @@ class TestConfig(TestCase):
         config.update_properties(config3)
         self.assertEqual(config.get_portal_url_base(), 'dev.dataservice1.com')
 
-    def test_parse_bytes_str(self):
-        value_and_expected = {
-            (1, 1),
-            (2, 2),
-            ("1", 1),
-            ("2", 2),
-            ("1MB", 1024 * 1024),
-            ("1 MB", 1024 * 1024),
-            ("3MB", 3 * 1024 * 1024),
-            ("100MB", 100 * 1024 * 1024),
-        }
-        for value, exp in value_and_expected:
-            self.assertEqual(exp, ddsc.config.Config.parse_bytes_str(value))
-
     def test_default_num_workers(self):
         orig_max_default_workers = ddsc.config.MAX_DEFAULT_WORKERS
         ddsc.config.MAX_DEFAULT_WORKERS = 5000

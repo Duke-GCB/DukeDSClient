@@ -2,6 +2,7 @@ import shutil
 import tarfile
 from unittest import TestCase
 from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, KindType, FileResendChecker
+from ddsc.core.util import ChecksumSizeLimit, parse_checksum_size_limit
 from mock import patch, Mock
 
 
@@ -225,7 +226,7 @@ class TestLocalProject(TestCase):
         project.children = [self.local_file1]
         self.remote_project.children.append(self.remote_file1)
 
-        project.update_with_remote_project(self.remote_project, always_check_hashes=False)
+        project.update_with_remote_project(self.remote_project, parse_checksum_size_limit('10MB'))
 
         self.assertEqual(self.local_file1.remote_id, None)
         self.assertEqual(self.local_file1.need_to_send, True)
@@ -237,7 +238,7 @@ class TestLocalProject(TestCase):
         project.children = [self.local_file1]
         self.remote_project.children.append(self.remote_file1)
 
-        project.update_with_remote_project(self.remote_project, always_check_hashes=False)
+        project.update_with_remote_project(self.remote_project, parse_checksum_size_limit('10MB'))
 
         self.assertEqual(self.local_file1.remote_id, 'abc123')
         self.assertEqual(self.local_file1.need_to_send, True)
@@ -257,7 +258,7 @@ class TestLocalProject(TestCase):
         remote_folder.children = [self.remote_file1]
         self.remote_project.children.append(remote_folder)
 
-        project.update_with_remote_project(self.remote_project, always_check_hashes=False)
+        project.update_with_remote_project(self.remote_project, parse_checksum_size_limit('10MB'))
 
         self.assertEqual(self.local_file1.remote_id, 'abc123')
         self.assertEqual(self.local_file1.need_to_send, True)
@@ -269,7 +270,7 @@ class TestLocalProject(TestCase):
         project.children = [self.local_file1]
         self.remote_project.children.append(self.remote_file1)
 
-        project.update_with_remote_project(self.remote_project, always_check_hashes=False)
+        project.update_with_remote_project(self.remote_project, parse_checksum_size_limit('10MB'))
 
         self.assertEqual(self.local_file1.remote_id, 'abc123')
         self.assertEqual(self.local_file1.need_to_send, False)
@@ -277,7 +278,7 @@ class TestLocalProject(TestCase):
 
 class TestFileResendChecker(TestCase):
     def setUp(self):
-        self.checker = FileResendChecker(always_check_hashes=True, small_file_size=100)
+        self.checker = FileResendChecker(ChecksumSizeLimit(file_size_limit=100))
 
     def test_need_to_send__different_sizes(self):
         self.assertTrue(self.checker.need_to_send(local_file=Mock(size=100), remote_file=Mock(size=200)))
@@ -300,16 +301,6 @@ class TestFileResendChecker(TestCase):
         self.checker.hash_matches = Mock()
         self.checker.hash_matches.return_value = False
         self.assertTrue(self.checker.need_to_send(local_file=Mock(size=100), remote_file=Mock(size=100)))
-
-    def test_should_check_hash__always_check_hashes(self):
-        self.checker.always_check_hashes = True
-        self.assertEqual(self.checker.should_check_hash(Mock(size=10)), True)
-        self.assertEqual(self.checker.should_check_hash(Mock(size=200)), True)
-
-    def test_should_check_hash__check_small_file_hashes(self):
-        self.checker.always_check_hashes = False
-        self.assertEqual(self.checker.should_check_hash(Mock(size=10)), True)
-        self.assertEqual(self.checker.should_check_hash(Mock(size=200)), False)
 
     def test_hash_matches(self):
         mock_local_file = Mock()
