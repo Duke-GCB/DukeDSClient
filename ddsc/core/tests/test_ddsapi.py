@@ -5,7 +5,7 @@ import json
 from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth, SETUP_GUIDE_URL
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
-    retry_until_resource_is_consistent, retry_when_service_unavailable, CONNECTION_RETRY_MESSAGE, \
+    retry_until_resource_is_consistent, retry_connection_exceptions, CONNECTION_RETRY_MESSAGE, \
     RetrySettings
 from mock import MagicMock, Mock, patch, ANY
 
@@ -863,6 +863,7 @@ class TestDataServiceAuth(TestCase):
     def test_claim_new_token_missing_setup(self, mock_requests, mock_get_user_agent_str):
         config = Mock(url='', user_key='', agent_key='')
         mock_requests.exceptions.ConnectionError = requests.exceptions.ConnectionError
+        mock_requests.exceptions.ReadTimeout = requests.exceptions.ReadTimeout
         mock_requests.post.return_value = Mock(status_code=404)
         auth = DataServiceAuth(config)
         with self.assertRaises(MissingInitialSetupError):
@@ -873,6 +874,7 @@ class TestDataServiceAuth(TestCase):
     def test_claim_new_token_missing_agent(self, mock_requests, mock_get_user_agent_str):
         config = Mock(url='', user_key='', agent_key='abc')
         mock_requests.exceptions.ConnectionError = requests.exceptions.ConnectionError
+        mock_requests.exceptions.ReadTimeout = requests.exceptions.ReadTimeout
         mock_requests.post.return_value = Mock(status_code=404)
         auth = DataServiceAuth(config)
         with self.assertRaises(SoftwareAgentNotFoundError):
@@ -884,6 +886,7 @@ class TestDataServiceAuth(TestCase):
         config = Mock(url='', user_key='', agent_key='abc')
         mock_requests.post.return_value = Mock(status_code=500, text='service down')
         mock_requests.exceptions.ConnectionError = requests.exceptions.ConnectionError
+        mock_requests.exceptions.ReadTimeout = requests.exceptions.ReadTimeout
         auth = DataServiceAuth(config)
         with self.assertRaises(AuthTokenCreationError) as err:
             auth.claim_new_token()
@@ -984,13 +987,13 @@ class TestInconsistentResourceMonitoring(TestCase):
         self.assertEqual(1, monitor.done_waiting.call_count)
 
 
-class TestRetryWhenServiceUnavailable(TestCase):
+class TestRetryConnectionExceptions(TestCase):
     def setUp(self):
         self.raise_error_once = None
         self.raise_error_always = None
         self.status_messages = []
 
-    @retry_when_service_unavailable
+    @retry_connection_exceptions
     def func(self, param):
         if self.raise_error_once:
             raise_error_once = self.raise_error_once
