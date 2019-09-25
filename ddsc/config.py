@@ -183,22 +183,6 @@ class Config(object):
         """
         return self.values.get(Config.D4S2_URL, D4S2_SERVICE_URL)
 
-    @staticmethod
-    def parse_bytes_str(value):
-        """
-        Given a value return the integer number of bytes it represents.
-        Trailing "MB" causes the value multiplied by 1024*1024
-        :param value:
-        :return: int number of bytes represented by value.
-        """
-        if type(value) == str:
-            if "MB" in value:
-                return int(value.replace("MB", "")) * MB_TO_BYTES
-            else:
-                return int(value)
-        else:
-            return value
-
     @property
     def file_exclude_regex(self):
         """
