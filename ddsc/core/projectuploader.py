@@ -435,8 +435,7 @@ class ProjectUploadDryRun(object):
         :param item: object: project, folder or file we will add to upload_items if necessary.
         """
         if item.kind == KindType.file_str:
-            if item.need_to_send:
-                self.add_upload_item(item.path)
+            self.add_upload_item(item.path)
         else:
             if item.kind == KindType.project_str:
                 pass
