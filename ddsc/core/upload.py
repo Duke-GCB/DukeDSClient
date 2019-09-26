@@ -149,9 +149,8 @@ class LocalOnlyCounter(object):
         :param item: LocalFile
         :param parent: LocalFolder/LocalProject
         """
-        if item.need_to_send:
-            self.files += 1
-            self.chunks += item.count_chunks(self.bytes_per_chunk)
+        self.files += 1
+        self.chunks += item.count_chunks(self.bytes_per_chunk)
 
     def total_items(self):
         """

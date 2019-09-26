@@ -201,7 +201,6 @@ class LocalFile(object):
         self.name = self.path_data.name()
         self.size = self.path_data.size()
         self.mimetype = self.path_data.mime_type()
-        self.need_to_send = True
         self.remote_id = ''
         self.is_file = True
         self.kind = KindType.file_str
@@ -222,13 +221,10 @@ class LocalFile(object):
 
     def update_remote_ids(self, remote_file):
         """
-        Based on a remote file try to assign a remote_id and compare hash info.
+        Based on a remote file try to assign a remote_id
         :param remote_file: RemoteFile remote data pull remote_id from
         """
         self.remote_id = remote_file.id
-        hash_data = self.path_data.get_hash()
-        if hash_data.matches(remote_file.hash_alg, remote_file.file_hash):
-            self.need_to_send = False
 
     def set_remote_id_after_send(self, remote_id):
         """

@@ -149,8 +149,7 @@ class ProjectUploader(object):
         Upload files that were too large.
         """
         for local_file, parent in self.large_items:
-            if local_file.need_to_send:
-                self.process_large_file(local_file, parent)
+            self.process_large_file(local_file, parent)
 
     def process_large_file(self, local_file, parent):
         """
@@ -206,14 +205,13 @@ class SmallItemUploadTaskBuilder(object):
         If file is small add create small file command otherwise raise error.
         Large files shouldn't be passed to SmallItemUploadTaskBuilder.
         """
-        if item.need_to_send:
-            if item.size > self.settings.config.upload_bytes_per_chunk:
-                msg = "Programmer Error: Trying to upload large file as small item size:{} name:{}"
-                raise ValueError(msg.format(item.size, item.name))
-            else:
-                command = CreateSmallFileCommand(self.settings, item, parent,
-                                                 self.settings.file_upload_post_processor)
-                self.task_runner_add(parent, item, command)
+        if item.size > self.settings.config.upload_bytes_per_chunk:
+            msg = "Programmer Error: Trying to upload large file as small item size:{} name:{}"
+            raise ValueError(msg.format(item.size, item.name))
+        else:
+            command = CreateSmallFileCommand(self.settings, item, parent,
+                                             self.settings.file_upload_post_processor)
+            self.task_runner_add(parent, item, command)
 
     def task_runner_add(self, parent, item, command):
         """
