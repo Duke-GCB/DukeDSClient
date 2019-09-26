@@ -149,19 +149,30 @@ class ProjectUploader(object):
         Upload files that were too large.
         """
         for local_file, parent in self.large_items:
-            self.process_large_file(local_file, parent)
+            hash_data = local_file.calculate_local_hash()
+            if local_file.hash_matches_remote(hash_data):
+                self.file_already_uploaded(local_file)
+            else:
+                self.process_large_file(local_file, parent, hash_data)
 
-    def process_large_file(self, local_file, parent):
+    def process_large_file(self, local_file, parent, hash_data):
         """
         Upload a single file using multiple processes to upload multiple chunks at the same time.
         Updates local_file with it's remote_id when done.
         :param local_file: LocalFile: file we are uploading
         :param parent: LocalFolder/LocalProject: parent of the file
         """
-        file_content_sender = FileUploader(self.settings.config, self.settings.data_service, local_file,
+        file_content_sender = FileUploader(self.settings.config, self.settings.data_service, local_file, hash_data,
                                            self.settings.watcher, self.settings.file_upload_post_processor)
         remote_id = file_content_sender.upload(self.settings.project_id, parent.kind, parent.remote_id)
         local_file.set_remote_id_after_send(remote_id)
+
+    def file_already_uploaded(self, local_file):
+        """
+        Updates progress bar for a file that was already uploaded
+        :param local_file: LocalFile
+        """
+        self.settings.watcher.transferring_item(local_file, increment_amt=local_file.size)
 
 
 class SmallItemUploadTaskBuilder(object):
@@ -363,7 +374,9 @@ class CreateSmallFileCommand(object):
        """
         parent_data = ParentData(self.parent.kind, self.parent.remote_id)
         path_data = self.local_file.get_path_data()
-        params = parent_data, path_data, self.local_file.remote_id
+        params = parent_data, path_data, self.local_file.remote_id, self.local_file.remote_file_hash_alg, \
+                 self.local_file.remote_file_hash
+
         return UploadContext(self.settings, params, message_queue, task_id)
 
     def after_run(self, remote_file_data):
@@ -371,11 +384,12 @@ class CreateSmallFileCommand(object):
         Save uuid of file to our LocalFile
         :param remote_file_data: dict: DukeDS file data
         """
-        if self.file_upload_post_processor:
-            self.file_upload_post_processor.run(self.settings.data_service, remote_file_data)
-        remote_file_id = remote_file_data['id']
+        if remote_file_data:
+            if self.file_upload_post_processor:
+                self.file_upload_post_processor.run(self.settings.data_service, remote_file_data)
+            remote_file_id = remote_file_data['id']
+            self.local_file.set_remote_id_after_send(remote_file_id)
         self.settings.watcher.transferring_item(self.local_file)
-        self.local_file.set_remote_id_after_send(remote_file_id)
 
     def on_message(self, started_waiting):
         """
@@ -396,12 +410,14 @@ def create_small_file(upload_context):
     :param upload_context: UploadContext: contains data service setup and file details.
     :return dict: DukeDS file data
     """
-    data_service = upload_context.make_data_service()
-    parent_data, path_data, remote_file_id = upload_context.params
+    parent_data, path_data, remote_file_id, remote_file_hash_alg, remote_file_hash = upload_context.params
+    hash_data = path_data.get_hash()
+    if hash_data.matches(remote_file_hash_alg, remote_file_hash):
+        return None
 
+    data_service = upload_context.make_data_service()
     # The small file will fit into one chunk so read into memory and hash it.
     chunk = path_data.read_whole_file()
-    hash_data = path_data.get_hash()
 
     # Talk to data service uploading chunk and creating the file.
     upload_operations = FileUploadOperations(data_service, upload_context)
