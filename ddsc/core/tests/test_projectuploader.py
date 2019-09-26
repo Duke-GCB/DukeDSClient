@@ -62,18 +62,32 @@ class TestProjectUploadDryRun(TestCase):
 
     def test_some_files(self):
         local_file1 = MagicMock(kind=KindType.file_str, path='joe.txt')
+        local_file1.hash_matches_remote.return_value = False
         local_file2 = MagicMock(kind=KindType.file_str, path='data.txt')
+        local_file2.hash_matches_remote.return_value = True
         local_file3 = MagicMock(kind=KindType.file_str, path='results.txt')
+        local_file3.hash_matches_remote.return_value = False
         local_project = MagicMock(kind=KindType.project_str, children=[local_file1, local_file2, local_file3])
         upload_dry_run = ProjectUploadDryRun()
         upload_dry_run.run(local_project)
-        self.assertEqual(['joe.txt', 'data.txt', 'results.txt'], upload_dry_run.upload_items)
-        # TODO check hashing difference of files (data.txt previously)
+        self.assertEqual(['joe.txt', 'results.txt'], upload_dry_run.upload_items)
+        local_file1.hash_matches_remote.assert_called_with(
+            local_file1.calculate_local_hash.return_value
+        )
+        local_file2.hash_matches_remote.assert_called_with(
+            local_file2.calculate_local_hash.return_value
+        )
+        local_file3.hash_matches_remote.assert_called_with(
+            local_file3.calculate_local_hash.return_value
+        )
 
     def test_nested_directories(self):
         local_file1 = MagicMock(kind=KindType.file_str, path='/data/2017/08/flyresults/joe.txt')
+        local_file1.hash_matches_remote.return_value = False
         local_file2 = MagicMock(kind=KindType.file_str, path='/data/2017/08/flyresults/data.txt')
+        local_file2.hash_matches_remote.return_value = True
         local_file3 = MagicMock(kind=KindType.file_str, path='/data/2017/08/flyresults/results.txt')
+        local_file3.hash_matches_remote.return_value = False
         grandchild_folder = MagicMock(kind=KindType.folder_str,
                                       path="/data/2017/08/flyresults",
                                       children=[local_file1, local_file2, local_file3],
@@ -94,16 +108,17 @@ class TestProjectUploadDryRun(TestCase):
             '/data/2017/08',
             '/data/2017/08/flyresults',
             '/data/2017/08/flyresults/joe.txt',
-            '/data/2017/08/flyresults/data.txt',
             '/data/2017/08/flyresults/results.txt',
         ]
         self.assertEqual(expected_results, upload_dry_run.upload_items)
-        # TODO check hashing difference of files (data.txt previously)
 
     def test_nested_directories_skip_parents(self):
         local_file1 = MagicMock(kind=KindType.file_str, path='/data/2017/08/flyresults/joe.txt')
+        local_file1.hash_matches_remote.return_value = False
         local_file2 = MagicMock(kind=KindType.file_str, path='/data/2017/08/flyresults/data.txt')
+        local_file2.hash_matches_remote.return_value = True
         local_file3 = MagicMock(kind=KindType.file_str, path='/data/2017/08/flyresults/results.txt')
+        local_file3.hash_matches_remote.return_value = False
         grandchild_folder = MagicMock(kind=KindType.folder_str,
                                       path="/data/2017/08/flyresults",
                                       children=[local_file1, local_file2, local_file3],
@@ -122,11 +137,9 @@ class TestProjectUploadDryRun(TestCase):
         expected_results = [
             '/data/2017/08/flyresults',
             '/data/2017/08/flyresults/joe.txt',
-            '/data/2017/08/flyresults/data.txt',
             '/data/2017/08/flyresults/results.txt',
         ]
         self.assertEqual(expected_results, upload_dry_run.upload_items)
-        # TODO check hashing difference of files (data.txt previously)
 
 
 class TestCreateProjectCommand(TestCase):

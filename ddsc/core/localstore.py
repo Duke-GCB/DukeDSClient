@@ -202,6 +202,8 @@ class LocalFile(object):
         self.size = self.path_data.size()
         self.mimetype = self.path_data.mime_type()
         self.remote_id = ''
+        self.remote_file_hash_alg = None
+        self.remote_file_hash = None
         self.is_file = True
         self.kind = KindType.file_str
         self.sent_to_remote = False
@@ -225,6 +227,16 @@ class LocalFile(object):
         :param remote_file: RemoteFile remote data pull remote_id from
         """
         self.remote_id = remote_file.id
+        self.remote_file_hash_alg = remote_file.hash_alg
+        self.remote_file_hash = remote_file.file_hash
+
+    def calculate_local_hash(self):
+        return self.path_data.get_hash()
+
+    def hash_matches_remote(self, hash_data):
+        if self.remote_file_hash and self.remote_file_hash_alg:
+            return hash_data.matches(self.remote_file_hash_alg, self.remote_file_hash)
+        return False
 
     def set_remote_id_after_send(self, remote_id):
         """
