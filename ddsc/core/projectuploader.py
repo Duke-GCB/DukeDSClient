@@ -375,7 +375,7 @@ class CreateSmallFileCommand(object):
         parent_data = ParentData(self.parent.kind, self.parent.remote_id)
         path_data = self.local_file.get_path_data()
         params = parent_data, path_data, self.local_file.remote_id, self.local_file.remote_file_hash_alg, \
-                 self.local_file.remote_file_hash
+            self.local_file.remote_file_hash
 
         return UploadContext(self.settings, params, message_queue, task_id)
 
