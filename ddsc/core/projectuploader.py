@@ -1,6 +1,6 @@
 from ddsc.core.util import ProjectWalker, KindType
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
-from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData
+from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData, ParallelChunkProcessor
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 
 
@@ -172,7 +172,9 @@ class ProjectUploader(object):
         Updates progress bar for a file that was already uploaded
         :param local_file: LocalFile
         """
-        self.settings.watcher.transferring_item(local_file, increment_amt=local_file.size)
+        num_chunks = ParallelChunkProcessor.determine_num_chunks(self.settings.config.upload_bytes_per_chunk,
+                                                                 local_file.size)
+        self.settings.watcher.transferring_item(local_file, increment_amt=num_chunks)
 
 
 class SmallItemUploadTaskBuilder(object):
