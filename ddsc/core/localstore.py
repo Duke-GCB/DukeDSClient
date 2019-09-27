@@ -3,7 +3,7 @@ import math
 import mimetypes
 import os
 from ddsc.core.ignorefile import FileFilter, IgnoreFilePatterns
-from ddsc.core.util import KindType
+from ddsc.core.util import KindType, ProjectWalker, plural_fmt, join_with_commas_and_and
 
 
 class LocalProject(object):
@@ -57,9 +57,118 @@ class LocalProject(object):
         self.remote_id = remote_id
         self.sent_to_remote = True
 
+    def count_local_items(self):
+        return LocalItemsCounter(self)
+
+    def count_items_to_send(self, upload_bytes_per_chunk):
+        return ItemsToSendCounter(self, upload_bytes_per_chunk)
+
     def __str__(self):
         child_str = ', '.join([str(child) for child in self.children])
         return 'project: [{}]'.format(child_str)
+
+
+class LocalItemsCounter(object):
+    def __init__(self, local_project):
+        self.folders = 0
+        self.files = 0
+        for child in local_project.children:
+            self._count_recur(child)
+
+    def _count_recur(self, item):
+        if KindType.is_file(item):
+            self.files += 1
+        else:
+            self.folders += 1
+            for child in item.children:
+                self._count_recur(child)
+
+    def to_str(self, prefix):
+        parts = []
+        if self.files:
+            parts.append(plural_fmt('file', self.files))
+        if self.folders:
+            parts.append(plural_fmt('folder', self.folders))
+        combined_parts = join_with_commas_and_and(parts)
+        return "{} {}.".format(prefix, combined_parts)
+
+
+class ItemsToSendCounter(object):
+    """
+    Visitor that counts items that need to be sent in LocalContent.
+    """
+    def __init__(self, local_project, bytes_per_chunk):
+        self.projects = 0
+        self.folders = 0
+        self.existing_folders = 0
+        self.files = 0
+        self.existing_files = 0
+        self.chunks = 0
+        self.bytes_per_chunk = bytes_per_chunk
+        self._walk_project(local_project)
+
+    def _walk_project(self, project):
+        """
+        Increment counters for each project, folder, and files calling visit methods below.
+        :param project: LocalProject project we will count items of.
+        """
+        # This method will call visit_project, visit_folder, and visit_file below as it walks the project tree.
+        ProjectWalker.walk_project(project, self)
+
+    def visit_project(self, item):
+        """
+        Increments counter if the project is not already remote.
+        :param item: LocalProject
+        """
+        if not item.remote_id:
+            self.projects += 1
+
+    def visit_folder(self, item, parent):
+        """
+        Increments counter if item is not already remote
+        :param item: LocalFolder
+        :param parent: LocalFolder/LocalProject
+        """
+        if not item.remote_id:
+            self.folders += 1
+        else:
+            self.existing_folders += 1
+
+    def visit_file(self, item, parent):
+        """
+        Increments counter if item needs to be sent.
+        :param item: LocalFile
+        :param parent: LocalFolder/LocalProject
+        """
+        self.files += 1
+        self.chunks += item.count_chunks(self.bytes_per_chunk)
+        if item.remote_id:
+            self.existing_files += 1
+
+    def total_items(self):
+        """
+        Total number of files/folders/chunks that need to be sent.
+        :return: int number of items to be sent.
+        """
+        return self.projects + self.folders + self.chunks
+
+    def to_str(self, prefix, local_items_count):
+        parts = []
+        new_files = local_items_count.files - self.existing_files
+        existing_files = self.existing_files
+        new_folders = local_items_count.folders - self.existing_folders
+        existing_folders = self.existing_folders
+
+        if new_files:
+            parts.append(plural_fmt('new file', new_files))
+        if existing_files:
+            parts.append(plural_fmt('existing file', existing_files))
+        if new_folders:
+            parts.append(plural_fmt('new folder', new_folders))
+        if existing_folders:
+            parts.append(plural_fmt('existing folder', existing_folders))
+        combined_parts = join_with_commas_and_and(parts)
+        return "{} {}.".format(prefix, combined_parts)
 
 
 def _name_to_child_map(children):

@@ -428,3 +428,15 @@ def plural_fmt(name, cnt):
         return '{} {}'.format(cnt, name)
     else:
         return '{} {}s'.format(cnt, name)
+
+
+def join_with_commas_and_and(items):
+    if not items:
+        return ""
+    head_items = items[:-1]
+    last_item = items[-1]
+    head_items_str = ', '.join(head_items)
+    if head_items_str:
+        return ' and '.join([head_items_str, last_item])
+    else:
+        return last_item

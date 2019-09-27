@@ -434,13 +434,14 @@ class ProjectUploadDryRun(object):
     Recursively visits children of the project passed to run.
     Builds a list of the names of folders/files that need to be uploaded.
     """
-    def __init__(self):
+    def __init__(self, local_project):
         self.upload_items = []
+        self._run(local_project)
 
     def add_upload_item(self, name):
         self.upload_items.append(name)
 
-    def run(self, local_project):
+    def _run(self, local_project):
         """
         Appends file/folder paths to upload_items based on the contents of this project that need to be uploaded.
         :param local_project: LocalProject: project we will build the list for
@@ -464,3 +465,18 @@ class ProjectUploadDryRun(object):
                     self.add_upload_item(item.path)
             for child in item.children:
                 self._visit_recur(child)
+
+    def get_report(self):
+        """
+        Returns text displaying the items that need to be uploaded or a message saying there are no files/folders
+        to upload.
+        :return: str: report text
+        """
+        if not self.upload_items:
+            return "\n\nNo changes found. Nothing needs to be uploaded.\n\n"
+        else:
+            result = "\n\nFiles/Folders that need to be uploaded:\n"
+            for item in self.upload_items:
+                result += "{}\n".format(item)
+            result += "\n"
+            return result

@@ -6,7 +6,9 @@ import datetime
 import time
 from ddsc.core.d4s2 import D4S2Project, D4S2Error
 from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
+from ddsc.core.localstore import LocalProject
 from ddsc.core.upload import ProjectUpload
+from ddsc.core.projectuploader import ProjectUploadDryRun
 from ddsc.cmdparser import CommandParser, format_destination_path, replace_invalid_path_chars
 from ddsc.core.download import ProjectDownload
 from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
@@ -165,15 +167,34 @@ class UploadCommand(BaseCommand):
         follow_symlinks = args.follow_symlinks  # should we follow symlinks when traversing folders
         dry_run = args.dry_run                  # do not upload anything, instead print out what you would upload
 
-        project_upload = ProjectUpload(self.config, project_name_or_id, folders, follow_symlinks=follow_symlinks)
+        # Find files and folders to upload
+        local_project = LocalProject(followsymlinks=follow_symlinks, file_exclude_regex=self.config.file_exclude_regex)
+        local_project.add_paths(folders)
+        local_items_count = local_project.count_local_items()
+        print(local_items_count.to_str(prefix="Checking"))
+
+        # Fetch remote project (if there is one) and update local_project with details from remote project
+        remote_project = self.remote_store.fetch_remote_project(project_name_or_id)
+        local_project.update_remote_ids(remote_project)
+        items_to_send_count = local_project.count_items_to_send(self.config.upload_bytes_per_chunk)
+        print(items_to_send_count.to_str(local_items_count=local_items_count, prefix="Synchronizing"))
+
         if dry_run:
-            print(project_upload.dry_run_report())
+            # Check hashes to see what needs to be uploaded
+            dry_run = ProjectUploadDryRun(local_project)
+            print(dry_run.get_report())
         else:
-            print(project_upload.get_differences_summary())
-            if project_upload.needs_to_upload():
-                project_upload.run()
+            # Upload files and folders
+            project_upload = ProjectUpload(self.config, project_name_or_id, local_project)
+            project_upload.run(items_to_send_count)
+
+            # Show user results of upload
+            upload_report = project_upload.get_upload_report()
+            print(upload_report.summary())
+            print()
+            if upload_report.sent_data:
                 print('\n')
-                print(project_upload.get_upload_report())
+                print(upload_report.get_content())
                 print('\n')
             print(project_upload.get_url_msg())
 

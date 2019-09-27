@@ -49,15 +49,13 @@ class TestProjectUploadDryRun(TestCase):
     def test_single_empty_non_existant_directory(self):
         local_file = MagicMock(kind=KindType.folder_str, children=[], path='joe', remote_id=None)
         local_project = MagicMock(kind=KindType.project_str, children=[local_file])
-        upload_dry_run = ProjectUploadDryRun()
-        upload_dry_run.run(local_project)
+        upload_dry_run = ProjectUploadDryRun(local_project)
         self.assertEqual(['joe'], upload_dry_run.upload_items)
 
     def test_single_empty_existing_directory(self):
         local_file = MagicMock(kind=KindType.folder_str, children=[], path='joe', remote_id='abc')
         local_project = MagicMock(kind=KindType.project_str, children=[local_file])
-        upload_dry_run = ProjectUploadDryRun()
-        upload_dry_run.run(local_project)
+        upload_dry_run = ProjectUploadDryRun(local_project)
         self.assertEqual([], upload_dry_run.upload_items)
 
     def test_some_files(self):
@@ -68,8 +66,7 @@ class TestProjectUploadDryRun(TestCase):
         local_file3 = MagicMock(kind=KindType.file_str, path='results.txt')
         local_file3.hash_matches_remote.return_value = False
         local_project = MagicMock(kind=KindType.project_str, children=[local_file1, local_file2, local_file3])
-        upload_dry_run = ProjectUploadDryRun()
-        upload_dry_run.run(local_project)
+        upload_dry_run = ProjectUploadDryRun(local_project)
         self.assertEqual(['joe.txt', 'results.txt'], upload_dry_run.upload_items)
         local_file1.hash_matches_remote.assert_called_with(
             local_file1.calculate_local_hash.return_value
@@ -101,8 +98,7 @@ class TestProjectUploadDryRun(TestCase):
                                   children=[child_folder],
                                   remote_id=None)
         local_project = MagicMock(kind=KindType.project_str, children=[parent_folder])
-        upload_dry_run = ProjectUploadDryRun()
-        upload_dry_run.run(local_project)
+        upload_dry_run = ProjectUploadDryRun(local_project)
         expected_results = [
             '/data/2017',
             '/data/2017/08',
@@ -132,8 +128,7 @@ class TestProjectUploadDryRun(TestCase):
                                   children=[child_folder],
                                   remote_id='123')
         local_project = MagicMock(kind=KindType.project_str, children=[parent_folder])
-        upload_dry_run = ProjectUploadDryRun()
-        upload_dry_run.run(local_project)
+        upload_dry_run = ProjectUploadDryRun(local_project)
         expected_results = [
             '/data/2017/08/flyresults',
             '/data/2017/08/flyresults/joe.txt',

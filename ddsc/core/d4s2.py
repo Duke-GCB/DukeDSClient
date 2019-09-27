@@ -372,10 +372,12 @@ class D4S2Project(object):
         :param temp_directory: str path to directory who's files we will upload
         """
         self.print_func("Uploading to '{}'.".format(project_name))
-        items_to_send = [os.path.join(temp_directory, item) for item in os.listdir(os.path.abspath(temp_directory))]
+        paths_to_send = [os.path.join(temp_directory, item) for item in os.listdir(os.path.abspath(temp_directory))]
         project_name_or_id = ProjectNameOrId.create_from_name(project_name)
-        project_upload = ProjectUpload(self.config, project_name_or_id, items_to_send,
-                                       file_upload_post_processor=UploadedFileRelations(activity))
+
+        project_upload = ProjectUpload.create_for_paths(self.config, self.remote_store, project_name_or_id,
+                                                        paths_to_send,
+                                                        file_upload_post_processor=UploadedFileRelations(activity))
         project_upload.run()
 
     def _is_current_user(self, some_user):

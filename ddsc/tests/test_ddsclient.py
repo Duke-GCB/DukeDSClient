@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand, ClientCommand, MoveCommand
 from ddsc.ddsclient import ShareCommand, DeliverCommand, InfoCommand, read_argument_file_contents
-from mock import patch, MagicMock, Mock, call
+from mock import patch, MagicMock, Mock, call, ANY
 
 
 class TestBaseCommand(TestCase):
@@ -62,8 +62,15 @@ class TestBaseCommand(TestCase):
 
 class TestUploadCommand(TestCase):
     @patch("ddsc.ddsclient.ProjectUpload")
-    def test_without_dry_run(self, mock_project_upload):
-        cmd = UploadCommand(MagicMock())
+    @patch("ddsc.ddsclient.ProjectNameOrId")
+    @patch("ddsc.ddsclient.LocalProject")
+    @patch("ddsc.ddsclient.ProjectUploadDryRun")
+    @patch('ddsc.ddsclient.RemoteStore')
+    @patch('ddsc.ddsclient.print')
+    def test_without_dry_run(self, mock_print, mock_remote_store, mock_project_upload_dry_run, mock_local_project,
+                             mock_project_name_or_id, mock_project_upload):
+        mock_config = MagicMock()
+        cmd = UploadCommand(mock_config)
         args = Mock()
         args.project_name = "test"
         args.project_id = None
@@ -71,14 +78,31 @@ class TestUploadCommand(TestCase):
         args.follow_symlinks = False
         args.dry_run = False
         cmd.run(args)
-        args, kwargs = mock_project_upload.call_args
-        self.assertEqual('test', args[1].get_name_or_raise())
-        self.assertFalse(mock_project_upload.return_value.dry_run_report.called)
-        self.assertTrue(mock_project_upload.return_value.get_upload_report.called)
+
+        mock_project_name_or_id.create_from_name.assert_called_with("test")
+
+        # create local project with folders
+        mock_local_project.return_value.add_paths.assert_called_with(["data", "scripts"])
+
+        # update local project with details about remote files/folders
+        remote_project = mock_remote_store.return_value.fetch_remote_project
+        mock_local_project.return_value.update_remote_ids(remote_project)
+
+        # uploads with local project
+        mock_project_upload.assert_called_with(mock_config, ANY, mock_local_project.return_value)
+        items_to_send = mock_local_project.return_value.count_items_to_send.return_value
+        mock_project_upload.return_value.run.assert_called_with(items_to_send)
 
     @patch("ddsc.ddsclient.ProjectUpload")
-    def test_without_dry_run_project_id(self, mock_project_upload):
-        cmd = UploadCommand(MagicMock())
+    @patch("ddsc.ddsclient.ProjectNameOrId")
+    @patch("ddsc.ddsclient.LocalProject")
+    @patch("ddsc.ddsclient.ProjectUploadDryRun")
+    @patch('ddsc.ddsclient.RemoteStore')
+    @patch('ddsc.ddsclient.print')
+    def test_without_dry_run_project_id(self, mock_print, mock_remote_store, mock_project_upload_dry_run,
+                                        mock_local_project, mock_project_name_or_id, mock_project_upload):
+        mock_config = MagicMock()
+        cmd = UploadCommand(mock_config)
         args = Mock()
         args.project_name = None
         args.project_id = '123'
@@ -86,14 +110,28 @@ class TestUploadCommand(TestCase):
         args.follow_symlinks = False
         args.dry_run = False
         cmd.run(args)
-        args, kwargs = mock_project_upload.call_args
-        self.assertEqual('123', args[1].get_id_or_raise())
-        self.assertFalse(mock_project_upload.return_value.dry_run_report.called)
-        self.assertTrue(mock_project_upload.return_value.get_upload_report.called)
 
-    @patch("ddsc.ddsclient.ProjectUpload")
-    def test_with_dry_run(self, FakeProjectUpload):
-        cmd = UploadCommand(MagicMock())
+        mock_project_name_or_id.create_from_project_id.assert_called_with("123")
+
+        # create local project with folders
+        mock_local_project.return_value.add_paths.assert_called_with(["data", "scripts"])
+
+        # update local project with details about remote files/folders
+        remote_project = mock_remote_store.return_value.fetch_remote_project
+        mock_local_project.return_value.update_remote_ids(remote_project)
+
+        # uploads with local project
+        mock_project_upload.assert_called_with(mock_config, ANY, mock_local_project.return_value)
+        items_to_send = mock_local_project.return_value.count_items_to_send.return_value
+        mock_project_upload.return_value.run.assert_called_with(items_to_send)
+
+    @patch("ddsc.ddsclient.LocalProject")
+    @patch("ddsc.ddsclient.ProjectUploadDryRun")
+    @patch('ddsc.ddsclient.RemoteStore')
+    @patch('ddsc.ddsclient.print')
+    def test_with_dry_run(self, mock_print, mock_remote_store, mock_project_upload_dry_run, mock_local_project):
+        mock_config = MagicMock()
+        cmd = UploadCommand(mock_config)
         args = Mock()
         args.project_name = "test"
         args.project_id = None
@@ -101,8 +139,10 @@ class TestUploadCommand(TestCase):
         args.follow_symlinks = False
         args.dry_run = True
         cmd.run(args)
-        self.assertTrue(FakeProjectUpload().dry_run_report.called)
-        self.assertFalse(FakeProjectUpload().get_upload_report.called)
+
+        mock_local_project.assert_called_with(followsymlinks=False, file_exclude_regex=mock_config.file_exclude_regex)
+        mock_project_upload_dry_run.assert_called_with(mock_local_project.return_value)
+        mock_print.assert_called_with(mock_project_upload_dry_run.return_value.get_report.return_value)
 
 
 class TestDownloadCommand(TestCase):
