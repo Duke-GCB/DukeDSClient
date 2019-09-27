@@ -103,20 +103,34 @@ class ProjectUploader(object):
         self.runner = TaskRunner(TaskExecutor(settings.config.upload_workers))
         self.settings = settings
         self.small_item_task_builder = SmallItemUploadTaskBuilder(self.settings, self.runner)
-        self.small_items = []
-        self.large_items = []
+        self.small_files = []
+        self.large_files = []
 
     def run(self, local_project):
         """
         Upload a project by uploading project, folders, and small files then uploading the large files.
         :param local_project: LocalProject: project to upload
         """
-        # Walk project adding small items to runner saving large items to large_items
+        # Walks project adding project/folder to small_item_task_builder and adding files to small_files/large_files
         ProjectWalker.walk_project(local_project, self)
+
+        self.sort_files_list(self.small_files)
+        self.add_small_files_to_task_builder()
         # Run small items in parallel
         self.runner.run()
+
         # Run parts of each large item in parallel
-        self.upload_large_items()
+        self.sort_files_list(self.large_files)
+        self.upload_large_files()
+
+    @staticmethod
+    def sort_files_list(files_list):
+        """
+        Sort files that are new first so they will will be processed before files that already exist in DukeDS.
+        This is to allow us to immediately begin making progress in retrying an upload.
+        :param files_list: [(LocalFile, LocalFolder|LocalProject)]: list of files to upload
+        """
+        files_list.sort(key=lambda tuple: tuple[0].remote_id)
 
     # Methods called by ProjectWalker.walk_project
     def visit_project(self, item):
@@ -137,18 +151,22 @@ class ProjectUploader(object):
         else file is small add it to the small task list.
         """
         if self.is_large_file(item):
-            self.large_items.append((item, parent))
+            self.large_files.append((item, parent))
         else:
-            self.small_item_task_builder.visit_file(item, parent)
+            self.small_files.append((item, parent))
 
     def is_large_file(self, item):
         return item.size > self.settings.config.upload_bytes_per_chunk
 
-    def upload_large_items(self):
+    def add_small_files_to_task_builder(self):
+        for local_file, parent in self.small_files:
+            self.small_item_task_builder.visit_file(local_file, parent)
+
+    def upload_large_files(self):
         """
         Upload files that were too large.
         """
-        for local_file, parent in self.large_items:
+        for local_file, parent in self.large_files:
             hash_data = local_file.calculate_local_hash()
             if local_file.hash_matches_remote(hash_data):
                 self.file_already_uploaded(local_file)
