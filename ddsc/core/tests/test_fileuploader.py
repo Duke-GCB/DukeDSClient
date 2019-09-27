@@ -3,7 +3,7 @@ from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async, FileUpl
     RetrySettings, ForbiddenSendExternalException, ChunkSender, FileUploader
 from ddsc.core.ddsapi import DSResourceNotConsistentError, DataServiceError
 import requests
-from mock import MagicMock, Mock, patch, call
+from mock import MagicMock, Mock, patch, call, ANY
 
 
 class FakeConfig(object):
@@ -366,3 +366,5 @@ class TestFileUploader(TestCase):
                                               storage_provider_id=config.storage_provider_id)
         mock_parallel_chunkprocessor.assert_called_with(uploader)
         mock_parallel_chunkprocessor.return_value.run.assert_called_with()
+        mock_finish_upload = mock_file_upload_operations.return_value.finish_upload
+        mock_finish_upload.assert_called_with(mock_create_upload.return_value, hash_data, ANY, local_file.remote_id)
