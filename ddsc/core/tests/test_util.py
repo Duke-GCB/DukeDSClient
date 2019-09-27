@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from ddsc.core.util import verify_terminal_encoding, ProgressBar, ProgressPrinter, KindType, RemotePath, humanize_bytes,\
-    plural_fmt
+    plural_fmt, join_with_commas_and_and
 from mock import patch, Mock
 
 
@@ -212,3 +212,17 @@ class TestPluralFmt(TestCase):
         self.assertEqual(plural_fmt("folder", 1), "1 folder")
         self.assertEqual(plural_fmt("folder", 2), "2 folders")
         self.assertEqual(plural_fmt("folder", 3), "3 folders")
+
+
+class TestJoinWithCommasAndAnd(TestCase):
+    def test_join_with_commas_and_and(self):
+        items = []
+        self.assertEqual(join_with_commas_and_and(items), '')
+        items = ['abc']
+        self.assertEqual(join_with_commas_and_and(items), 'abc')
+        items = ['abc', 'def']
+        self.assertEqual(join_with_commas_and_and(items), 'abc and def')
+        items = ['abc', 'def', 'hij']
+        self.assertEqual(join_with_commas_and_and(items), 'abc, def and hij')
+        items = ['abc', 'def', 'hij', 'klm']
+        self.assertEqual(join_with_commas_and_and(items), 'abc, def, hij and klm')
