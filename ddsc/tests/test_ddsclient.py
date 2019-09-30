@@ -89,9 +89,9 @@ class TestUploadCommand(TestCase):
         mock_local_project.return_value.update_remote_ids(remote_project)
 
         # uploads with local project
-        mock_project_upload.assert_called_with(mock_config, ANY, mock_local_project.return_value)
         items_to_send = mock_local_project.return_value.count_items_to_send.return_value
-        mock_project_upload.return_value.run.assert_called_with(items_to_send)
+        mock_project_upload.assert_called_with(mock_config, ANY, mock_local_project.return_value, items_to_send)
+        mock_project_upload.return_value.run.assert_called_with()
         mock_print.assert_has_calls([
             call(mock_local_project.return_value.count_local_items.return_value.to_str.return_value),
             call(mock_local_project.return_value.count_items_to_send.return_value.to_str.return_value),
@@ -131,9 +131,9 @@ class TestUploadCommand(TestCase):
         mock_local_project.return_value.update_remote_ids(remote_project)
 
         # uploads with local project
-        mock_project_upload.assert_called_with(mock_config, ANY, mock_local_project.return_value)
         items_to_send = mock_local_project.return_value.count_items_to_send.return_value
-        mock_project_upload.return_value.run.assert_called_with(items_to_send)
+        mock_project_upload.assert_called_with(mock_config, ANY, mock_local_project.return_value, items_to_send)
+        mock_project_upload.return_value.run.assert_called_with()
 
     @patch("ddsc.ddsclient.LocalProject")
     @patch("ddsc.ddsclient.ProjectUploadDryRun")

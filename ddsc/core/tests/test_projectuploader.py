@@ -2,10 +2,10 @@ from unittest import TestCase
 import pickle
 import multiprocessing
 from ddsc.core.projectuploader import UploadSettings, UploadContext, ProjectUploadDryRun, CreateProjectCommand, \
-    upload_project_run, create_small_file
+    upload_project_run, create_small_file, ProjectUploader
 from ddsc.core.util import KindType
 from ddsc.core.remotestore import ProjectNameOrId
-from mock import MagicMock, Mock, patch
+from mock import MagicMock, Mock, patch, call, ANY
 
 
 class FakeDataServiceApi(object):
@@ -174,3 +174,70 @@ class TestCreateSmallFile(TestCase):
 
         self.assertEqual(resp, mock_file_operations.return_value.finish_upload.return_value)
         mock_file_operations.return_value.create_file_chunk_url.assert_not_called()
+
+
+class TestProjectUploader(TestCase):
+    @patch('ddsc.core.projectuploader.ProjectWalker')
+    @patch('ddsc.core.projectuploader.TaskRunner')
+    @patch('ddsc.core.projectuploader.TaskExecutor')
+    @patch('ddsc.core.projectuploader.SmallItemUploadTaskBuilder')
+    def test_run_sorts_new_files_first(self, mock_small_task_builder, mock_task_executor, mock_task_runner,
+                                       mock_project_walker):
+        settings = Mock()
+        settings.config.upload_bytes_per_chunk = 100
+        uploader = ProjectUploader(settings)
+        uploader.process_large_file = Mock()
+        small_file_existing = Mock(remote_id='abc123', size=1000)
+        small_file_new = Mock(remote_id='', size=2000)
+        uploader.small_files = [
+            (small_file_existing, None),
+            (small_file_new, None),
+        ]
+        large_file_existing = Mock(remote_id='def456', size=1000)
+        large_file_existing.hash_matches_remote.return_value = False
+        large_file_new = Mock(remote_id='', size=2000)
+        large_file_new.hash_matches_remote.return_value = False
+        uploader.large_files = [
+            (large_file_existing, None),
+            (large_file_new, None),
+        ]
+        local_project = Mock()
+
+        uploader.run(local_project)
+
+        # small files should be sorted with new first
+        uploader.small_item_task_builder.visit_file.assert_has_calls([
+            call(small_file_new, None),
+            call(small_file_existing, None),
+        ])
+        # large files should be sorted with new first
+        uploader.process_large_file.assert_has_calls([
+            call(large_file_new, None, ANY),
+            call(large_file_existing, None, ANY),
+        ])
+
+    @patch('ddsc.core.projectuploader.ProjectWalker')
+    @patch('ddsc.core.projectuploader.TaskRunner')
+    @patch('ddsc.core.projectuploader.TaskExecutor')
+    @patch('ddsc.core.projectuploader.SmallItemUploadTaskBuilder')
+    def test_run_with_large_files_hash_matching(self, mock_small_task_builder, mock_task_executor, mock_task_runner,
+                                       mock_project_walker):
+        settings = Mock()
+        settings.config.upload_bytes_per_chunk = 100
+        uploader = ProjectUploader(settings)
+        uploader.process_large_file = Mock()
+        large_file_existing = Mock(remote_id='def456', size=1000)
+        large_file_existing.hash_matches_remote.return_value = True
+        large_file_new = Mock(remote_id='', size=2000)
+        large_file_new.hash_matches_remote.return_value = True
+        uploader.large_files = [
+            (large_file_existing, None),
+            (large_file_new, None),
+        ]
+        local_project = Mock()
+        uploader.run(local_project)
+        uploader.process_large_file.assert_not_called()
+        settings.watcher.transferring_item.assert_has_calls([
+            call(large_file_new, increment_amt=20),
+            call(large_file_existing, increment_amt=10),
+        ])
