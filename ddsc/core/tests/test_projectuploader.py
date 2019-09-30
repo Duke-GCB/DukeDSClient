@@ -136,6 +136,18 @@ class TestProjectUploadDryRun(TestCase):
         ]
         self.assertEqual(expected_results, upload_dry_run.upload_items)
 
+    def test_get_report_no_changes(self):
+        local_project = MagicMock(kind=KindType.project_str, children=[])
+        upload_dry_run = ProjectUploadDryRun(local_project)
+        upload_dry_run.upload_items = []
+        self.assertEqual(upload_dry_run.get_report().strip(), 'No changes found. Nothing needs to be uploaded.')
+
+    def test_get_report_changes_exist(self):
+        local_project = MagicMock(kind=KindType.project_str, children=[])
+        upload_dry_run = ProjectUploadDryRun(local_project)
+        upload_dry_run.upload_items = ['somefile']
+        self.assertEqual(upload_dry_run.get_report().strip(), 'Files/Folders that need to be uploaded:\nsomefile')
+
 
 class TestCreateProjectCommand(TestCase):
     def test_constructor_fails_for_id(self):
