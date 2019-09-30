@@ -9,7 +9,7 @@ class ProjectUpload(object):
     """
     Allows uploading a local project to a remote duke-data-service.
     """
-    def __init__(self, config, project_name_or_id, local_project, file_upload_post_processor=None):
+    def __init__(self, config, project_name_or_id, local_project, items_to_send_count, file_upload_post_processor=None):
         """
         Setup for uploading folders dictionary of paths to project_name using config.
         :param config: Config configuration for performing the upload(url, keys, etc)
@@ -21,6 +21,7 @@ class ProjectUpload(object):
         self.remote_store = RemoteStore(config)
         self.project_name_or_id = project_name_or_id
         self.local_project = local_project
+        self.items_to_send_count = items_to_send_count
         self.file_upload_post_processor = file_upload_post_processor
 
     @staticmethod
@@ -30,14 +31,15 @@ class ProjectUpload(object):
         local_project.add_paths(paths)
         remote_project = remote_store.fetch_remote_project(project_name_or_id)
         local_project.update_remote_ids(remote_project)
-        return ProjectUpload(config, project_name_or_id, local_project,
+        items_to_send_count = local_project.count_items_to_send(config.upload_bytes_per_chunk)
+        return ProjectUpload(config, project_name_or_id, local_project, items_to_send_count,
                              file_upload_post_processor=file_upload_post_processor)
 
-    def run(self, items_to_send_count):
+    def run(self):
         """
         Upload different items within local_project to remote store showing a progress bar.
         """
-        progress_printer = ProgressPrinter(items_to_send_count.total_items(), msg_verb='sending')
+        progress_printer = ProgressPrinter(self.items_to_send_count.total_items(), msg_verb='sending')
         upload_settings = UploadSettings(self.config, self.remote_store.data_service, progress_printer,
                                          self.project_name_or_id, self.file_upload_post_processor)
         project_uploader = ProjectUploader(upload_settings)

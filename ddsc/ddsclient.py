@@ -185,8 +185,8 @@ class UploadCommand(BaseCommand):
             print(dry_run.get_report())
         else:
             # Upload files and folders
-            project_upload = ProjectUpload(self.config, project_name_or_id, local_project)
-            project_upload.run(items_to_send_count)
+            project_upload = ProjectUpload(self.config, project_name_or_id, local_project, items_to_send_count)
+            project_upload.run()
 
             # Show user results of upload
             upload_report = project_upload.get_upload_report()
