@@ -196,7 +196,7 @@ class TestUploadedFileRelations(TestCase):
         new_activity_id = '2'
         download_file_version_id = '32'
         upload_file_version_id = '33'
-        file_remote_path = 'data/results/seq1.fasta'
+        file_remote_path = '/data/results/seq1.fasta'
         file_details = {
             'name': 'seq1.fasta',
             'current_version': {
