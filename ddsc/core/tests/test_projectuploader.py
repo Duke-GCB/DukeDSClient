@@ -2,7 +2,7 @@ from unittest import TestCase
 import pickle
 import multiprocessing
 from ddsc.core.projectuploader import UploadSettings, UploadContext, ProjectUploadDryRun, CreateProjectCommand, \
-    upload_project_run, create_small_file, ProjectUploader
+    upload_project_run, create_small_file, ProjectUploader, CreateSmallFileCommand
 from ddsc.core.util import KindType
 from ddsc.core.remotestore import ProjectNameOrId
 from mock import MagicMock, Mock, patch, call, ANY
@@ -253,3 +253,23 @@ class TestProjectUploader(TestCase):
             call(large_file_new, increment_amt=20),
             call(large_file_existing, increment_amt=10),
         ])
+
+
+class TestCreateSmallFileCommand(TestCase):
+    def test_after_run_when_file_is_already_good(self):
+        cmd = CreateSmallFileCommand(settings=Mock(), local_file=Mock(), parent=Mock(),
+                                     file_upload_post_processor=Mock())
+        cmd.after_run(None)
+        cmd.file_upload_post_processor.run.assert_not_called()
+        cmd.local_file.set_remote_id_after_send.assert_not_called()
+        cmd.settings.watcher.transferring_item.assert_called_with(cmd.local_file)
+
+    def test_after_run_when_file_is_sent(self):
+        cmd = CreateSmallFileCommand(settings=Mock(), local_file=Mock(), parent=Mock(),
+                                     file_upload_post_processor=Mock())
+        cmd.after_run({
+            'id': 'abc123'
+        })
+        cmd.file_upload_post_processor.run.assert_called_with(cmd.settings.data_service, {'id': 'abc123'})
+        cmd.local_file.set_remote_id_after_send.assert_called_with('abc123')
+        cmd.settings.watcher.transferring_item.assert_called_with(cmd.local_file)
