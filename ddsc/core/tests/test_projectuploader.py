@@ -233,7 +233,7 @@ class TestProjectUploader(TestCase):
     @patch('ddsc.core.projectuploader.TaskExecutor')
     @patch('ddsc.core.projectuploader.SmallItemUploadTaskBuilder')
     def test_run_with_large_files_hash_matching(self, mock_small_task_builder, mock_task_executor, mock_task_runner,
-                                       mock_project_walker):
+                                                mock_project_walker):
         settings = Mock()
         settings.config.upload_bytes_per_chunk = 100
         uploader = ProjectUploader(settings)
