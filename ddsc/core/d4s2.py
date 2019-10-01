@@ -12,7 +12,7 @@ from ddsc.core.download import ProjectDownload
 from ddsc.core.ddsapi import DataServiceAuth
 from ddsc.core.util import KindType
 from ddsc.versioncheck import get_internal_version_str
-from ddsc.core.remotestore import ProjectNameOrId
+from ddsc.core.remotestore import ProjectNameOrId, RemotePath
 
 UNAUTHORIZED_MESSAGE = """
 ERROR: Your account does not have authorization for D4S2 (the deliver/share service).
@@ -480,5 +480,5 @@ class UploadedFileRelations(object):
         name_parts = [ancestor['name'] for ancestor in file_details['ancestors']
                       if ancestor['kind'] == KindType.folder_str]
         name_parts.append(file_details['name'])
-        remote_path = os.sep.join(name_parts)
+        remote_path = RemotePath.add_leading_slash(os.sep.join(name_parts))
         return self.activity.remote_path_to_file_version_id[remote_path]
