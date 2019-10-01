@@ -1054,10 +1054,27 @@ class TestRetryConnectionExceptions(TestCase):
         self.assertEqual([], self.status_messages)
 
     @patch('ddsc.core.ddsapi.time')
-    def test_will_retry_after_waiting_after_readtimeout(self, mock_time):
+    def test_will_retry_read_timeout_put(self, mock_time):
         self.raise_error_once = requests.exceptions.ReadTimeout(request=Mock(method='PUT'))
         self.assertEqual('result123', self.func('123'))
         self.assertEqual(1, mock_time.sleep.call_count)
         self.assertEqual(2, len(self.status_messages))
         self.assertEqual(CONNECTION_RETRY_MESSAGE, self.status_messages[0])
         self.assertEqual('', self.status_messages[1])
+
+    @patch('ddsc.core.ddsapi.time')
+    def test_will_retry_read_timeout_get(self, mock_time):
+        self.raise_error_once = requests.exceptions.ReadTimeout(request=Mock(method='GET'))
+        self.assertEqual('result123', self.func('123'))
+        self.assertEqual(1, mock_time.sleep.call_count)
+        self.assertEqual(2, len(self.status_messages))
+        self.assertEqual(CONNECTION_RETRY_MESSAGE, self.status_messages[0])
+        self.assertEqual('', self.status_messages[1])
+
+    @patch('ddsc.core.ddsapi.time')
+    def test_will_retry_read_timeout_delete(self, mock_time):
+        self.raise_error_once = requests.exceptions.ReadTimeout(request=Mock(method='POST'))
+        with self.assertRaises(requests.exceptions.ReadTimeout):
+            self.func('123')
+        self.assertEqual(0, mock_time.sleep.call_count)
+        self.assertEqual(0, len(self.status_messages))
