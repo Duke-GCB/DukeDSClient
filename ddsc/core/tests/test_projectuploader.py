@@ -2,7 +2,7 @@ from unittest import TestCase
 import pickle
 import multiprocessing
 from ddsc.core.projectuploader import UploadSettings, UploadContext, ProjectUploadDryRun, CreateProjectCommand, \
-    upload_project_run, create_small_file, ProjectUploader, CreateSmallFileCommand
+    upload_project_run, create_small_file, ProjectUploader, HashFileCommand, CreateSmallFileCommand
 from ddsc.core.util import KindType
 from ddsc.core.remotestore import ProjectNameOrId
 from mock import MagicMock, Mock, patch, call, ANY
@@ -175,16 +175,33 @@ class TestCreateSmallFile(TestCase):
     @patch('ddsc.core.projectuploader.FileUploadOperations', autospec=True)
     def test_create_small_file_passes_zero_index(self, mock_file_operations):
         mock_path_data = Mock()
-        mock_path_data.get_hash.return_value.matches.return_value = False
+        mock_hash_data = Mock()
+        mock_hash_data.matches.return_value = False
         mock_path_data.read_whole_file.return_value = 'data'
         mock_file_operations.return_value.create_upload_and_chunk_url.return_value = (
             'someId', {'host': 'somehost', 'url': 'someurl'}
         )
 
-        upload_context = Mock(params=(Mock(), mock_path_data, Mock(), 'md5', 'abc'))
+        upload_context = Mock(params=(Mock(), mock_path_data, mock_hash_data, Mock(), 'md5', 'abc'))
         resp = create_small_file(upload_context)
 
         self.assertEqual(resp, mock_file_operations.return_value.finish_upload.return_value)
+        mock_file_operations.return_value.create_file_chunk_url.assert_not_called()
+
+    @patch('ddsc.core.projectuploader.FileUploadOperations', autospec=True)
+    def test_create_small_file_hash_matches(self, mock_file_operations):
+        mock_path_data = Mock()
+        mock_hash_data = Mock()
+        mock_hash_data.matches.return_value = True
+        mock_path_data.read_whole_file.return_value = 'data'
+        mock_file_operations.return_value.create_upload_and_chunk_url.return_value = (
+            'someId', {'host': 'somehost', 'url': 'someurl'}
+        )
+
+        upload_context = Mock(params=(Mock(), mock_path_data, mock_hash_data, Mock(), 'md5', 'abc'))
+        resp = create_small_file(upload_context)
+
+        self.assertEqual(resp, None)
         mock_file_operations.return_value.create_file_chunk_url.assert_not_called()
 
 
@@ -311,12 +328,27 @@ class TestProjectUploader(TestCase):
         ])
 
 
+class TestHashFileCommand(TestCase):
+    def test_before_run_shows_checking_message(self):
+        cmd = HashFileCommand(settings=Mock(), local_file=Mock())
+        cmd.before_run(None)
+        cmd.settings.watcher.transferring_item.assert_called_with(cmd.local_file, increment_amt=0,
+                                                                  override_msg_verb='checking')
+
+    def test_function_hashes_file(self):
+        cmd = HashFileCommand(settings=Mock(), local_file=Mock())
+        context = cmd.create_context(Mock(), '123')
+        result = cmd.func(context)
+        mock_path_data = cmd.local_file.get_path_data.return_value
+        self.assertEqual(result, mock_path_data.get_hash.return_value)
+
+
 class TestCreateSmallFileCommand(TestCase):
     def test_before_run_updates_watcher(self):
         cmd = CreateSmallFileCommand(settings=Mock(), local_file=Mock(), parent=Mock(),
                                      file_upload_post_processor=Mock())
-        cmd.before_run(None)
-        cmd.settings.watcher.transferring_item.assert_called_with(cmd.local_file, increment_amt=0)
+        cmd.before_run('hash_data')
+        self.assertEqual(cmd.hash_data, 'hash_data')
 
     def test_after_run_when_file_is_already_good(self):
         cmd = CreateSmallFileCommand(settings=Mock(), local_file=Mock(), parent=Mock(),
@@ -324,7 +356,7 @@ class TestCreateSmallFileCommand(TestCase):
         cmd.after_run(None)
         cmd.file_upload_post_processor.run.assert_not_called()
         cmd.local_file.set_remote_id_after_send.assert_not_called()
-        cmd.settings.watcher.transferring_item.assert_called_with(cmd.local_file)
+        cmd.settings.watcher.increment_progress()
 
     def test_after_run_when_file_is_sent(self):
         cmd = CreateSmallFileCommand(settings=Mock(), local_file=Mock(), parent=Mock(),

@@ -242,9 +242,14 @@ class SmallItemUploadTaskBuilder(object):
             msg = "Programmer Error: Trying to upload large file as small item size:{} name:{}"
             raise ValueError(msg.format(item.size, item.name))
         else:
-            command = CreateSmallFileCommand(self.settings, item, parent,
-                                             self.settings.file_upload_post_processor)
-            self.task_runner_add(parent, item, command)
+            # Create a command to hash the file
+            hash_command = HashFileCommand(self.settings, item)
+            parent_task_id = self.item_to_id.get(parent)
+            hash_task_id = self.task_runner.add(parent_task_id, hash_command)
+            # Create a command to upload the file that waits for the results from the HashFileCommand
+            send_command = CreateSmallFileCommand(self.settings, item, parent,
+                                                  self.settings.file_upload_post_processor)
+            self.task_runner.add(hash_task_id, send_command)
 
     def task_runner_add(self, parent, item, command):
         """
@@ -361,6 +366,38 @@ def upload_folder_run(upload_context):
     return result.json()['id']
 
 
+class HashFileCommand(object):
+    """
+    Hashes file and returns result
+    """
+    def __init__(self, settings, local_file):
+        self.settings = settings
+        self.local_file = local_file
+        self.func = hash_file
+
+    def before_run(self, parent_task_result):
+        # Update progress bar that we are checking this file
+        self.settings.watcher.transferring_item(self.local_file, increment_amt=0, override_msg_verb='checking')
+
+    def create_context(self, message_queue, task_id):
+        params = self.local_file.get_path_data()
+        return UploadContext(self.settings, params, message_queue, task_id)
+
+    def after_run(self, result):
+        pass
+
+
+def hash_file(upload_context):
+    """
+    Function run by HashFileCommand to calculate a file hash.
+    :param upload_context: PathData: contains path to a local file to hash
+    :return HashData: result of hash (alg + value)
+    """
+    path_data = upload_context.params
+    hash_data = path_data.get_hash()
+    return hash_data
+
+
 class CreateSmallFileCommand(object):
     """
     Creates a small file in the data service.
@@ -384,10 +421,10 @@ class CreateSmallFileCommand(object):
         self.parent = parent
         self.func = create_small_file
         self.file_upload_post_processor = file_upload_post_processor
+        self.hash_data = None
 
     def before_run(self, parent_task_result):
-        # Update progress bar so this filename will be shown
-        self.settings.watcher.transferring_item(self.local_file, increment_amt=0)
+        self.hash_data = parent_task_result
 
     def create_context(self, message_queue, task_id):
         """
@@ -397,8 +434,8 @@ class CreateSmallFileCommand(object):
        """
         parent_data = ParentData(self.parent.kind, self.parent.remote_id)
         path_data = self.local_file.get_path_data()
-        params = parent_data, path_data, self.local_file.remote_id, self.local_file.remote_file_hash_alg, \
-            self.local_file.remote_file_hash
+        params = parent_data, path_data, self.hash_data, self.local_file.remote_id, \
+            self.local_file.remote_file_hash_alg, self.local_file.remote_file_hash
 
         return UploadContext(self.settings, params, message_queue, task_id)
 
@@ -416,8 +453,9 @@ class CreateSmallFileCommand(object):
             self.local_file.set_remote_values_after_send(remote_file_id,
                                                          remote_hash_dict['algorithm'],
                                                          remote_hash_dict['value'])
-
-        self.settings.watcher.transferring_item(self.local_file)
+            self.settings.watcher.transferring_item(self.local_file)
+        else:
+            self.settings.watcher.increment_progress()
 
     def on_message(self, started_waiting):
         """
@@ -438,8 +476,7 @@ def create_small_file(upload_context):
     :param upload_context: UploadContext: contains data service setup and file details.
     :return dict: DukeDS file data
     """
-    parent_data, path_data, remote_file_id, remote_file_hash_alg, remote_file_hash = upload_context.params
-    hash_data = path_data.get_hash()
+    parent_data, path_data, hash_data, remote_file_id, remote_file_hash_alg, remote_file_hash = upload_context.params
     if hash_data.matches(remote_file_hash_alg, remote_file_hash):
         return None
 
