@@ -47,7 +47,7 @@ class NoOpProgressPrinter(object):
     def transferring_item(self, item, increment_amt=1, override_msg_verb=None):
         pass
 
-    def increment_progress(self, increment_amt):
+    def increment_progress(self, increment_amt=1):
         pass
 
     def finished(self):
@@ -90,7 +90,7 @@ class ProgressPrinter(object):
         self.progress_bar.update(percent_done, '{} {}'.format(msg_verb, details))
         self.progress_bar.show()
 
-    def increment_progress(self, amt):
+    def increment_progress(self, amt=1):
         self.cnt += amt
 
     def finished(self):

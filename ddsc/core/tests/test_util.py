@@ -191,7 +191,9 @@ class TestProgressPrinter(TestCase):
         self.assertEqual(progress_printer.cnt, 0)
         progress_printer.increment_progress(5)
         self.assertEqual(progress_printer.cnt, 5)
-        progress_printer.increment_progress(5)
+        progress_printer.increment_progress(4)
+        self.assertEqual(progress_printer.cnt, 9)
+        progress_printer.increment_progress()
         self.assertEqual(progress_printer.cnt, 10)
 
 
