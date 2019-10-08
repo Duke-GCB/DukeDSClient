@@ -250,8 +250,10 @@ class TestProjectUploader(TestCase):
         uploader.run(local_project)
         uploader.process_large_file.assert_not_called()
         settings.watcher.transferring_item.assert_has_calls([
-            call(large_file_new, increment_amt=20),
-            call(large_file_existing, increment_amt=10),
+            call(large_file_new, increment_amt=0, override_msg_verb='checking'),  # show checking
+            call(large_file_new, increment_amt=20),   # update progress as sending (file already at remote)
+            call(large_file_existing, increment_amt=0, override_msg_verb='checking'),   # show checking
+            call(large_file_existing, increment_amt=10),   # update progress as sending (file already at remote)
         ])
 
     @patch('ddsc.core.projectuploader.TaskRunner')
@@ -273,8 +275,45 @@ class TestProjectUploader(TestCase):
             'abc', 'md5', 'defg'
         )
 
+    @patch('ddsc.core.projectuploader.TaskRunner')
+    @patch('ddsc.core.projectuploader.TaskExecutor')
+    @patch('ddsc.core.projectuploader.SmallItemUploadTaskBuilder')
+    @patch('ddsc.core.projectuploader.FileUploader')
+    def test_upload_large_files__updates_watcher(self, mock_file_uploader, mock_small_task_builder,
+                                                 mock_task_executor, mock_task_runner):
+        local_file1 = Mock(size=1000)
+        local_file1.hash_matches_remote.return_value = False
+        local_file2 = Mock(size=2000)
+        local_file2.hash_matches_remote.return_value = True
+        settings = Mock()
+        settings.config.upload_bytes_per_chunk = 1000
+        uploader = ProjectUploader(settings)
+        uploader.large_files = [
+            (local_file1, Mock()),
+            (local_file2, Mock()),
+        ]
+
+        uploader.upload_large_files()
+
+        settings.watcher.transferring_item.assert_has_calls([
+            # Show checking for file1
+            call(local_file1, increment_amt=0, override_msg_verb='checking'),
+            # Reset verb to sending for file1 (additional calls are made from ParallelChunkProcessor)
+            call(local_file1, increment_amt=0),
+            # Show checking for file2
+            call(local_file2, increment_amt=0, override_msg_verb='checking'),
+            # Already remote so increment progress for entire file
+            call(local_file2, increment_amt=2),
+        ])
+
 
 class TestCreateSmallFileCommand(TestCase):
+    def test_before_run_updates_watcher(self):
+        cmd = CreateSmallFileCommand(settings=Mock(), local_file=Mock(), parent=Mock(),
+                                     file_upload_post_processor=Mock())
+        cmd.before_run(None)
+        cmd.settings.watcher.transferring_item.assert_called_with(cmd.local_file, increment_amt=0)
+
     def test_after_run_when_file_is_already_good(self):
         cmd = CreateSmallFileCommand(settings=Mock(), local_file=Mock(), parent=Mock(),
                                      file_upload_post_processor=Mock())

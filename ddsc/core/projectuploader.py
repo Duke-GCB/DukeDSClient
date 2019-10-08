@@ -167,11 +167,12 @@ class ProjectUploader(object):
         Upload files that were too large.
         """
         for local_file, parent in self.large_files:
-
+            self.settings.watcher.transferring_item(local_file, increment_amt=0, override_msg_verb='checking')
             hash_data = local_file.calculate_local_hash()
             if local_file.hash_matches_remote(hash_data):
                 self.file_already_uploaded(local_file)
             else:
+                self.settings.watcher.transferring_item(local_file, increment_amt=0)
                 self.process_large_file(local_file, parent, hash_data)
 
     def process_large_file(self, local_file, parent, hash_data):
@@ -385,7 +386,8 @@ class CreateSmallFileCommand(object):
         self.file_upload_post_processor = file_upload_post_processor
 
     def before_run(self, parent_task_result):
-        pass
+        # Update progress bar so this filename will be shown
+        self.settings.watcher.transferring_item(self.local_file, increment_amt=0)
 
     def create_context(self, message_queue, task_id):
         """

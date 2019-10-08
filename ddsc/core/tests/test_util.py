@@ -174,6 +174,18 @@ class TestProgressPrinter(TestCase):
         self.assertEqual(False, progress_printer.waiting)
         self.assertEqual(1, progress_printer.progress_bar.show_running.call_count)
 
+    @patch('ddsc.core.util.ProgressBar')
+    @patch('ddsc.core.util.os')
+    def test_transferring_item_override_msg_verb(self, mock_os, mock_progress_bar):
+        progress_bar = mock_progress_bar.return_value
+        mock_os.path.basename.return_value = 'somefile.txt'
+        progress_printer = ProgressPrinter(total=10, msg_verb='sending')
+        progress_printer.transferring_item(Mock(), increment_amt=0)
+        progress_bar.update.assert_called_with(0, "sending somefile.txt")
+        progress_bar.reset_mock()
+        progress_printer.transferring_item(Mock(), increment_amt=0, override_msg_verb='checking')
+        progress_bar.update.assert_called_with(0, "checking somefile.txt")
+
 
 class TestRemotePath(TestCase):
     def test_add_leading_slash(self):

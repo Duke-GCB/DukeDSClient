@@ -44,7 +44,7 @@ class KindType(object):
 
 
 class NoOpProgressPrinter(object):
-    def transferring_item(self, item, increment_amt=1):
+    def transferring_item(self, item, increment_amt=1, override_msg_verb=None):
         pass
 
     def finished(self):
@@ -68,11 +68,12 @@ class ProgressPrinter(object):
         self.msg_verb = msg_verb
         self.progress_bar = ProgressBar()
 
-    def transferring_item(self, item, increment_amt=1):
+    def transferring_item(self, item, increment_amt=1, override_msg_verb=None):
         """
         Update progress that item is about to be transferred.
         :param item: LocalFile, LocalFolder, or LocalContent(project) that is about to be sent.
         :param increment_amt: int amount to increase our count(how much progress have we made)
+        :param override_msg_verb: str: overrides msg_verb specified in constructor
         """
         self.cnt += increment_amt
         percent_done = int(float(self.cnt) / float(self.total) * 100.0)
@@ -80,7 +81,10 @@ class ProgressPrinter(object):
             details = 'project'
         else:
             details = os.path.basename(item.path)
-        self.progress_bar.update(percent_done, '{} {}'.format(self.msg_verb, details))
+        msg_verb = self.msg_verb
+        if override_msg_verb:
+            msg_verb = override_msg_verb
+        self.progress_bar.update(percent_done, '{} {}'.format(msg_verb, details))
         self.progress_bar.show()
 
     def finished(self):
