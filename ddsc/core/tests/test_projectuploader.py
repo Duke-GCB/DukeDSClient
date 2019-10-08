@@ -251,9 +251,11 @@ class TestProjectUploader(TestCase):
         uploader.process_large_file.assert_not_called()
         settings.watcher.transferring_item.assert_has_calls([
             call(large_file_new, increment_amt=0, override_msg_verb='checking'),  # show checking
-            call(large_file_new, increment_amt=20),   # update progress as sending (file already at remote)
             call(large_file_existing, increment_amt=0, override_msg_verb='checking'),   # show checking
-            call(large_file_existing, increment_amt=10),   # update progress as sending (file already at remote)
+        ])
+        # The progress bar should be incremented for both files that are already at the remote store
+        settings.watcher.increment_progress.assert_has_calls([
+            call(20), call(10)
         ])
 
     @patch('ddsc.core.projectuploader.TaskRunner')
@@ -302,8 +304,10 @@ class TestProjectUploader(TestCase):
             call(local_file1, increment_amt=0),
             # Show checking for file2
             call(local_file2, increment_amt=0, override_msg_verb='checking'),
-            # Already remote so increment progress for entire file
-            call(local_file2, increment_amt=2),
+        ])
+        # The progress bar should be incremented for local_file2 since local matches remote
+        settings.watcher.increment_progress.assert_has_calls([
+            call(2)
         ])
 
 

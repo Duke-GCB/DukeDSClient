@@ -47,6 +47,9 @@ class NoOpProgressPrinter(object):
     def transferring_item(self, item, increment_amt=1, override_msg_verb=None):
         pass
 
+    def increment_progress(self, increment_amt):
+        pass
+
     def finished(self):
         pass
 
@@ -75,7 +78,7 @@ class ProgressPrinter(object):
         :param increment_amt: int amount to increase our count(how much progress have we made)
         :param override_msg_verb: str: overrides msg_verb specified in constructor
         """
-        self.cnt += increment_amt
+        self.increment_progress(increment_amt)
         percent_done = int(float(self.cnt) / float(self.total) * 100.0)
         if KindType.is_project(item):
             details = 'project'
@@ -86,6 +89,9 @@ class ProgressPrinter(object):
             msg_verb = override_msg_verb
         self.progress_bar.update(percent_done, '{} {}'.format(msg_verb, details))
         self.progress_bar.show()
+
+    def increment_progress(self, amt):
+        self.cnt += amt
 
     def finished(self):
         """

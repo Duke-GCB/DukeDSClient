@@ -194,7 +194,7 @@ class ProjectUploader(object):
         """
         num_chunks = ParallelChunkProcessor.determine_num_chunks(self.settings.config.upload_bytes_per_chunk,
                                                                  local_file.size)
-        self.settings.watcher.transferring_item(local_file, increment_amt=num_chunks)
+        self.settings.watcher.increment_progress(num_chunks)
 
 
 class SmallItemUploadTaskBuilder(object):

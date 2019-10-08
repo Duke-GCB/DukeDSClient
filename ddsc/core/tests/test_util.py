@@ -186,6 +186,14 @@ class TestProgressPrinter(TestCase):
         progress_printer.transferring_item(Mock(), increment_amt=0, override_msg_verb='checking')
         progress_bar.update.assert_called_with(0, "checking somefile.txt")
 
+    def test_increment_progress(self):
+        progress_printer = ProgressPrinter(total=10, msg_verb='sending')
+        self.assertEqual(progress_printer.cnt, 0)
+        progress_printer.increment_progress(5)
+        self.assertEqual(progress_printer.cnt, 5)
+        progress_printer.increment_progress(5)
+        self.assertEqual(progress_printer.cnt, 10)
+
 
 class TestRemotePath(TestCase):
     def test_add_leading_slash(self):
