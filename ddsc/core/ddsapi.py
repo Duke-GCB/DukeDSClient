@@ -26,45 +26,88 @@ def get_user_agent_str():
     return '{}/{}'.format(APP_NAME, get_internal_version_str())
 
 
-def retry_when_service_unavailable(func):
+def retry_connection_exceptions(func):
     """
-    Decorator that will retry a function while it fails with status code 503 and up to
-    RetrySettings.CONNECTION_RETRY_TIMES connection errors. Assumes the first argument to the function will be an
-    object with a set_status_message method.
-    :param func: function: will be called until it doesn't fail with DataServiceError status 503, or too many ConnectionErrors
+    Decorator that will retry a function while it fails with various connection exceptions.
+    :param func: function: will be called until it doesn't fail
     :return: value returned by func
     """
-    def retry_function(*args, **kwds):
-        current_status_msg = None
-        sleep_seconds = 0
-        status_msg = None
+    def retry_function(*args, **kwargs):
         status_watcher = args[0]
-        connection_retries = 0
+        dds_retry = DDSConnectionExceptionsRetry(status_watcher)
+        return dds_retry.run(func, *args, **kwargs)
+    return retry_function
+
+
+class DDSConnectionExceptionsRetry(object):
+    """
+    Retries a function for various connection type exceptions.
+    """
+    def __init__(self, status_watcher):
+        self.status_watcher = status_watcher
+        self.current_status_msg = ''
+        self.connection_retries = 0
+
+    def run(self, func, *args, **kwargs):
         while True:
             try:
-                result = func(*args, **kwds)
-                if current_status_msg:
-                    status_watcher.set_status_message('')
+                result = func(*args, **kwargs)
+                # Clear out status message on success if necessary
+                if self.current_status_msg:
+                    self.status_watcher.set_status_message('')
                 return result
-            except requests.exceptions.ConnectionError:
-                connection_retries += 1
-                if connection_retries <= RetrySettings.CONNECTION_RETRY_TIMES:
-                    # continue to retry and show message
-                    status_msg = CONNECTION_RETRY_MESSAGE
-                    sleep_seconds = RetrySettings.CONNECTION_RETRY_SECONDS
-                else:
-                    raise
-            except DataServiceError as dse:
-                if dse.status_code == 503:
-                    status_msg = SERVICE_DOWN_MESSAGE.format(datetime.datetime.utcnow())
-                    sleep_seconds = RetrySettings.SERVICE_DOWN_RETRY_SECONDS
-                else:
-                    raise
-            time.sleep(sleep_seconds)
-            if status_msg != current_status_msg:
-                current_status_msg = status_msg
-                status_watcher.set_status_message(current_status_msg)
-    return retry_function
+            except requests.exceptions.ConnectionError as connnection_error:
+                self._retry_connection_error(connnection_error)
+            except requests.exceptions.ReadTimeout as read_timeout_error:
+                self._retry_read_timeout_error(read_timeout_error)
+            except DataServiceError as data_service_error:
+                self._retry_data_service_error(data_service_error)
+
+    def _retry_connection_error(self, exception):
+        """
+        Updates internal counter and will re-raise exception if out of retries.
+        :param exception: ConnectionError or ReadTimeout
+        """
+        self.connection_retries += 1
+        if self.connection_retries <= RetrySettings.CONNECTION_RETRY_TIMES:
+            self._show_status_message_if_necessary(CONNECTION_RETRY_MESSAGE)
+            self._sleep(RetrySettings.CONNECTION_RETRY_SECONDS)
+        else:
+            raise exception
+
+    def _retry_read_timeout_error(self, read_timeout_error):
+        """
+        If the request method is GET or PUT applies _retry_connection_error otherwise re-raises exception
+        :param read_timeout_error: ReadTimeout
+        """
+        if read_timeout_error.request.method in ['GET', 'PUT']:
+            self._retry_connection_error(read_timeout_error)
+        else:
+            raise read_timeout_error
+
+    def _retry_data_service_error(self, data_service_error):
+        """
+        If the error status_code is 503 (system down for maintenance) keep retrying forever otherwise re-raises
+        data_service_error.
+        :param data_service_error: DataServiceError
+        """
+        if data_service_error.status_code == 503:
+            self._show_status_message_if_necessary(SERVICE_DOWN_MESSAGE.format(datetime.datetime.utcnow()))
+            self._sleep(RetrySettings.SERVICE_DOWN_RETRY_SECONDS)
+        else:
+            raise data_service_error
+
+    def _sleep(self, sleep_seconds):
+        time.sleep(sleep_seconds)
+
+    def _show_status_message_if_necessary(self, message):
+        """
+        Show status message if it has not already been displayed.
+        :param message: str: message to show
+        """
+        if message != self.current_status_msg:
+            self.current_status_msg = message
+            self.status_watcher.set_status_message(self.current_status_msg)
 
 
 class ContentType(object):
@@ -103,7 +146,7 @@ class DataServiceAuth(object):
         self.claim_new_token()
         return self._auth
 
-    @retry_when_service_unavailable
+    @retry_connection_exceptions
     def claim_new_token(self):
         """
         Update internal state to have a new token using a no authorization data service.
@@ -253,7 +296,7 @@ class DataServiceApi(object):
             headers['Authorization'] = self.auth.get_auth()
         return url, send_data, headers
 
-    @retry_when_service_unavailable
+    @retry_connection_exceptions
     def _post(self, url_suffix, data, content_type=ContentType.json):
         """
         Send POST request to API at url_suffix with post_data.
@@ -267,7 +310,7 @@ class DataServiceApi(object):
         resp = self.http.post(url, data_str, headers=headers)
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
-    @retry_when_service_unavailable
+    @retry_connection_exceptions
     def _put(self, url_suffix, data, content_type=ContentType.json):
         """
         Send PUT request to API at url_suffix with post_data.
@@ -281,7 +324,7 @@ class DataServiceApi(object):
         resp = self.http.put(url, data_str, headers=headers)
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
-    @retry_when_service_unavailable
+    @retry_connection_exceptions
     def _get_single_item(self, url_suffix, data, content_type=ContentType.json):
         """
         Send GET request to API at url_suffix with post_data.
@@ -295,7 +338,7 @@ class DataServiceApi(object):
         resp = self.http.get(url, headers=headers, params=data_str)
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
-    @retry_when_service_unavailable
+    @retry_connection_exceptions
     def _get_single_page(self, url_suffix, data, page_num):
         """
         Send GET request to API at url_suffix with post_data adding page and per_page parameters to
@@ -334,7 +377,7 @@ class DataServiceApi(object):
                 return multi_response
         return response
 
-    @retry_when_service_unavailable
+    @retry_connection_exceptions
     def _delete(self, url_suffix, data, content_type=ContentType.json):
         """
         Send DELETE request to API at url_suffix with post_data.
