@@ -34,15 +34,30 @@ class TestProjectUpload(TestCase):
 
 
 class TestUploadReport(TestCase):
-    def test_summary(self):
-        upload_report = UploadReport('mouse')
-        upload_report.visit_project(Mock(remote_id='project1'))
-        upload_report.visit_folder(Mock(path='data', remote_id='folder1', sent_to_remote=True), None)
-        upload_report.visit_folder(Mock(path='code', remote_id='folder2', sent_to_remote=False), None)
-        upload_report.visit_folder(Mock(path='results', remote_id='folder3', sent_to_remote=False), None)
-        upload_report.visit_file(Mock(path='data/file1.txt', remote_id='file1', sent_to_remote=True), None)
-        upload_report.visit_file(Mock(path='code/run.sh', remote_id='file2', sent_to_remote=False), None)
-        upload_report.visit_file(Mock(path='code/clean.sh', remote_id='file3', sent_to_remote=False), None)
+    def setUp(self):
+        self.upload_report = UploadReport('mouse')
+        self.upload_report.visit_project(Mock(remote_id='project1'))
+        self.upload_report.visit_folder(Mock(path='data', remote_id='folder1', sent_to_remote=True), None)
+        self.upload_report.visit_folder(Mock(path='code', remote_id='folder2', sent_to_remote=False), None)
+        self.upload_report.visit_folder(Mock(path='results', remote_id='folder3', sent_to_remote=False), None)
+        self.upload_report.visit_file(Mock(path='data/file1.txt', remote_id='file1', remote_file_hash='abc',
+                                           size=1201, sent_to_remote=True), None)
+        self.upload_report.visit_file(Mock(path='code/run.sh', remote_id='file2', sent_to_remote=False), None)
+        self.upload_report.visit_file(Mock(path='code/clean.sh', remote_id='file3', sent_to_remote=False), None)
 
-        self.assertEqual(upload_report.summary(),
+    def test_summary(self):
+        self.assertEqual(self.upload_report.summary(),
                          'Uploaded 1 file and 1 folder. 2 files and 2 folders are already up to date.')
+
+    @patch('ddsc.core.upload.datetime')
+    def test_get_content(self, mock_datetime):
+        mock_datetime.datetime.utcnow.return_value = '2019-10-08 13:56'
+        expected_content = """
+Upload Report for Project: 'mouse' 2019-10-08 13:56
+
+SENT FILENAME     ID          SIZE    HASH
+Project           project1
+data              folder1
+data/file1.txt    file1       1201    abc
+        """.strip()
+        self.assertEqual(self.upload_report.get_content(), expected_content)

@@ -203,6 +203,24 @@ class TestLocalFile(TestCase):
             f.size = file_size
             self.assertEqual(expected, f.count_chunks(bytes_per_chunk))
 
+    @patch('ddsc.core.localstore.os')
+    @patch('ddsc.core.localstore.PathData')
+    def test_set_remote_values_after_send(self, mock_path_data, mock_os):
+        f = LocalFile('fakefile.txt')
+        self.assertEqual(f.remote_id, '')
+        self.assertEqual(f.remote_file_hash_alg, None)
+        self.assertEqual(f.remote_file_hash, None)
+        self.assertEqual(f.sent_to_remote, False)
+        f.set_remote_values_after_send(
+            remote_id='abc123',
+            remote_hash_alg='md5',
+            remote_file_hash='defjkl'
+        )
+        self.assertEqual(f.remote_id, 'abc123')
+        self.assertEqual(f.remote_file_hash_alg, 'md5')
+        self.assertEqual(f.remote_file_hash, 'defjkl')
+        self.assertEqual(f.sent_to_remote, True)
+
 
 class TestLocalItemsCounter(TestCase):
     def test_to_str(self):

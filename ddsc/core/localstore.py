@@ -347,13 +347,15 @@ class LocalFile(object):
             return hash_data.matches(self.remote_file_hash_alg, self.remote_file_hash)
         return False
 
-    def set_remote_id_after_send(self, remote_id):
+    def set_remote_values_after_send(self, remote_id, remote_hash_alg, remote_file_hash):
         """
         Set remote_id to specific value after this file has been sent to remote store.
         :param remote_id: str uuid of the file in the remote store
         """
         self.sent_to_remote = True
         self.remote_id = remote_id
+        self.remote_file_hash_alg = remote_hash_alg
+        self.remote_file_hash = remote_file_hash
 
     def count_chunks(self, bytes_per_chunk):
         """

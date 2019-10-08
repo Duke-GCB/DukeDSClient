@@ -167,6 +167,7 @@ class ProjectUploader(object):
         Upload files that were too large.
         """
         for local_file, parent in self.large_files:
+
             hash_data = local_file.calculate_local_hash()
             if local_file.hash_matches_remote(hash_data):
                 self.file_already_uploaded(local_file)
@@ -183,7 +184,7 @@ class ProjectUploader(object):
         file_content_sender = FileUploader(self.settings.config, self.settings.data_service, local_file, hash_data,
                                            self.settings.watcher, self.settings.file_upload_post_processor)
         remote_id = file_content_sender.upload(self.settings.project_id, parent.kind, parent.remote_id)
-        local_file.set_remote_id_after_send(remote_id)
+        local_file.set_remote_values_after_send(remote_id, hash_data.alg, hash_data.value)
 
     def file_already_uploaded(self, local_file):
         """
@@ -401,14 +402,19 @@ class CreateSmallFileCommand(object):
 
     def after_run(self, remote_file_data):
         """
-        Save uuid of file to our LocalFile
+        Save uuid and hash values of file to our LocalFile if it was updated. If remote_file_data is None that means
+        the file was already up to date.
         :param remote_file_data: dict: DukeDS file data
         """
         if remote_file_data:
             if self.file_upload_post_processor:
                 self.file_upload_post_processor.run(self.settings.data_service, remote_file_data)
             remote_file_id = remote_file_data['id']
-            self.local_file.set_remote_id_after_send(remote_file_id)
+            remote_hash_dict = remote_file_data['current_version']['upload']['hashes'][0]
+            self.local_file.set_remote_values_after_send(remote_file_id,
+                                                         remote_hash_dict['algorithm'],
+                                                         remote_hash_dict['value'])
+
         self.settings.watcher.transferring_item(self.local_file)
 
     def on_message(self, started_waiting):

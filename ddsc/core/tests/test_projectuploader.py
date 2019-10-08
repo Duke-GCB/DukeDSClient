@@ -254,6 +254,25 @@ class TestProjectUploader(TestCase):
             call(large_file_existing, increment_amt=10),
         ])
 
+    @patch('ddsc.core.projectuploader.TaskRunner')
+    @patch('ddsc.core.projectuploader.TaskExecutor')
+    @patch('ddsc.core.projectuploader.SmallItemUploadTaskBuilder')
+    @patch('ddsc.core.projectuploader.FileUploader')
+    def test_process_large_file_sets_file_hash_and_alg(self, mock_file_uploader, mock_small_task_builder,
+                                                       mock_task_executor, mock_task_runner):
+        uploader = ProjectUploader(Mock())
+        local_file = Mock()
+        parent = Mock()
+        hash_data = Mock(
+            alg='md5',
+            value='defg'
+        )
+        mock_file_uploader.return_value.upload.return_value = 'abc'
+        uploader.process_large_file(local_file, parent, hash_data)
+        local_file.set_remote_values_after_send.assert_called_with(
+            'abc', 'md5', 'defg'
+        )
+
 
 class TestCreateSmallFileCommand(TestCase):
     def test_after_run_when_file_is_already_good(self):
@@ -267,9 +286,20 @@ class TestCreateSmallFileCommand(TestCase):
     def test_after_run_when_file_is_sent(self):
         cmd = CreateSmallFileCommand(settings=Mock(), local_file=Mock(), parent=Mock(),
                                      file_upload_post_processor=Mock())
-        cmd.after_run({
-            'id': 'abc123'
-        })
-        cmd.file_upload_post_processor.run.assert_called_with(cmd.settings.data_service, {'id': 'abc123'})
-        cmd.local_file.set_remote_id_after_send.assert_called_with('abc123')
+        remote_file_data = {
+            'id': 'abc123',
+            'current_version': {
+                'upload': {
+                    'hashes': [
+                        {
+                            "algorithm": "md5",
+                            "value": "abcdefg",
+                        }
+                    ]
+                }
+            }
+        }
+        cmd.after_run(remote_file_data)
+        cmd.file_upload_post_processor.run.assert_called_with(cmd.settings.data_service, remote_file_data)
+        cmd.local_file.set_remote_values_after_send.assert_called_with('abc123', 'md5', 'abcdefg')
         cmd.settings.watcher.transferring_item.assert_called_with(cmd.local_file)

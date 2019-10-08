@@ -123,7 +123,7 @@ class UploadReport(object):
         :param parent: LocalFolder/LocalContent not used here
         """
         if item.sent_to_remote:
-            self._add_sent_item(item.path, item.remote_id, item.size, item.get_hash_value())
+            self._add_sent_item(item.path, item.remote_id, item.size, item.remote_file_hash)
             self.sent_files += 1
         else:
             self.up_to_date_files += 1
@@ -206,4 +206,4 @@ class ReportItem(object):
         name_str = self.name.ljust(max_name)
         remote_id_str = self.remote_id.ljust(max_remote_id)
         size_str = self.size.ljust(max_size)
-        return u'{}    {}    {}    {}'.format(name_str, remote_id_str, size_str, self.file_hash)
+        return u'{}    {}    {}    {}'.format(name_str, remote_id_str, size_str, self.file_hash).rstrip()
