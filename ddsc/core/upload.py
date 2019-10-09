@@ -15,6 +15,7 @@ class ProjectUpload(object):
         :param config: Config configuration for performing the upload(url, keys, etc)
         :param project_name_or_id: ProjectNameOrId: name or id of the project we will upload files to
         :param local_project: LocalProject: contains files and folders to upload
+        :param items_to_send_count: ItemsToSendCounter
         :param file_upload_post_processor: object: has run(data_service, file_response) method to run after uploading
         """
         self.config = config
