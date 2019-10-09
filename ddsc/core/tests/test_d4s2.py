@@ -131,8 +131,8 @@ class TestD4S2Project(TestCase):
         download_pre_processor = kwargs['file_download_pre_processor']
         self.assertEqual(DownloadedFileRelations, download_pre_processor.__class__)
 
-        mock_project_upload.assert_called()
-        args, kwargs = mock_project_upload.call_args
+        mock_project_upload.create_for_paths.assert_called()
+        args, kwargs = mock_project_upload.create_for_paths.call_args
         file_upload_post_processor = kwargs['file_upload_post_processor']
         self.assertEqual(UploadedFileRelations, file_upload_post_processor.__class__)
 

@@ -1,9 +1,9 @@
 from unittest import TestCase
 from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async, FileUploadOperations, \
-    RetrySettings, ForbiddenSendExternalException, ChunkSender
+    RetrySettings, ForbiddenSendExternalException, ChunkSender, FileUploader
 from ddsc.core.ddsapi import DSResourceNotConsistentError, DataServiceError
 import requests
-from mock import MagicMock, Mock, patch, call
+from mock import MagicMock, Mock, patch, call, ANY
 
 
 class FakeConfig(object):
@@ -351,3 +351,20 @@ class TestChunkSender(TestCase):
             chunk_sender._send_chunk(chunk='abc', chunk_num=1)
 
         self.assertEqual(str(raised_exception.exception), 'Forbidden')
+
+
+class TestFileUploader(TestCase):
+    @patch('ddsc.core.fileuploader.FileUploadOperations')
+    @patch('ddsc.core.fileuploader.ParallelChunkProcessor')
+    def test_upload(self, mock_parallel_chunkprocessor, mock_file_upload_operations):
+        config, data_service, local_file, hash_data, watcher = Mock(), Mock(), Mock(), Mock(), Mock()
+        uploader = FileUploader(config, data_service, local_file, hash_data, watcher)
+        uploader.upload(project_id='mouse', parent_kind='dds-project', parent_id='abc123')
+
+        mock_create_upload = mock_file_upload_operations.return_value.create_upload
+        mock_create_upload.assert_called_with('mouse', local_file.get_path_data.return_value, hash_data,
+                                              storage_provider_id=config.storage_provider_id)
+        mock_parallel_chunkprocessor.assert_called_with(uploader)
+        mock_parallel_chunkprocessor.return_value.run.assert_called_with()
+        mock_finish_upload = mock_file_upload_operations.return_value.finish_upload
+        mock_finish_upload.assert_called_with(mock_create_upload.return_value, hash_data, ANY, local_file.remote_id)

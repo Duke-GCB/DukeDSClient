@@ -1,6 +1,6 @@
 from ddsc.core.util import ProjectWalker, KindType
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
-from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData
+from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData, ParallelChunkProcessor
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 
 
@@ -103,20 +103,34 @@ class ProjectUploader(object):
         self.runner = TaskRunner(TaskExecutor(settings.config.upload_workers))
         self.settings = settings
         self.small_item_task_builder = SmallItemUploadTaskBuilder(self.settings, self.runner)
-        self.small_items = []
-        self.large_items = []
+        self.small_files = []
+        self.large_files = []
 
     def run(self, local_project):
         """
         Upload a project by uploading project, folders, and small files then uploading the large files.
         :param local_project: LocalProject: project to upload
         """
-        # Walk project adding small items to runner saving large items to large_items
+        # Walks project adding project/folder to small_item_task_builder and adding files to small_files/large_files
         ProjectWalker.walk_project(local_project, self)
+
+        self.sort_files_list(self.small_files)
+        self.add_small_files_to_task_builder()
         # Run small items in parallel
         self.runner.run()
+
         # Run parts of each large item in parallel
-        self.upload_large_items()
+        self.sort_files_list(self.large_files)
+        self.upload_large_files()
+
+    @staticmethod
+    def sort_files_list(files_list):
+        """
+        Sort files that are new first so they will will be processed before files that already exist in DukeDS.
+        This is to allow us to immediately begin making progress in retrying an upload.
+        :param files_list: [(LocalFile, LocalFolder|LocalProject)]: list of files to upload
+        """
+        files_list.sort(key=lambda tuple: tuple[0].remote_id)
 
     # Methods called by ProjectWalker.walk_project
     def visit_project(self, item):
@@ -137,32 +151,50 @@ class ProjectUploader(object):
         else file is small add it to the small task list.
         """
         if self.is_large_file(item):
-            self.large_items.append((item, parent))
+            self.large_files.append((item, parent))
         else:
-            self.small_item_task_builder.visit_file(item, parent)
+            self.small_files.append((item, parent))
 
     def is_large_file(self, item):
         return item.size > self.settings.config.upload_bytes_per_chunk
 
-    def upload_large_items(self):
+    def add_small_files_to_task_builder(self):
+        for local_file, parent in self.small_files:
+            self.small_item_task_builder.visit_file(local_file, parent)
+
+    def upload_large_files(self):
         """
         Upload files that were too large.
         """
-        for local_file, parent in self.large_items:
-            if local_file.need_to_send:
-                self.process_large_file(local_file, parent)
+        for local_file, parent in self.large_files:
+            self.settings.watcher.transferring_item(local_file, increment_amt=0, override_msg_verb='checking')
+            hash_data = local_file.calculate_local_hash()
+            if local_file.hash_matches_remote(hash_data):
+                self.file_already_uploaded(local_file)
+            else:
+                self.settings.watcher.transferring_item(local_file, increment_amt=0)
+                self.process_large_file(local_file, parent, hash_data)
 
-    def process_large_file(self, local_file, parent):
+    def process_large_file(self, local_file, parent, hash_data):
         """
         Upload a single file using multiple processes to upload multiple chunks at the same time.
         Updates local_file with it's remote_id when done.
         :param local_file: LocalFile: file we are uploading
         :param parent: LocalFolder/LocalProject: parent of the file
         """
-        file_content_sender = FileUploader(self.settings.config, self.settings.data_service, local_file,
+        file_content_sender = FileUploader(self.settings.config, self.settings.data_service, local_file, hash_data,
                                            self.settings.watcher, self.settings.file_upload_post_processor)
         remote_id = file_content_sender.upload(self.settings.project_id, parent.kind, parent.remote_id)
-        local_file.set_remote_id_after_send(remote_id)
+        local_file.set_remote_values_after_send(remote_id, hash_data.alg, hash_data.value)
+
+    def file_already_uploaded(self, local_file):
+        """
+        Updates progress bar for a file that was already uploaded
+        :param local_file: LocalFile
+        """
+        num_chunks = ParallelChunkProcessor.determine_num_chunks(self.settings.config.upload_bytes_per_chunk,
+                                                                 local_file.size)
+        self.settings.watcher.increment_progress(num_chunks)
 
 
 class SmallItemUploadTaskBuilder(object):
@@ -206,14 +238,18 @@ class SmallItemUploadTaskBuilder(object):
         If file is small add create small file command otherwise raise error.
         Large files shouldn't be passed to SmallItemUploadTaskBuilder.
         """
-        if item.need_to_send:
-            if item.size > self.settings.config.upload_bytes_per_chunk:
-                msg = "Programmer Error: Trying to upload large file as small item size:{} name:{}"
-                raise ValueError(msg.format(item.size, item.name))
-            else:
-                command = CreateSmallFileCommand(self.settings, item, parent,
-                                                 self.settings.file_upload_post_processor)
-                self.task_runner_add(parent, item, command)
+        if item.size > self.settings.config.upload_bytes_per_chunk:
+            msg = "Programmer Error: Trying to upload large file as small item size:{} name:{}"
+            raise ValueError(msg.format(item.size, item.name))
+        else:
+            # Create a command to hash the file
+            hash_command = HashFileCommand(self.settings, item)
+            parent_task_id = self.item_to_id.get(parent)
+            hash_task_id = self.task_runner.add(parent_task_id, hash_command)
+            # Create a command to upload the file that waits for the results from the HashFileCommand
+            send_command = CreateSmallFileCommand(self.settings, item, parent,
+                                                  self.settings.file_upload_post_processor)
+            self.task_runner.add(hash_task_id, send_command)
 
     def task_runner_add(self, parent, item, command):
         """
@@ -330,6 +366,38 @@ def upload_folder_run(upload_context):
     return result.json()['id']
 
 
+class HashFileCommand(object):
+    """
+    Hashes file and returns result
+    """
+    def __init__(self, settings, local_file):
+        self.settings = settings
+        self.local_file = local_file
+        self.func = hash_file
+
+    def before_run(self, parent_task_result):
+        # Update progress bar that we are checking this file
+        self.settings.watcher.transferring_item(self.local_file, increment_amt=0, override_msg_verb='checking')
+
+    def create_context(self, message_queue, task_id):
+        params = self.local_file.get_path_data()
+        return UploadContext(self.settings, params, message_queue, task_id)
+
+    def after_run(self, result):
+        pass
+
+
+def hash_file(upload_context):
+    """
+    Function run by HashFileCommand to calculate a file hash.
+    :param upload_context: PathData: contains path to a local file to hash
+    :return HashData: result of hash (alg + value)
+    """
+    path_data = upload_context.params
+    hash_data = path_data.get_hash()
+    return hash_data
+
+
 class CreateSmallFileCommand(object):
     """
     Creates a small file in the data service.
@@ -353,9 +421,10 @@ class CreateSmallFileCommand(object):
         self.parent = parent
         self.func = create_small_file
         self.file_upload_post_processor = file_upload_post_processor
+        self.hash_data = None
 
     def before_run(self, parent_task_result):
-        pass
+        self.hash_data = parent_task_result
 
     def create_context(self, message_queue, task_id):
         """
@@ -365,19 +434,28 @@ class CreateSmallFileCommand(object):
        """
         parent_data = ParentData(self.parent.kind, self.parent.remote_id)
         path_data = self.local_file.get_path_data()
-        params = parent_data, path_data, self.local_file.remote_id
+        params = parent_data, path_data, self.hash_data, self.local_file.remote_id, \
+            self.local_file.remote_file_hash_alg, self.local_file.remote_file_hash
+
         return UploadContext(self.settings, params, message_queue, task_id)
 
     def after_run(self, remote_file_data):
         """
-        Save uuid of file to our LocalFile
+        Save uuid and hash values of file to our LocalFile if it was updated. If remote_file_data is None that means
+        the file was already up to date.
         :param remote_file_data: dict: DukeDS file data
         """
-        if self.file_upload_post_processor:
-            self.file_upload_post_processor.run(self.settings.data_service, remote_file_data)
-        remote_file_id = remote_file_data['id']
-        self.settings.watcher.transferring_item(self.local_file)
-        self.local_file.set_remote_id_after_send(remote_file_id)
+        if remote_file_data:
+            if self.file_upload_post_processor:
+                self.file_upload_post_processor.run(self.settings.data_service, remote_file_data)
+            remote_file_id = remote_file_data['id']
+            remote_hash_dict = remote_file_data['current_version']['upload']['hashes'][0]
+            self.local_file.set_remote_values_after_send(remote_file_id,
+                                                         remote_hash_dict['algorithm'],
+                                                         remote_hash_dict['value'])
+            self.settings.watcher.transferring_item(self.local_file)
+        else:
+            self.settings.watcher.increment_progress()
 
     def on_message(self, started_waiting):
         """
@@ -398,12 +476,13 @@ def create_small_file(upload_context):
     :param upload_context: UploadContext: contains data service setup and file details.
     :return dict: DukeDS file data
     """
-    data_service = upload_context.make_data_service()
-    parent_data, path_data, remote_file_id = upload_context.params
+    parent_data, path_data, hash_data, remote_file_id, remote_file_hash_alg, remote_file_hash = upload_context.params
+    if hash_data.matches(remote_file_hash_alg, remote_file_hash):
+        return None
 
+    data_service = upload_context.make_data_service()
     # The small file will fit into one chunk so read into memory and hash it.
     chunk = path_data.read_whole_file()
-    hash_data = path_data.get_hash()
 
     # Talk to data service uploading chunk and creating the file.
     upload_operations = FileUploadOperations(data_service, upload_context)
@@ -418,13 +497,14 @@ class ProjectUploadDryRun(object):
     Recursively visits children of the project passed to run.
     Builds a list of the names of folders/files that need to be uploaded.
     """
-    def __init__(self):
+    def __init__(self, local_project):
         self.upload_items = []
+        self._run(local_project)
 
     def add_upload_item(self, name):
         self.upload_items.append(name)
 
-    def run(self, local_project):
+    def _run(self, local_project):
         """
         Appends file/folder paths to upload_items based on the contents of this project that need to be uploaded.
         :param local_project: LocalProject: project we will build the list for
@@ -437,7 +517,8 @@ class ProjectUploadDryRun(object):
         :param item: object: project, folder or file we will add to upload_items if necessary.
         """
         if item.kind == KindType.file_str:
-            if item.need_to_send:
+            hash_data = item.calculate_local_hash()
+            if not item.hash_matches_remote(hash_data):
                 self.add_upload_item(item.path)
         else:
             if item.kind == KindType.project_str:
@@ -447,3 +528,18 @@ class ProjectUploadDryRun(object):
                     self.add_upload_item(item.path)
             for child in item.children:
                 self._visit_recur(child)
+
+    def get_report(self):
+        """
+        Returns text displaying the items that need to be uploaded or a message saying there are no files/folders
+        to upload.
+        :return: str: report text
+        """
+        if not self.upload_items:
+            return "\n\nNo changes found. Nothing needs to be uploaded.\n\n"
+        else:
+            result = "\n\nFiles/Folders that need to be uploaded:\n"
+            for item in self.upload_items:
+                result += "{}\n".format(item)
+            result += "\n"
+            return result

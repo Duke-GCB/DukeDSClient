@@ -28,12 +28,13 @@ class FileUploader(object):
     3) Sends the complete message to finalize the 'upload'
     4) Sends create_file message to remote store with the 'upload' id
     """
-    def __init__(self, config, data_service, local_file, watcher, file_upload_post_processor=None):
+    def __init__(self, config, data_service, local_file, hash_data, watcher, file_upload_post_processor=None):
         """
         Setup for sending to remote store.
         :param config: ddsc.config.Config user configuration settings from YAML file/environment
         :param data_service: DataServiceApi data service we are sending the content to.
         :param local_file: LocalFile file we are sending to remote store
+        :param hash_data: HashData hash calculated for the local file
         :param watcher: ProgressPrinter we notify of our progress
         :param file_upload_post_processor: object: has run(data_service, file_response) method to run after download
         """
@@ -42,6 +43,7 @@ class FileUploader(object):
         self.upload_operations = FileUploadOperations(self.data_service, watcher)
         self.file_upload_post_processor = file_upload_post_processor
         self.local_file = local_file
+        self.hash_data = hash_data
         self.upload_id = None
         self.watcher = watcher
 
@@ -54,12 +56,11 @@ class FileUploader(object):
         :return: str uuid of the newly uploaded file
         """
         path_data = self.local_file.get_path_data()
-        hash_data = path_data.get_hash()
-        self.upload_id = self.upload_operations.create_upload(project_id, path_data, hash_data,
+        self.upload_id = self.upload_operations.create_upload(project_id, path_data, self.hash_data,
                                                               storage_provider_id=self.config.storage_provider_id)
         ParallelChunkProcessor(self).run()
         parent_data = ParentData(parent_kind, parent_id)
-        remote_file_data = self.upload_operations.finish_upload(self.upload_id, hash_data, parent_data,
+        remote_file_data = self.upload_operations.finish_upload(self.upload_id, self.hash_data, parent_data,
                                                                 self.local_file.remote_id)
         if self.file_upload_post_processor:
             self.file_upload_post_processor.run(self.data_service, remote_file_data)

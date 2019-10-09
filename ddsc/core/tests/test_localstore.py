@@ -1,8 +1,8 @@
 import shutil
 import tarfile
 from unittest import TestCase
-from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, KindType
-from mock import patch
+from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, KindType, LocalItemsCounter, ItemsToSendCounter
+from mock import patch, Mock
 
 
 INCLUDE_ALL = ''
@@ -202,3 +202,53 @@ class TestLocalFile(TestCase):
         for file_size, bytes_per_chunk, expected in values:
             f.size = file_size
             self.assertEqual(expected, f.count_chunks(bytes_per_chunk))
+
+    @patch('ddsc.core.localstore.os')
+    @patch('ddsc.core.localstore.PathData')
+    def test_set_remote_values_after_send(self, mock_path_data, mock_os):
+        f = LocalFile('fakefile.txt')
+        self.assertEqual(f.remote_id, '')
+        self.assertEqual(f.remote_file_hash_alg, None)
+        self.assertEqual(f.remote_file_hash, None)
+        self.assertEqual(f.sent_to_remote, False)
+        f.set_remote_values_after_send(
+            remote_id='abc123',
+            remote_hash_alg='md5',
+            remote_file_hash='defjkl'
+        )
+        self.assertEqual(f.remote_id, 'abc123')
+        self.assertEqual(f.remote_file_hash_alg, 'md5')
+        self.assertEqual(f.remote_file_hash, 'defjkl')
+        self.assertEqual(f.sent_to_remote, True)
+
+
+class TestLocalItemsCounter(TestCase):
+    def test_to_str(self):
+        local_project = Mock()
+        local_project.children = [
+            Mock(kind='dds-file'),
+            Mock(kind='dds-folder', children=[
+                Mock(kind='dds-file'),
+            ]),
+        ]
+        counter = LocalItemsCounter(local_project)
+        self.assertEqual(counter.to_str(prefix="Checking"), 'Checking 2 files and 1 folder.')
+
+
+class TestItemsToSendCounter(TestCase):
+    def test_to_str(self):
+        local_project = Mock(kind='dds-project')
+        mock_file1 = Mock(kind='dds-file')
+        mock_file1.count_chunks.return_value = 10
+        mock_file2 = Mock(kind='dds-file')
+        mock_file2.count_chunks.return_value = 10
+        local_project.children = [
+            mock_file1,
+            Mock(kind='dds-folder', children=[
+                mock_file2,
+            ]),
+        ]
+        counter = ItemsToSendCounter(local_project, bytes_per_chunk=100)
+        counter_str = counter.to_str(prefix="Synchronizing", local_items_count=Mock(files=3, folders=3))
+        self.assertEqual(counter_str,
+                         'Synchronizing 1 new file, 2 existing files, 2 new folders and 1 existing folder.')
