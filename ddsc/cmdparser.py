@@ -26,7 +26,9 @@ def to_unicode(s):
     :param s: string to convert to unicode
     :return: unicode string for argument
     """
-    return s if six.PY3 else unicode(s, 'utf-8')
+    # Disabling flake8 undefined name unicode check below.
+    # flake8 is unaware of the python version check which makes this safe to do.
+    return s if six.PY3 else unicode(s, 'utf-8')  # noqa: F821
 
 
 def add_project_name_arg(arg_parser, required, help_text):
