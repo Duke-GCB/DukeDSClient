@@ -2,7 +2,7 @@ from setuptools import setup
 
 
 setup(name='DukeDSClient',
-        version='2.4.0',
+        version='2.4.1',
         description='Command line tool(ddsclient) to upload/manage projects on the duke-data-service.',
         url='https://github.com/Duke-GCB/DukeDSClient',
         keywords='duke dds dukedataservice',
