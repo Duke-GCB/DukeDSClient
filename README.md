@@ -102,25 +102,25 @@ ddsclient download -p 'Mouse RNA' /tmp/mouserna
 #### Using duke netid:
 
 ```
-ddsclient add_user -p <ProjectName> --user <Username> --auth_role 'project_admin'
+ddsclient add-user -p <ProjectName> --user <Username> --auth-role 'project_admin'
 ```
 
 Example: Grant permission to user with username 'jpb123' for a project named 'Analyzed Mouse RNA' with default permissions:
 
 ```
-ddsclient add_user -p 'Analyzed Mouse RNA' --user 'jpb123'
+ddsclient add-user -p 'Analyzed Mouse RNA' --user 'jpb123'
 ```
 
 #### Using email:
 
 ```
-ddsclient add_user -p <ProjectName> --email <Username> --auth_role 'project_admin'
+ddsclient add-user -p <ProjectName> --email <Username> --auth-role 'project_admin'
 ```
 
 Example: Grant permission to user with email 'ada.lovelace@duke.edu' for a project named 'Analyzed Mouse RNA' with default permissions:
 
 ```
-ddsclient add_user -p 'Analyzed Mouse RNA' --email 'ada.lovelace@duke.edu'
+ddsclient add-user -p 'Analyzed Mouse RNA' --email 'ada.lovelace@duke.edu'
 ```
 
 
