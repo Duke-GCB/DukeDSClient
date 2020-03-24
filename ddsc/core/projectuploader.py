@@ -1,7 +1,7 @@
 from ddsc.core.util import ProjectWalker, KindType
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.fileuploader import FileUploader, FileUploadOperations, ParentData, ParallelChunkProcessor
-from ddsc.core.parallel import TaskExecutor, TaskRunner
+from ddsc.core.parallel import TaskRunner
 
 
 class UploadSettings(object):
@@ -100,7 +100,7 @@ class ProjectUploader(object):
         Setup to talk to the data service based on settings.
         :param settings: UploadSettings: settings to use for uploading.
         """
-        self.runner = TaskRunner(TaskExecutor(settings.config.upload_workers))
+        self.runner = TaskRunner(settings.config.upload_workers)
         self.settings = settings
         self.small_item_task_builder = SmallItemUploadTaskBuilder(self.settings, self.runner)
         self.small_files = []

@@ -5,7 +5,7 @@ import math
 import requests
 from ddsc.core.localstore import HashUtil
 from ddsc.core.util import ProgressPrinter
-from ddsc.core.parallel import TaskExecutor, TaskRunner
+from ddsc.core.parallel import TaskRunner
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.remotestore import RemoteStore, ProjectFile, RemoteFileUrl
 from ddsc.core.retry import RetrySettings
@@ -279,7 +279,7 @@ class FileDownloader(object):
         task_runner.run()
 
     def _create_task_runner(self):
-        return TaskRunner(TaskExecutor(self.settings.config.download_workers))
+        return TaskRunner(self.settings.config.download_workers)
 
     def make_ranges(self, file_to_download):
         """

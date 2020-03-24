@@ -90,13 +90,13 @@ class TaskRunner(object):
     """
     Runs a bunch of tasks in parallel with support for task waiting.
     """
-    def __init__(self, executor):
+    def __init__(self, num_workers):
         """
-        Setup runner to use executor to run it's tasks.
-        :param executor: TaskExecutor: actually executes tasks and returns their results
+        Setup runner to use num_workers to run it's tasks.
+        :param num_workers: int: number of workers to use when running tasks
         """
         self.waiting_task_list = WaitingTaskList()
-        self.executor = executor
+        self.num_workers = num_workers
         self.next_id = 1
 
     def _claim_next_id(self):
@@ -133,21 +133,24 @@ class TaskRunner(object):
         Blocks until all tasks have been completed.
         :return:
         """
+        executor = TaskExecutor(self.num_workers)
         for task in self.get_next_tasks(None):
-            self.executor.add_task(task, None)
-        while not self.executor.is_done():
-            done_task_and_result = self.executor.wait_for_tasks()
+            executor.add_task(task, None)
+        while not executor.is_done():
+            done_task_and_result = executor.wait_for_tasks()
             for task, task_result in done_task_and_result:
-                self._add_sub_tasks_to_executor(task, task_result)
+                self._add_sub_tasks_to_executor(executor, task, task_result)
+        executor.close()
 
-    def _add_sub_tasks_to_executor(self, parent_task, parent_task_result):
+    def _add_sub_tasks_to_executor(self, executor, parent_task, parent_task_result):
         """
         Add all subtasks for parent_task to the executor.
+        :param executor: TaskExecutor: executor to add tasks to
         :param parent_task: Task: task that has just finished
         :param parent_task_result: object: result of task that is finished
         """
         for sub_task in self.waiting_task_list.get_next_tasks(parent_task.id):
-            self.executor.add_task(sub_task, parent_task_result)
+            executor.add_task(sub_task, parent_task_result)
 
 
 class TaskExecutor(object):
@@ -261,6 +264,9 @@ class TaskExecutor(object):
                 task_and_results.append((task, result))
                 self.pending_results.remove(pending_result)
         return task_and_results
+
+    def close(self):
+        self.pool.close()
 
 
 def execute_task_async(task_func, task_id, context):
