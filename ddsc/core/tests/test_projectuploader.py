@@ -212,6 +212,8 @@ class TestProjectUploader(TestCase):
     def test_run_sorts_new_files_first(self, mock_small_task_builder, mock_task_runner, mock_project_walker):
         settings = Mock()
         settings.config.upload_bytes_per_chunk = 100
+        num_upload_workers = 6
+        settings.config.upload_workers = num_upload_workers
         uploader = ProjectUploader(settings)
         uploader.process_large_file = Mock()
         small_file_existing = Mock(remote_id='abc123', size=1000)
@@ -232,6 +234,7 @@ class TestProjectUploader(TestCase):
 
         uploader.run(local_project)
 
+        mock_task_runner.assert_called_with(num_upload_workers)
         # small files should be sorted with new first
         uploader.small_item_task_builder.visit_file.assert_has_calls([
             call(small_file_new, None),

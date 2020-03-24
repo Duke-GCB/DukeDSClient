@@ -355,7 +355,8 @@ class TestFileToDownload(TestCase):
 
 class TestFileDownloader(TestCase):
     def setUp(self):
-        self.mock_config = Mock(download_bytes_per_chunk=1000)
+        self.num_download_workers = 5
+        self.mock_config = Mock(download_bytes_per_chunk=1000, download_workers=self.num_download_workers)
         self.mock_settings = Mock(dest_directory='/tmp/data2', config=self.mock_config)
         self.mock_file1 = Mock(path="data/file1.txt", size=200, local_path='/tmp/data2/data/file1.txt')
         self.mock_file1.get_remote_parent_path.return_value = 'data'
@@ -417,6 +418,7 @@ class TestFileDownloader(TestCase):
         downloader.download_files()
 
         # Download small file in one command, large file in two commands).
+        mock_task_runner.assert_called_with(self.num_download_workers)
         add_calls = mock_task_runner.return_value.add.call_args_list
         self.assertEqual(5, len(add_calls))
         command = add_calls[0][1]['command']

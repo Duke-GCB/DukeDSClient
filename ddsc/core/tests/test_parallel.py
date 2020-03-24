@@ -145,6 +145,15 @@ class TestTaskRunner(TestCase):
         self.assertEqual(add_command.on_message_data, ['ok'])
         self.assertEqual(add_command2.on_message_data, ['waiting'])
 
+    @patch('ddsc.core.parallel.TaskExecutor')
+    def test_run_closes_executor(self, mock_task_executor):
+        add_command = AddCommand(10, 30)
+        runner = TaskRunner(num_workers=10)
+        runner.add(None, add_command)
+        runner.run()
+        mock_task_executor.assert_called_with(10)
+        mock_task_executor.return_value.close.assert_called_with()
+
 
 class TestTaskExecutor(TestCase):
     @patch('ddsc.core.parallel.multiprocessing')
@@ -208,3 +217,11 @@ class TestTaskExecutor(TestCase):
         executor.wait_for_tasks()
         self.assertEqual(40, add_command.result)
         self.assertEqual(add_command.on_message_data, ['TEST', 'TEST2'])
+
+    @patch('ddsc.core.parallel.multiprocessing')
+    def test_close(self, mock_multiprocessing):
+        executor = TaskExecutor(2)
+        mock_multiprocessing.Pool.assert_called_with()
+        mock_multiprocessing.Pool.return_value.close.assert_not_called()
+        executor.close()
+        mock_multiprocessing.Pool.return_value.close.assert_called_with()
