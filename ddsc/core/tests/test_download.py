@@ -144,8 +144,8 @@ class TestProjectDownload(TestCase):
         self.assertTrue(mock_file_downloader.return_value.run.called)
 
         mock_print.assert_has_calls([
-            call('Downloading 1 files.'),
-            call('Verifying contents of 1 downloaded files using file hashes.'),
+            call('Downloading 1 file.'),
+            call('Verifying contents of 1 downloaded file using file hashes.'),
             call('/tmp/dest/data1.txt 111 md5 FAILED'),
         ])
 
@@ -162,11 +162,15 @@ class TestProjectDownload(TestCase):
         self.assertEqual(project_download.check_warnings().strip(), 'WARNING: Path(s) not found: tmp/data.txt.')
 
     @patch('ddsc.core.download.FileToDownload')
-    def test_get_files_to_download(self, mock_file_to_download):
+    @patch('ddsc.core.download.os')
+    @patch('ddsc.core.download.print')
+    def test_get_files_to_download(self, mock_print, mock_os, mock_file_to_download):
         project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
                                            self.mock_path_filter)
         project_download.include_project_file = Mock()
         project_download.include_project_file.return_value = True
+        project_download.file_exists_with_same_hash = Mock()
+        project_download.file_exists_with_same_hash.return_value = False
         files = project_download.get_files_to_download()
         self.assertEqual(2, len(files))
         self.assertEqual(files[0], mock_file_to_download.return_value)
@@ -174,6 +178,48 @@ class TestProjectDownload(TestCase):
         mock_file_to_download.assert_has_calls([
             call(self.mock_file1.json_data, self.mock_file1.get_local_path.return_value),
             call(self.mock_file2.json_data, self.mock_file2.get_local_path.return_value),
+        ])
+        mock_print.assert_has_calls([
+            call("Checking 2 files.")
+        ])
+
+    @patch('ddsc.core.download.FileToDownload')
+    @patch('ddsc.core.download.os')
+    @patch('ddsc.core.download.print')
+    def test_get_files_to_download_one_verified_local(self, mock_print, mock_os, mock_file_to_download):
+        project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
+                                           self.mock_path_filter)
+        project_download.include_project_file = Mock()
+        project_download.include_project_file.return_value = True
+        project_download.file_exists_with_same_hash = Mock()
+        project_download.file_exists_with_same_hash.side_effect = [False, True]
+        files = project_download.get_files_to_download()
+        self.assertEqual(1, len(files))
+        self.assertEqual(files[0], mock_file_to_download.return_value)
+        mock_file_to_download.assert_has_calls([
+            call(self.mock_file1.json_data, self.mock_file1.get_local_path.return_value),
+        ])
+        mock_print.assert_has_calls([
+            call("Checking 2 files."),
+            call("Verified 1 local file is already up to date.")
+        ])
+
+    @patch('ddsc.core.download.FileToDownload')
+    @patch('ddsc.core.download.os')
+    @patch('ddsc.core.download.print')
+    def test_get_files_to_download_two_verified_local(self, mock_print, mock_os, mock_file_to_download):
+        project_download = ProjectDownload(self.mock_remote_store, self.mock_project, '/tmp/dest',
+                                           self.mock_path_filter)
+        project_download.include_project_file = Mock()
+        project_download.include_project_file.return_value = True
+        project_download.file_exists_with_same_hash = Mock()
+        project_download.file_exists_with_same_hash.return_value = True
+        files = project_download.get_files_to_download()
+        self.assertEqual(0, len(files))
+        mock_file_to_download.assert_not_called()
+        mock_print.assert_has_calls([
+            call("Checking 2 files."),
+            call("Verified 2 local files are already up to date.")
         ])
 
     @patch('ddsc.core.download.os')

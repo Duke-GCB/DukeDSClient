@@ -4,7 +4,7 @@ import traceback
 import math
 import requests
 from ddsc.core.localstore import HashUtil
-from ddsc.core.util import ProgressPrinter
+from ddsc.core.util import ProgressPrinter, plural_fmt
 from ddsc.core.parallel import TaskExecutor, TaskRunner
 from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
 from ddsc.core.remotestore import RemoteStore, ProjectFile, RemoteFileUrl
@@ -53,19 +53,36 @@ class ProjectDownload(object):
 
         self.try_create_dir(self.dest_directory)
         num_files_to_download = len(files_to_download)
-        print("Downloading {} files.".format(num_files_to_download))
+        print("Downloading {}.".format(plural_fmt('file', num_files_to_download)))
         self.download_files(files_to_download)
-        print("Verifying contents of {} downloaded files using file hashes.".format(num_files_to_download))
+        print("Verifying contents of {} using file hashes.".format(plural_fmt('downloaded file', num_files_to_download)))
         self.check_downloaded_files(files_to_download)
 
     def get_files_to_download(self):
         files_to_download = []
-        for project_file in self.remote_store.get_project_files(self.project):
-            if self.include_project_file(project_file):
+        local_verified_files = 0
+        included_project_files = self.get_included_project_files()
+        print("Checking {}.".format(plural_fmt('file', len(included_project_files))))
+        for project_file in included_project_files:
+            if self.file_exists_with_same_hash(project_file):
+                local_verified_files += 1
+            else:
                 local_path = project_file.get_local_path(self.dest_directory)
                 file_to_download = FileToDownload(project_file.json_data, local_path)
                 files_to_download.append(file_to_download)
+        if local_verified_files:
+            if local_verified_files == 1:
+                print("Verified 1 local file is already up to date.")
+            else:
+                print("Verified {} local files are already up to date.".format(local_verified_files))
         return files_to_download
+
+    def get_included_project_files(self):
+        included_project_files = []
+        for project_file in self.remote_store.get_project_files(self.project):
+            if self.path_filter.include_path(project_file.path):
+                included_project_files.append(project_file)
+        return included_project_files
 
     def include_project_file(self, project_file):
         if not self.path_filter.include_path(project_file.path):
