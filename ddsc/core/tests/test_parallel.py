@@ -98,8 +98,7 @@ class TestTaskRunner(TestCase):
     """
     def test_single_add(self):
         add_command = AddCommand(10, 30)
-        executor = TaskExecutor(10)
-        runner = TaskRunner(executor)
+        runner = TaskRunner(num_workers=10)
         runner.add(None, add_command)
         runner.run()
         self.assertEqual(add_command.parent_task_result, None)
@@ -109,8 +108,7 @@ class TestTaskRunner(TestCase):
     def test_two_adds_in_order(self):
         add_command = AddCommand(10, 30)
         add_command2 = AddCommand(4, 1)
-        executor = TaskExecutor(10)
-        runner = TaskRunner(executor)
+        runner = TaskRunner(num_workers=10)
         runner.add(None, add_command)
         runner.add(1, add_command2)
         runner.run()
@@ -122,8 +120,7 @@ class TestTaskRunner(TestCase):
     def test_two_adds_in_parallel(self):
         add_command = AddCommand(10, 30)
         add_command2 = AddCommand(4, 1)
-        executor = TaskExecutor(10)
-        runner = TaskRunner(executor)
+        runner = TaskRunner(num_workers=10)
         runner.add(None, add_command,)
         runner.add(None, add_command2)
         runner.run()
@@ -137,8 +134,7 @@ class TestTaskRunner(TestCase):
         add_command.send_message = 'ok'
         add_command2 = AddCommand(4, 1)
         add_command2.send_message = 'waiting'
-        executor = TaskExecutor(10)
-        runner = TaskRunner(executor)
+        runner = TaskRunner(num_workers=10)
         runner.add(None, add_command,)
         runner.add(None, add_command2)
         runner.run()

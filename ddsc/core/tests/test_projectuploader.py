@@ -208,10 +208,8 @@ class TestCreateSmallFile(TestCase):
 class TestProjectUploader(TestCase):
     @patch('ddsc.core.projectuploader.ProjectWalker')
     @patch('ddsc.core.projectuploader.TaskRunner')
-    @patch('ddsc.core.projectuploader.TaskExecutor')
     @patch('ddsc.core.projectuploader.SmallItemUploadTaskBuilder')
-    def test_run_sorts_new_files_first(self, mock_small_task_builder, mock_task_executor, mock_task_runner,
-                                       mock_project_walker):
+    def test_run_sorts_new_files_first(self, mock_small_task_builder, mock_task_runner, mock_project_walker):
         settings = Mock()
         settings.config.upload_bytes_per_chunk = 100
         uploader = ProjectUploader(settings)
@@ -247,10 +245,8 @@ class TestProjectUploader(TestCase):
 
     @patch('ddsc.core.projectuploader.ProjectWalker')
     @patch('ddsc.core.projectuploader.TaskRunner')
-    @patch('ddsc.core.projectuploader.TaskExecutor')
     @patch('ddsc.core.projectuploader.SmallItemUploadTaskBuilder')
-    def test_run_with_large_files_hash_matching(self, mock_small_task_builder, mock_task_executor, mock_task_runner,
-                                                mock_project_walker):
+    def test_run_with_large_files_hash_matching(self, mock_small_task_builder, mock_task_runner, mock_project_walker):
         settings = Mock()
         settings.config.upload_bytes_per_chunk = 100
         uploader = ProjectUploader(settings)
@@ -276,11 +272,10 @@ class TestProjectUploader(TestCase):
         ])
 
     @patch('ddsc.core.projectuploader.TaskRunner')
-    @patch('ddsc.core.projectuploader.TaskExecutor')
     @patch('ddsc.core.projectuploader.SmallItemUploadTaskBuilder')
     @patch('ddsc.core.projectuploader.FileUploader')
     def test_process_large_file_sets_file_hash_and_alg(self, mock_file_uploader, mock_small_task_builder,
-                                                       mock_task_executor, mock_task_runner):
+                                                       mock_task_runner):
         uploader = ProjectUploader(Mock())
         local_file = Mock()
         parent = Mock()
@@ -295,11 +290,9 @@ class TestProjectUploader(TestCase):
         )
 
     @patch('ddsc.core.projectuploader.TaskRunner')
-    @patch('ddsc.core.projectuploader.TaskExecutor')
     @patch('ddsc.core.projectuploader.SmallItemUploadTaskBuilder')
     @patch('ddsc.core.projectuploader.FileUploader')
-    def test_upload_large_files__updates_watcher(self, mock_file_uploader, mock_small_task_builder,
-                                                 mock_task_executor, mock_task_runner):
+    def test_upload_large_files__updates_watcher(self, mock_file_uploader, mock_small_task_builder, mock_task_runner):
         local_file1 = Mock(size=1000)
         local_file1.hash_matches_remote.return_value = False
         local_file2 = Mock(size=2000)

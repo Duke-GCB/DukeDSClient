@@ -378,9 +378,8 @@ class TestFileDownloader(TestCase):
         downloader.download_files.assert_called_with()
 
     @patch('ddsc.core.download.TaskRunner')
-    @patch('ddsc.core.download.TaskExecutor')
     @patch('ddsc.core.download.os')
-    def test_make_local_directories(self, mock_os, mock_task_executor, mock_task_runner):
+    def test_make_local_directories(self, mock_os, mock_task_runner):
         mock_os.path.exists.return_value = True
         mock_os.path = os.path
         downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
@@ -388,9 +387,8 @@ class TestFileDownloader(TestCase):
         mock_os.makedirs.assert_called_with('/tmp/data2/data')
 
     @patch('ddsc.core.download.TaskRunner')
-    @patch('ddsc.core.download.TaskExecutor')
     @patch('ddsc.core.download.os')
-    def test_make_big_empty_files(self, mock_os, mock_task_executor, mock_task_runner):
+    def test_make_big_empty_files(self, mock_os, mock_task_runner):
         mock_os.path.exists.return_value = True
         mock_os.path = os.path
         downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
@@ -402,8 +400,7 @@ class TestFileDownloader(TestCase):
         fake_open.return_value.write.assert_called_with(b'\0')
 
     @patch('ddsc.core.download.TaskRunner')
-    @patch('ddsc.core.download.TaskExecutor')
-    def test_download_files(self, mock_task_executor, mock_task_runner):
+    def test_download_files(self, mock_task_runner):
         downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
         downloader.group_files_by_size = Mock()
         mock_small_file = Mock(size=100)
