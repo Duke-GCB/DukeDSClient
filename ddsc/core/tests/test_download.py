@@ -401,7 +401,8 @@ class TestFileToDownload(TestCase):
 
 class TestFileDownloader(TestCase):
     def setUp(self):
-        self.mock_config = Mock(download_bytes_per_chunk=1000)
+        self.num_download_workers = 5
+        self.mock_config = Mock(download_bytes_per_chunk=1000, download_workers=self.num_download_workers)
         self.mock_settings = Mock(dest_directory='/tmp/data2', config=self.mock_config)
         self.mock_file1 = Mock(path="data/file1.txt", size=200, local_path='/tmp/data2/data/file1.txt')
         self.mock_file1.get_remote_parent_path.return_value = 'data'
@@ -424,9 +425,8 @@ class TestFileDownloader(TestCase):
         downloader.download_files.assert_called_with()
 
     @patch('ddsc.core.download.TaskRunner')
-    @patch('ddsc.core.download.TaskExecutor')
     @patch('ddsc.core.download.os')
-    def test_make_local_directories(self, mock_os, mock_task_executor, mock_task_runner):
+    def test_make_local_directories(self, mock_os, mock_task_runner):
         mock_os.path.exists.return_value = True
         mock_os.path = os.path
         downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
@@ -434,9 +434,8 @@ class TestFileDownloader(TestCase):
         mock_os.makedirs.assert_called_with('/tmp/data2/data')
 
     @patch('ddsc.core.download.TaskRunner')
-    @patch('ddsc.core.download.TaskExecutor')
     @patch('ddsc.core.download.os')
-    def test_make_big_empty_files(self, mock_os, mock_task_executor, mock_task_runner):
+    def test_make_big_empty_files(self, mock_os, mock_task_runner):
         mock_os.path.exists.return_value = True
         mock_os.path = os.path
         downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
@@ -448,8 +447,7 @@ class TestFileDownloader(TestCase):
         fake_open.return_value.write.assert_called_with(b'\0')
 
     @patch('ddsc.core.download.TaskRunner')
-    @patch('ddsc.core.download.TaskExecutor')
-    def test_download_files(self, mock_task_executor, mock_task_runner):
+    def test_download_files(self, mock_task_runner):
         downloader = FileDownloader(self.mock_settings, self.mock_files_to_download)
         downloader.group_files_by_size = Mock()
         mock_small_file = Mock(size=100)
@@ -466,6 +464,7 @@ class TestFileDownloader(TestCase):
         downloader.download_files()
 
         # Download small file in one command, large file in two commands).
+        mock_task_runner.assert_called_with(self.num_download_workers)
         add_calls = mock_task_runner.return_value.add.call_args_list
         self.assertEqual(5, len(add_calls))
         command = add_calls[0][1]['command']
