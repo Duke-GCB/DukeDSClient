@@ -2,6 +2,7 @@ import hashlib
 import math
 import mimetypes
 import os
+from os.path import isfile, isdir
 from ddsc.core.ignorefile import FileFilter, IgnoreFilePatterns
 from ddsc.core.util import KindType, ProjectWalker, plural_fmt, join_with_commas_and_and
 
@@ -205,11 +206,17 @@ def _build_project_tree(path, followsymlinks, file_filter):
     :return: the top node of the tree LocalFile or LocalFolder
     """
     result = None
-    if os.path.isfile(path):
+    if isfile(path):
         result = LocalFile(path)
-    else:
+    elif isdir(path):
         result = _build_folder_tree(os.path.abspath(path), followsymlinks, file_filter)
+    else:
+        _on_non_regular_file(path)
     return result
+
+
+def _on_non_regular_file(path):
+    raise ValueError("Unsupported type of file {}".format(path))
 
 
 def _build_folder_tree(top_abspath, followsymlinks, file_filter):
@@ -244,8 +251,11 @@ def _build_folder_tree(top_abspath, followsymlinks, file_filter):
             child_dirs.remove(remove_child_dir)
         for child_filename in child_files:
             abs_child_filename = os.path.join(dir_name, child_filename)
-            if ignore_file_patterns.include(abs_child_filename, is_file=True):
-                folder.add_child(LocalFile(abs_child_filename))
+            if isfile(abs_child_filename):
+                if ignore_file_patterns.include(abs_child_filename, is_file=True):
+                    folder.add_child(LocalFile(abs_child_filename))
+            else:
+                _on_non_regular_file(abs_child_filename)
     return path_to_content.get(top_abspath)
 
 

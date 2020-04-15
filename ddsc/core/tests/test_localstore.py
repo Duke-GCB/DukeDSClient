@@ -106,6 +106,15 @@ class TestProjectContent(TestCase):
             '/note.txt'
         ])
 
+    @patch('ddsc.core.localstore.isfile')
+    def test_top_level_non_regular_file(self, mock_isfile):
+        mock_isfile.return_value = False
+        content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
+        with self.assertRaises(ValueError) as raised_exception:
+            content.add_path('/tmp/DukeDsClientTestFolder/note.txt')
+        self.assertEqual(str(raised_exception.exception),
+                         'Unsupported type of file /tmp/DukeDsClientTestFolder/note.txt')
+
     def test_empty_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
         content.add_path('/tmp/DukeDsClientTestFolder/emptyfolder')
@@ -129,6 +138,15 @@ class TestProjectContent(TestCase):
             '/scripts',
             '/scripts/makemoney.sh',
         ])
+
+    @patch('ddsc.core.localstore.isfile')
+    def test_one_folder_containing_non_regular_file(self, mock_isfile):
+        mock_isfile.return_value = False
+        content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
+        with self.assertRaises(ValueError) as raised_exception:
+            content.add_path('/tmp/DukeDsClientTestFolder/scripts')
+        self.assertEqual(str(raised_exception.exception),
+                         'Unsupported type of file /tmp/DukeDsClientTestFolder/scripts/makemoney.sh')
 
     def test_nested_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
