@@ -2,7 +2,7 @@ import shutil
 import tarfile
 from unittest import TestCase
 from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, KindType, LocalItemsCounter, ItemsToSendCounter
-from mock import patch, Mock, call
+from mock import patch, Mock
 
 
 INCLUDE_ALL = ''
