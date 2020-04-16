@@ -2,7 +2,7 @@ import shutil
 import tarfile
 from unittest import TestCase
 from ddsc.core.localstore import LocalFile, LocalFolder, LocalProject, KindType, LocalItemsCounter, ItemsToSendCounter
-from mock import patch, Mock
+from mock import patch, Mock, call
 
 
 INCLUDE_ALL = ''
@@ -107,13 +107,14 @@ class TestProjectContent(TestCase):
         ])
 
     @patch('ddsc.core.localstore.isfile')
-    def test_top_level_non_regular_file(self, mock_isfile):
+    @patch('ddsc.core.localstore.print')
+    def test_top_level_non_regular_file(self, mock_print, mock_isfile):
         mock_isfile.return_value = False
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
-        with self.assertRaises(ValueError) as raised_exception:
-            content.add_path('/tmp/DukeDsClientTestFolder/note.txt')
-        self.assertEqual(str(raised_exception.exception),
-                         'Unsupported type of file /tmp/DukeDsClientTestFolder/note.txt')
+        content.add_path('/tmp/DukeDsClientTestFolder/note.txt')
+        self.assertEqual(get_file_or_folder_paths(content), [])
+        mock_print.assert_called_with('Warning: Skipping /tmp/DukeDsClientTestFolder/note.txt. '
+                                      'This is an unsupported type of file.')
 
     def test_empty_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
@@ -140,13 +141,16 @@ class TestProjectContent(TestCase):
         ])
 
     @patch('ddsc.core.localstore.isfile')
-    def test_one_folder_containing_non_regular_file(self, mock_isfile):
+    @patch('ddsc.core.localstore.print')
+    def test_one_folder_containing_non_regular_file(self, mock_print, mock_isfile):
         mock_isfile.return_value = False
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)
-        with self.assertRaises(ValueError) as raised_exception:
-            content.add_path('/tmp/DukeDsClientTestFolder/scripts')
-        self.assertEqual(str(raised_exception.exception),
-                         'Unsupported type of file /tmp/DukeDsClientTestFolder/scripts/makemoney.sh')
+        content.add_path('/tmp/DukeDsClientTestFolder/scripts')
+        self.assertEqual(get_file_or_folder_paths(content), [
+            '/scripts'
+        ])
+        mock_print.assert_called_with('Warning: Skipping /tmp/DukeDsClientTestFolder/scripts/makemoney.sh. '
+                                      'This is an unsupported type of file.')
 
     def test_nested_folder_str(self):
         content = LocalProject(False, file_exclude_regex=INCLUDE_ALL)

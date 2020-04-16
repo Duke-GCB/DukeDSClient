@@ -31,7 +31,9 @@ class LocalProject(object):
         :param path: str path to add
         """
         abspath = os.path.abspath(path)
-        self.children.append(_build_project_tree(abspath, self.followsymlinks, self.file_filter))
+        child = _build_project_tree(abspath, self.followsymlinks, self.file_filter)
+        if child:
+            self.children.append(child)
 
     def add_paths(self, path_list):
         """
@@ -216,7 +218,7 @@ def _build_project_tree(path, followsymlinks, file_filter):
 
 
 def _on_non_regular_file(path):
-    raise ValueError("Unsupported type of file {}".format(path))
+    print("Warning: Skipping {}. This is an unsupported type of file.".format(path))
 
 
 def _build_folder_tree(top_abspath, followsymlinks, file_filter):
