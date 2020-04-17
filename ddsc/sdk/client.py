@@ -326,8 +326,7 @@ class Project(BaseResponseItem):
         :param path: str: path within a project specifying a file or folder to download
         :return: File|Folder
         """
-        child_finder = ChildFinder(path, self)
-        return child_finder.get_child()
+        return ChildFinder.get_child_for_path(self, path)
 
     def try_get_item_for_path(self, path):
         """
@@ -335,12 +334,7 @@ class Project(BaseResponseItem):
         :param path: str: path within a project specifying a file or folder to download
         :return: File|Folder|Project|None
         """
-        try:
-            if path == REMOTE_PATH_SEP:
-                return self
-            return self.get_child_for_path(path)
-        except ItemNotFound:
-            return None
+        return ChildFinder.try_get_item_for_path(self, path)
 
     def create_folder(self, folder_name):
         """
@@ -455,6 +449,22 @@ class Folder(BaseResponseItem):
         :return: Folder
         """
         return self.dds_connection.create_folder(folder_name, KindType.folder_str, self.id)
+
+    def get_child_for_path(self, path):
+        """
+        Based on a remote path get a single remote child. When not found raises ItemNotFound.
+        :param path: str: path within a project specifying a file or folder to download
+        :return: File|Folder
+        """
+        return ChildFinder.get_child_for_path(self, path)
+
+    def try_get_item_for_path(self, path):
+        """
+        Based on a remote path get a single remote child. When not found returns None.
+        :param path: str: path within a project specifying a file or folder to download
+        :return: File|Folder|Project|None
+        """
+        return ChildFinder.try_get_item_for_path(self, path)
 
     def upload_file(self, local_path, remote_filename=None):
         """
@@ -640,6 +650,30 @@ class ChildFinder(object):
             if child.name == head:
                 return self._get_child_recurse(tail, child)
         raise ItemNotFound("No item at path {}".format(self.remote_path))
+
+    @staticmethod
+    def get_child_for_path(node, path):
+        """
+        Based on a remote path get a single remote child. When not found raises ItemNotFound.
+        :param path: str: path within a project specifying a file or folder to download
+        :return: File|Folder
+        """
+        child_finder = ChildFinder(path, node)
+        return child_finder.get_child()
+
+    @staticmethod
+    def try_get_item_for_path(node, path):
+        """
+        Based on a remote path get a single remote child. When not found returns None.
+        :param path: str: path within a project specifying a file or folder to download
+        :return: File|Folder|Project|None
+        """
+        try:
+            if path == REMOTE_PATH_SEP:
+                return node
+            return ChildFinder.get_child_for_path(node, path)
+        except ItemNotFound:
+            return None
 
 
 class PathToFiles(object):
