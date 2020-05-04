@@ -257,6 +257,26 @@ class TestRemoteUser(TestCase):
         self.assertEqual('John', user.first_name)
         self.assertEqual('Smith', user.last_name)
         self.assertEqual('id:12789123897123978 username:js123 full_name:John Smith', str(user))
+        self.assertEqual('john.smith@duke.edu', user.email)
+
+    def test_parse_user_derive_email(self):
+        users_json_str = """{
+            "results": [
+            {
+              "id": "12789123897123978",
+              "username": "js123",
+              "full_name": "John Smith",
+              "email": null,
+              "first_name" : "John",
+              "last_name" : "Smith"
+            }
+            ]
+        }
+        """
+        blob = json.loads(users_json_str)
+        project_json = blob['results'][0]
+        user = RemoteUser(project_json)
+        self.assertEqual('js123@duke.edu', user.email)
 
 
 class TestRemoteAuthRole(TestCase):
