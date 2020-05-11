@@ -636,6 +636,13 @@ class DataServiceApi(object):
         }
         return self._put("/uploads/" + upload_id + "/chunks", data)
 
+    def get_upload(self, upload_id):
+        """
+        Get details about an upload.
+        :param upload_id: uuid of the upload
+        """
+        return self._get_single_item("/uploads/" + upload_id, {})
+
     def complete_upload(self, upload_id, hash_value, hash_alg):
         """
         Mark the upload we created in create_upload complete.
