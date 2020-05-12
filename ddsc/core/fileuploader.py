@@ -255,10 +255,13 @@ class FileUploadOperations(object):
         upload_data = upload_response.json()
         file_name = upload_data['name']
         file_size = upload_data['size']
-        total_chunk_size = sum([chunk['size'] for chunk in upload_data['chunks']])
-        if file_size != total_chunk_size:
-            raise ValueError("Failure uploading {}. Size mismatch file: {} vs chunks:{}."
-                             "\nPlease retry uploading.".format(file_name, file_size, total_chunk_size))
+        file_chunks = upload_data.get('chunks')
+        # Only multi-chunk file uploads have 'chunks' payload (even though single chunk files have 1 chunk uploaded)
+        if file_chunks:
+            total_chunk_size = sum([chunk['size'] for chunk in file_chunks])
+            if file_size != total_chunk_size:
+                raise ValueError("Failure uploading {}. Size mismatch file: {} vs chunks:{}."
+                                 "\nPlease retry uploading.".format(file_name, file_size, total_chunk_size))
 
 
 class ParallelChunkProcessor(object):

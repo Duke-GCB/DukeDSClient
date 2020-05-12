@@ -195,6 +195,19 @@ class TestFileUploadOperations(TestCase):
                          'Failure uploading somefile.txt. Size mismatch file: 150 vs chunks:100.\n'
                          'Please retry uploading.')
 
+    def test_finish_upload_with_no_chunks(self):
+        data_service = MagicMock()
+        data_service.get_upload.return_value.json.return_value = {
+            'name': 'somefile.txt',
+            'size': 150
+        }
+        fop = FileUploadOperations(data_service, MagicMock())
+        fop.finish_upload(upload_id="123",
+                          hash_data=MagicMock(),
+                          parent_data=MagicMock(),
+                          remote_file_id="456")
+        data_service.complete_upload.assert_called()
+
     @patch('ddsc.core.ddsapi.time.sleep')
     def test_create_upload_with_one_pause(self, mock_sleep):
         data_service = MagicMock()
