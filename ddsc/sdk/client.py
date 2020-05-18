@@ -277,6 +277,13 @@ class DDSConnection(object):
             File
         )
 
+    def get_project_files_with_callback(self, project_id, callback):
+
+        def dict_to_project_file(dds_file_dict):
+            callback(ProjectFile(dds_file_dict))
+
+        self.data_service.get_project_files_with_callback(project_id, dict_to_project_file)
+
 
 class BaseResponseItem(object):
     """
@@ -383,6 +390,9 @@ class Project(BaseResponseItem):
 
     def portal_url(self):
         return self.dds_connection.data_service.portal_url(self.id)
+
+    def get_files_with_callback(self, callback):
+        self.dds_connection.get_project_files_with_callback(self.id, callback)
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)

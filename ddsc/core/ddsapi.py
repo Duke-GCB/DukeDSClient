@@ -558,6 +558,27 @@ class DataServiceApi(object):
         url_prefix = "/projects/{}/files".format(project_id)
         return self._get_collection(url_prefix, {})
 
+    def get_project_files_with_callback(self, project_id, callback):
+        """
+        Send GET to /projects/{project_id}/files feed each project into callback function
+        :param project_id: str uuid of the project
+        :param callback: func(dds_file): function to be called on each file in the project
+        """
+        url_suffix = "/projects/{}/files".format(project_id)
+        data = {}
+
+        # process first page separately to read total pages
+        response = self._get_single_page(url_suffix, data, page_num=1)
+        for item in response.json()["results"]:
+            callback(item)
+        total_pages = int(response.headers.get('x-total-pages'))
+
+        # process the rest of the pages
+        for page in range(2, total_pages + 1):
+            response = self._get_single_page(url_suffix, data, page_num=page)
+            for item in response.json()["results"]:
+                callback(item)
+
     def get_folder_children(self, folder_id, name_contains):
         """
         Send GET to /folders/{folder_id} filtering by a name.

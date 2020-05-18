@@ -346,14 +346,15 @@ class FileDownloader(object):
         :param size: int: size (in bytes) that determines if a file is large or small
         :return: ([FileToDownload],[FileToDownload]): (large file urls, small file urls)
         """
-        large_items = []
-        small_items = []
-        for file_to_download in self.files_to_download:
-            if file_to_download.size >= size:
-                large_items.append(file_to_download)
-            else:
-                small_items.append(file_to_download)
-        return large_items, small_items
+        return [], self.files_to_download
+        #large_items = []
+        #small_items = []
+        #for file_to_download in self.files_to_download:
+        #    if file_to_download.size >= size:
+        #        large_items.append(file_to_download)
+        #    else:
+        #        small_items.append(file_to_download)
+        #return large_items, small_items
 
 
 class DownloadFilePartCommand(object):
