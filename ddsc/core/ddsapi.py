@@ -339,7 +339,7 @@ class DataServiceApi(object):
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
     @retry_connection_exceptions
-    def _get_single_page(self, url_suffix, data, page_num):
+    def _get_single_page(self, url_suffix, data, page_num, page_size=None):
         """
         Send GET request to API at url_suffix with post_data adding page and per_page parameters to
         retrieve a single page. Page size is determined by config.page_size.
@@ -350,7 +350,9 @@ class DataServiceApi(object):
         """
         data_with_per_page = dict(data)
         data_with_per_page['page'] = page_num
-        data_with_per_page['per_page'] = self._get_page_size()
+        if not page_size:
+            page_size = self._get_page_size()
+        data_with_per_page['per_page'] = page_size
         (url, data_str, headers) = self._url_parts(url_suffix, data_with_per_page,
                                                    content_type=ContentType.form)
         resp = self.http.get(url, headers=headers, params=data_str)
@@ -558,26 +560,29 @@ class DataServiceApi(object):
         url_prefix = "/projects/{}/files".format(project_id)
         return self._get_collection(url_prefix, {})
 
-    def get_project_files_with_callback(self, project_id, callback):
+    def get_project_files_generator(self, project_id, page_size, item_wrapper_func):
         """
-        Send GET to /projects/{project_id}/files feed each project into callback function
+        Send GET to /projects/{project_id}/files
         :param project_id: str uuid of the project
-        :param callback: func(dds_file): function to be called on each file in the project
+        :param page_size: int page size to fetch
+        :param item_wrapper_func: function to apply before yielding
+        :return: generator that returns DDS file download JSON
         """
         url_suffix = "/projects/{}/files".format(project_id)
         data = {}
 
         # process first page separately to read total pages
-        response = self._get_single_page(url_suffix, data, page_num=1)
+        response = self._get_single_page(url_suffix, data, page_size=page_size, page_num=1)
         for item in response.json()["results"]:
-            callback(item)
+            print("yield", item['name'])
+            yield item_wrapper_func(item)
         total_pages = int(response.headers.get('x-total-pages'))
-
         # process the rest of the pages
         for page in range(2, total_pages + 1):
-            response = self._get_single_page(url_suffix, data, page_num=page)
+            response = self._get_single_page(url_suffix, data, page_size=page_size, page_num=page)
             for item in response.json()["results"]:
-                callback(item)
+                print("yield", item['name'])
+                yield item_wrapper_func(item)
 
     def get_folder_children(self, folder_id, name_contains):
         """
