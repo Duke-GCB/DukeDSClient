@@ -278,7 +278,8 @@ class DDSConnection(object):
         )
 
     def get_project_files_generator(self, project_id, page_size):
-        return self.data_service.get_project_files_generator(project_id, page_size, ProjectFile)
+        for project_file_dict, header_metadata in self.data_service.get_project_files_generator(project_id, page_size):
+            yield ProjectFile(project_file_dict), header_metadata
 
 
 class BaseResponseItem(object):

@@ -16,7 +16,8 @@ The operation will be retried automatically, so no action is required. It will c
 To cancel this operation, press Ctrl+C.
 """
 CONNECTION_RETRY_MESSAGE = "Connection failed. Retrying."
-
+DDS_TOTAL_PAGES_HEADER = 'x-total-pages'
+DDS_TOTAL_HEADER = 'x-total'
 
 def get_user_agent_str():
     """
@@ -560,29 +561,25 @@ class DataServiceApi(object):
         url_prefix = "/projects/{}/files".format(project_id)
         return self._get_collection(url_prefix, {})
 
-    def get_project_files_generator(self, project_id, page_size, item_wrapper_func):
+    def get_project_files_generator(self, project_id, page_size):
         """
         Send GET to /projects/{project_id}/files
         :param project_id: str uuid of the project
         :param page_size: int page size to fetch
-        :param item_wrapper_func: function to apply before yielding
-        :return: generator that returns DDS file download JSON
+        :return: generator that returns (DDS file download JSON, header metadata) pairs
         """
         url_suffix = "/projects/{}/files".format(project_id)
         data = {}
-
         # process first page separately to read total pages
         response = self._get_single_page(url_suffix, data, page_size=page_size, page_num=1)
-        for item in response.json()["results"]:
-            print("yield", item['name'])
-            yield item_wrapper_func(item)
         total_pages = int(response.headers.get('x-total-pages'))
+        for item in response.json()["results"]:
+            yield item, response.headers
         # process the rest of the pages
         for page in range(2, total_pages + 1):
             response = self._get_single_page(url_suffix, data, page_size=page_size, page_num=page)
             for item in response.json()["results"]:
-                print("yield", item['name'])
-                yield item_wrapper_func(item)
+                yield item, response.headers
 
     def get_folder_children(self, folder_id, name_contains):
         """
