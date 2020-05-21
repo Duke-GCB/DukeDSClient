@@ -122,23 +122,21 @@ class FileDownloader(object):
         return ready_results
 
     def _process_download_results(self, pool, download_results):
-        for download_result in download_results:
-            if download_result['state'] == 'retry':
-                download_file_dict = download_result['download_file_dict']
+        for download_file_dict in download_results:
+            if download_file_dict['state'] == 'retry':
                 # Refresh url in download_file_dict
                 file_id = download_file_dict['file_id']
-                print("retrying {}".format(download_file_dict['output_path']))
+                print("Retrying {}".format(download_file_dict['output_path']))
                 file_download = self.dds_connection.get_file_download(file_id)
                 download_file_dict['url'] = file_download.host + file_download.url
                 # Re-run download process
                 async_result = pool.apply_async(download_file, (self.message_queue, download_file_dict,))
                 self.async_download_results.append(async_result)
-            elif download_result['state'] == 'error':
-                raise ValueError(download_result['msg'])
+            elif download_file_dict['state'] == 'error':
+                raise ValueError(download_file_dict['msg'])
             else:
                 self.files_downloaded += 1
-                self.download_status_list.append(download_result['status'])
-                #print(download_result['status'].get_status_line())
+                self.download_status_list.append(download_file_dict['status'])
 
     @staticmethod
     def _make_download_file_dict(project_file, output_path):
