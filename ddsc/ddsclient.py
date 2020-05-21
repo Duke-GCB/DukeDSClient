@@ -236,7 +236,7 @@ class DownloadCommand(ClientCommand):
         path_filter = None
         if args.include_paths or  args.exclude_paths:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
-        downloader = FileDownloader(folder, project, num_workers=self.config.download_workers)
+        downloader = FileDownloader(folder, project, num_workers=self.config.download_workers, path_filter=path_filter)
         downloader.run()
         #destination_path = format_destination_path(folder)
         #path_filter = PathFilter(args.include_paths, args.exclude_paths)

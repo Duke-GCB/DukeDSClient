@@ -11,11 +11,12 @@ from ddsc.core.ddsapi import DDS_TOTAL_HEADER
 
 
 class FileDownloader(object):
-    def __init__(self, dest_directory, project, num_workers):
+    def __init__(self, dest_directory, project, num_workers, path_filter):
         self.dest_directory = dest_directory
-        self.dds_connection = project.dds_connection
         self.project = project
+        self.dds_connection = project.dds_connection
         self.num_workers = num_workers
+        self.path_filter = path_filter
         self.page_size = GET_PAGE_SIZE_DEFAULT
         self.async_download_results = []
         self.message_queue = multiprocessing.Manager().Queue()
@@ -24,11 +25,11 @@ class FileDownloader(object):
         self.file_download_state = {}
         self.download_status_list = []
 
-    def set_files_to_download(self, num_files):
-        self.files_to_download = num_files
-        self.show_progress_bar()
-
     def run(self):
+        self._download_files()
+        self._show_downloaded_files_status()
+
+    def _download_files(self):
         with multiprocessing.Pool(self.num_workers) as pool:
             for project_file in self._get_project_files():
                 self._download_file(pool, project_file)
@@ -36,9 +37,8 @@ class FileDownloader(object):
                     self._wait_for_and_retry_failed_downloads(pool)
             while self._work_queue_is_not_empty():
                 self._wait_for_and_retry_failed_downloads(pool)
-        self._print_downloaded_files_status()
 
-    def _print_downloaded_files_status(self):
+    def _show_downloaded_files_status(self):
         print("Verifying contents of {} downloaded files using file hashes.".format(self.files_to_download))
         all_good = True
         for download_status in self.download_status_list:
@@ -52,10 +52,32 @@ class FileDownloader(object):
 
     def _get_project_files(self):
         project_files_generator = self.project.get_project_files_generator(self.page_size)
-        for project_file, headers in project_files_generator:
+        if self.path_filter:
+            # fetch all files so we can determine an accurate filtered count
+            project_files = self._filter_project_files(project_files_generator)
+            self.files_to_download = len(project_files)
+            self._print_path_filter_warnings()
+            self.show_progress_bar()
+        else:
+            project_files = project_files_generator
+        for project_file, headers in project_files:
             if self.files_to_download is None:
                 self.files_to_download = int(headers.get(DDS_TOTAL_HEADER))
+                self.show_progress_bar()
             yield project_file
+
+    def _filter_project_files(self, project_files_generator):
+        project_files = []
+        for project_file, headers in project_files_generator:
+            if self.path_filter.include_path(project_file.path):
+                project_files.append(project_file)
+        return project_files
+
+    def _print_path_filter_warnings(self):
+        if self.path_filter:
+            unused_paths = self.path_filter.get_unused_paths()
+            if unused_paths:
+                print('WARNING: Path(s) not found: {}.'.format(','.join(unused_paths)))
 
     def _download_file(self, pool, project_file):
         output_path = project_file.get_local_path(self.dest_directory)
@@ -126,15 +148,18 @@ class FileDownloader(object):
             if download_file_dict['state'] == 'retry':
                 # Refresh url in download_file_dict
                 file_id = download_file_dict['file_id']
-                print("Retrying {}".format(download_file_dict['output_path']))
                 file_download = self.dds_connection.get_file_download(file_id)
                 download_file_dict['url'] = file_download.host + file_download.url
                 # Re-run download process
                 async_result = pool.apply_async(download_file, (self.message_queue, download_file_dict,))
                 self.async_download_results.append(async_result)
             elif download_file_dict['state'] == 'error':
-                raise ValueError(download_file_dict['msg'])
+                raise ValueError("Error downloading {}\n{}".format(
+                    download_file_dict['output_path'],
+                    download_file_dict['msg']
+                ))
             else:
+                # 'ok' or 'already_complete' states
                 self.files_downloaded += 1
                 self.download_status_list.append(download_file_dict['status'])
 
@@ -156,6 +181,10 @@ def download_file(message_queue, download_file_dict):
     hashes = download_file_dict['hashes']
     output_path = download_file_dict['output_path']
     url = download_file_dict['url']
+    if os.path.exists(output_path):
+        file_hash_status = FileHashStatus.determine_for_hashes(hashes, output_path)
+        if file_hash_status.has_a_valid_hash():
+            return download_file_result(state='already_complete', download_file_dict=download_file_dict)
     response = requests.get(url, stream=True)
     try:
         written_size = 0
@@ -167,6 +196,7 @@ def download_file(message_queue, download_file_dict):
                     written_size += len(chunk)
                     message_queue.put((file_id, written_size, size))
         if written_size != size:
+            # Failed to download the whole file so we should retry
             return download_file_result(state='retry', download_file_dict=download_file_dict)
         message_queue.put((file_id, written_size, size))
         file_hash_status = FileHashStatus.determine_for_hashes(hashes, output_path)
