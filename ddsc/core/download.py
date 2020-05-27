@@ -1,14 +1,11 @@
-import os
 import sys
-import traceback
-import math
 import requests
+import os
+import multiprocessing
+import time
+import queue
 from ddsc.core.localstore import HashUtil
-from ddsc.core.util import ProgressPrinter, plural_fmt
-from ddsc.core.parallel import TaskRunner
-from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi
-from ddsc.core.remotestore import RemoteStore, ProjectFile, RemoteFileUrl
-from ddsc.core.retry import RetrySettings
+from ddsc.core.ddsapi import DDS_TOTAL_HEADER
 
 SWIFT_EXPIRED_STATUS_CODE = 401
 S3_EXPIRED_STATUS_CODE = 403
@@ -18,540 +15,6 @@ The downloaded files have been verified and confirmed to match one of these hash
 You do not need to retry the download.
 For more information, visit https://github.com/Duke-GCB/DukeDSClient/wiki/MD5-Hash-Conflicts.
 """
-
-
-class ProjectDownload(object):
-    """
-    Creates local version of remote content.
-    """
-    def __init__(self, remote_store, project, dest_directory, path_filter, file_download_pre_processor=None):
-        """
-        Setup for downloading a remote project.
-        :param remote_store: RemoteStore: which remote store to download the project from
-        :param project: RemoteProject: project to download
-        :param dest_directory: str: path to where we will save the project contents
-        :param path_filter: PathFilter: determines which files will be downloaded
-        :param file_download_pre_processor: object: has run(data_service, RemoteFile) method to run before downloading
-        """
-        self.remote_store = remote_store
-        self.project = project
-        self.dest_directory = dest_directory
-        self.path_filter = path_filter
-        self.file_download_pre_processor = file_download_pre_processor
-
-    def run(self):
-        """
-        Download the contents of the specified project name or id to dest_directory.
-        """
-        files_to_download = self.get_files_to_download()
-        if not files_to_download:
-            print("All content is already downloaded.")
-            return
-
-        if self.file_download_pre_processor:
-            self.run_preprocessor(files_to_download)
-
-        self.try_create_dir(self.dest_directory)
-        num_files_to_download = len(files_to_download)
-        print("Downloading {}.".format(plural_fmt('file', num_files_to_download)))
-        self.download_files(files_to_download)
-        print("Verifying contents of {} using file hashes.".format(plural_fmt('downloaded file', num_files_to_download)))
-        self.check_downloaded_files(files_to_download)
-
-    def get_files_to_download(self):
-        files_to_download = []
-        local_verified_files = 0
-        included_project_files = self.get_included_project_files()
-        print("Checking {}.".format(plural_fmt('file', len(included_project_files))))
-        for project_file in included_project_files:
-            if self.file_exists_with_same_hash(project_file):
-                local_verified_files += 1
-            else:
-                local_path = project_file.get_local_path(self.dest_directory)
-                file_to_download = FileToDownload(project_file.json_data, local_path)
-                files_to_download.append(file_to_download)
-        if local_verified_files:
-            if local_verified_files == 1:
-                print("Verified 1 local file is already up to date.")
-            else:
-                print("Verified {} local files are already up to date.".format(local_verified_files))
-        return files_to_download
-
-    def get_included_project_files(self):
-        included_project_files = []
-        for project_file in self.remote_store.get_project_files(self.project):
-            if self.path_filter.include_path(project_file.path):
-                included_project_files.append(project_file)
-        return included_project_files
-
-    def include_project_file(self, project_file):
-        if not self.path_filter.include_path(project_file.path):
-            return False  # the file has been filtered out
-        if self.file_exists_with_same_hash(project_file):
-            return False  # the file is already local and has the same hash (no need to download)
-        return True
-
-    def file_exists_with_same_hash(self, project_file):
-        local_path = project_file.get_local_path(self.dest_directory)
-        if os.path.exists(local_path):
-            file_hash_status = FileHashStatus.determine_for_hashes(project_file.hashes, local_path)
-            return file_hash_status.has_a_valid_hash()
-        return False
-
-    @staticmethod
-    def get_total_files_size(files_to_download):
-        return sum([file_to_download.size for file_to_download in files_to_download])
-
-    def run_preprocessor(self, files_to_download):
-        """
-        Run file_download_pre_processor for each file we are about to download.
-        :param files_to_download: [ProjectFile]: files that will be downloaded
-        """
-        for file_to_download in files_to_download:
-            self.file_download_pre_processor.run(self.remote_store.data_service, file_to_download)
-
-    def download_files(self, files_to_download):
-        total_files_size = self.get_total_files_size(files_to_download)
-        watcher = ProgressPrinter(total_files_size, msg_verb='downloading')
-        settings = DownloadSettings(self.remote_store.data_service, self.remote_store.config, watcher)
-        file_downloader = FileDownloader(settings, files_to_download)
-        file_downloader.run()
-        watcher.finished()
-        warnings = self.check_warnings()
-        if warnings:
-            watcher.show_warning(warnings)
-
-    @staticmethod
-    def try_create_dir(path):
-        """
-        Try to create a directory if it doesn't exist and raise error if there is a non-directory with the same name.
-        :param path: str path to the directory
-        """
-        if not os.path.exists(path):
-            os.mkdir(path)
-        elif not os.path.isdir(path):
-            ValueError("Unable to create directory:" + path + " because a file already exists with the same name.")
-
-    def check_warnings(self):
-        unused_paths = self.path_filter.get_unused_paths()
-        if unused_paths:
-            return 'WARNING: Path(s) not found: {}.'.format(','.join(unused_paths))
-        return None
-
-    def check_downloaded_files(self, files_to_download):
-        """
-        Make sure the file contents are correct by hashing file and comparing against hash provided by DukeDS.
-        Raises ValueError if there is one or more problematic files.
-        """
-        had_failed_file_hashes = False
-        mismatched_hashes_cnt = 0
-        for file_to_download in files_to_download:
-            local_path = file_to_download.get_local_path(self.dest_directory)
-            file_hash_status = FileHashStatus.determine_for_hashes(file_to_download.hashes, local_path)
-            print(file_hash_status.get_status_line())
-            if not file_hash_status.has_a_valid_hash():
-                had_failed_file_hashes = True
-            if file_hash_status.status == FileHashStatus.STATUS_WARNING:
-                mismatched_hashes_cnt += 1
-        if had_failed_file_hashes:
-            raise ValueError("ERROR: Downloaded file(s) do not match the expected hashes.")
-        else:
-            print("All downloaded files have been verified successfully.")
-            if mismatched_hashes_cnt:
-                if mismatched_hashes_cnt == 1:
-                    file_cnt_str = '1 file'
-                else:
-                    file_cnt_str = '{} files'.format(mismatched_hashes_cnt)
-                print(MISMATCHED_FILE_HASH_WARNING.format(file_cnt_str))
-
-
-class DownloadSettings(object):
-    """
-    Settings used to download a project
-    """
-    def __init__(self, data_service, config, watcher):
-        self.data_service = data_service
-        self.config = config
-        self.watcher = watcher
-
-    def get_data_service_auth_data(self):
-        """
-        Serialize data_service setup into something that can be passed to another process.
-        :return: tuple of data service settings
-        """
-        return self.data_service.auth.get_auth_data()
-
-
-class DownloadContext(object):
-    """
-    Values passed to a background worker.
-    Contains DownloadSettings and parameters specific to the function to be run.
-    """
-    def __init__(self, settings, params, message_queue, task_id):
-        """
-        Setup context so it can be passed.
-        :param settings: UploadSettings: project level info
-        :param params: tuple: values specific to the function being run
-        :param message_queue: Queue: queue background process can send messages to us on
-        :param task_id: int: id of this command's task so message will be routed correctly
-        """
-        self.data_service_auth_data = settings.get_data_service_auth_data()
-        self.config = settings.config
-        self.params = params
-        self.message_queue = message_queue
-        self.task_id = task_id
-
-    def create_data_service(self):
-        auth = DataServiceAuth(self.config)
-        auth.set_auth_data(self.data_service_auth_data)
-        return DataServiceApi(auth, self.config.url)
-
-    def create_remote_store(self):
-        return RemoteStore(self.config, self.create_data_service())
-
-    def send_message(self, data):
-        """
-        Sends a message to the command's on_message(data) method.
-        :param data: object: data sent to on_message
-        """
-        self.message_queue.put((self.task_id, data))
-
-    def send_processed_message(self, num_bytes):
-        self.send_message(('processed', num_bytes))
-
-    def send_error_message(self, error):
-        self.send_message(('error', error))
-
-
-class FileToDownload(ProjectFile):
-    """
-    Extends ProjectFile to have a destination to write the file to.
-    """
-    def __init__(self, json_data, local_path):
-        super(FileToDownload, self).__init__(json_data)
-        self.local_path = local_path
-
-
-class FileDownloader(object):
-    def __init__(self, settings, files_to_download):
-        """
-        :param: settings: DownloadSettings
-        :param files_to_download: [FileToDownload]: files and their destinations to be downloaded
-        """
-        self.settings = settings
-        self.files_to_download = files_to_download
-        self.bytes_per_chunk = self.settings.config.download_bytes_per_chunk
-
-    def run(self):
-        self.make_local_directories()
-        self.make_big_empty_files()
-        self.download_files()
-
-    def make_local_directories(self):
-        """
-        Create directories necessary to download the files into dest_directory
-        """
-        for file_to_download in self.files_to_download:
-            parent_dir = os.path.dirname(file_to_download.local_path)
-            if parent_dir:
-                self._assure_dir_exists(parent_dir)
-
-    def make_big_empty_files(self):
-        """
-        Write out a empty file so the workers can seek to where they should write and write their data.
-        """
-        for file_to_download in self.files_to_download:
-            with open(file_to_download.local_path, "wb") as outfile:
-                if file_to_download.size > 0:
-                    outfile.seek(int(file_to_download.size) - 1)
-                    outfile.write(b'\0')
-
-    def download_files(self):
-        large_files, small_files = self.group_files_by_size(self.bytes_per_chunk)
-        if small_files:
-            self.download_small_files(small_files)
-        if large_files:
-            self.download_large_files(large_files)
-
-    def download_small_files(self, small_files):
-        task_runner = self._create_task_runner()
-        for file_to_download in small_files:
-            command = DownloadFilePartCommand(self.settings, file_to_download,
-                                              seek_amt=0,
-                                              bytes_to_read=file_to_download.size,
-                                              local_path=file_to_download.local_path)
-            task_runner.add(parent_task_id=None, command=command)
-        task_runner.run()
-
-    def download_large_files(self, large_files):
-        task_runner = self._create_task_runner()
-        for file_to_download in large_files:
-            for start_range, end_range in self.make_ranges(file_to_download):
-                bytes_to_read = end_range - start_range + 1
-                command = DownloadFilePartCommand(self.settings, file_to_download,
-                                                  seek_amt=start_range,
-                                                  bytes_to_read=bytes_to_read,
-                                                  local_path=file_to_download.local_path)
-                task_runner.add(parent_task_id=None, command=command)
-        task_runner.run()
-
-    def _create_task_runner(self):
-        return TaskRunner(self.settings.config.download_workers)
-
-    def make_ranges(self, file_to_download):
-        """
-        Divides file_to_download size into an array of ranges to be downloaded by workers.
-        :param: file_to_download: FileToDownload: file url to download
-        :return: [(int,int)]: array of (start, end) tuples
-        """
-        size = file_to_download.size
-        bytes_per_chunk = self.determine_bytes_per_chunk(size)
-        start = 0
-        ranges = []
-        while size > 0:
-            amount = bytes_per_chunk
-            if amount > size:
-                amount = size
-            ranges.append((start, start + amount - 1))
-            start += amount
-            size -= amount
-        return ranges
-
-    def determine_bytes_per_chunk(self, size):
-        """
-        Calculate the size of chunk a worker should download.
-        The last worker may download less than this depending on file size.
-        :return: int: byte size for a worker
-        """
-        workers = self.settings.config.download_workers
-        if not workers or workers == 'None':
-            workers = 1
-        bytes_per_chunk = int(math.ceil(size / float(workers)))
-        if bytes_per_chunk < self.bytes_per_chunk:
-            bytes_per_chunk = self.bytes_per_chunk
-        return bytes_per_chunk
-
-    @staticmethod
-    def _assure_dir_exists(path):
-        """
-        If path doesn't exist create it and any necessary parent directories.
-        :param path: str: path to a directory to create
-        """
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-    def group_files_by_size(self, size):
-        """
-        Return tuple that contains a list large files and a list of small files based on size parameter
-        :param size: int: size (in bytes) that determines if a file is large or small
-        :return: ([FileToDownload],[FileToDownload]): (large file urls, small file urls)
-        """
-        return [], self.files_to_download
-        #large_items = []
-        #small_items = []
-        #for file_to_download in self.files_to_download:
-        #    if file_to_download.size >= size:
-        #        large_items.append(file_to_download)
-        #    else:
-        #        small_items.append(file_to_download)
-        #return large_items, small_items
-
-
-class DownloadFilePartCommand(object):
-    """
-    Create project in DukeDS.
-    """
-    def __init__(self, settings, file_to_download, seek_amt, bytes_to_read, local_path):
-        """
-        Setup passing in all necessary data to download part of a file.
-        :param settings: DownloadSettings
-        :param file_to_download: FileToDownload
-        :param seek_amt: int
-        :param bytes_to_read: int
-        """
-        self.settings = settings
-        self.file_to_download = file_to_download
-        self.seek_amt = seek_amt
-        self.bytes_to_read = bytes_to_read
-        self.local_path = local_path
-        self.func = download_file_part_run
-
-    def before_run(self, parent_task_result):
-        pass
-
-    def create_context(self, message_queue, task_id):
-        """
-        Create data needed by upload_project_run(DukeDS connection info).
-        :param message_queue: Queue: queue background process can send messages to us on
-        :param task_id: int: id of this command's task so message will be routed correctly
-        """
-        params = (self.file_to_download.json_data, self.seek_amt, self.bytes_to_read, self.local_path)
-        return DownloadContext(self.settings, params, message_queue, task_id)
-
-    def after_run(self, result):
-        pass
-
-    def on_message(self, params):
-        message_type, message_value = params
-        if message_type == 'processed':
-            watcher = self.settings.watcher
-            watcher.transferring_item(self.file_to_download, message_value)
-        elif message_type == 'error':
-            raise ValueError(message_value)
-        else:
-            raise ValueError("Unknown message type {}".format(message_type, message_value))
-
-
-def download_file_part_run(download_context):
-    """
-    Function run by CreateProjectCommand to create the project.
-    Runs in a background process.
-    :param download_context: UploadContext: contains data service setup and project name to create.
-    """
-    file_to_download_data_dict, seek_amt, bytes_to_read, local_path = download_context.params
-    project_file = ProjectFile(file_to_download_data_dict)
-    retry_chunk_downloader = RetryChunkDownloader(project_file, local_path,
-                                                  seek_amt, bytes_to_read,
-                                                  download_context)
-    retry_chunk_downloader.run()
-    return 'ok'
-
-
-class RetryChunkDownloader(object):
-    def __init__(self, project_file, local_path, seek_amt, bytes_to_read, download_context):
-        self.project_file = project_file
-        self.local_path = local_path
-        self.seek_amt = seek_amt
-        self.bytes_to_read = bytes_to_read
-        self.retry_times = 0
-        self.max_retry_times = RetrySettings.FETCH_EXTERNAL_PUT_RETRY_TIMES
-        self.download_context = download_context
-        self.actual_bytes_read = 0
-        self.remote_store = download_context.create_remote_store()
-        self.bytes_per_chunk = download_context.config.download_bytes_per_chunk
-
-    def run(self):
-        try:
-            return self.retry_download_loop()
-        except:
-            error_msg = "".join(traceback.format_exception(*sys.exc_info()))
-            self.download_context.send_error_message(error_msg)
-
-    def retry_download_loop(self):
-        if self.project_file.file_url:
-            file_download = RemoteFileUrl(self.project_file.file_url)
-        else:
-            file_download = self.remote_store.get_file_url(self.project_file.id)
-        while True:
-            try:
-                url, headers = self.get_url_and_headers_for_range(file_download)
-                self.download_chunk(url, headers)
-                break
-            except (DownloadInconsistentError, PartialChunkDownloadError, requests.exceptions.ConnectionError):
-                if self.retry_times < self.max_retry_times:
-                    self.retry_times += 1
-                    file_download = self.remote_store.get_file_url(self.project_file.id)
-                    # continue loop and try downloading again
-                else:
-                    raise  # run will send the error back to the main process
-
-    def get_url_and_headers_for_range(self, file_download):
-        """
-        Return url and headers to use for downloading part of a file, adding range headers.
-        :param file_download: FileDownload: contains data about file we will download
-        :return: str, dict: url to download and headers to use
-        """
-        headers = self.get_range_headers()
-        if file_download.http_headers:
-            headers.update(file_download.http_headers)
-        separator = ""
-        if not file_download.url.startswith("/"):
-            separator = "/"
-        url = '{}{}{}'.format(file_download.host, separator, file_download.url)
-        return url, headers
-
-    def get_range_headers(self):
-        range_start = self.seek_amt
-        range_end = self.seek_amt + self.bytes_to_read - 1
-        return {'Range': 'bytes={}-{}'.format(range_start, range_end)}
-
-    def download_chunk(self, url, headers):
-        """
-        Download part of a file and write to our file
-        :param url: str: URL to download this file
-        :param headers: dict: headers used to download this file chunk
-        """
-        response = requests.get(url, headers=headers, stream=True)
-        if response.status_code == SWIFT_EXPIRED_STATUS_CODE \
-                or response.status_code == S3_EXPIRED_STATUS_CODE:
-            raise DownloadInconsistentError(response.text)
-        response.raise_for_status()
-        self.actual_bytes_read = 0
-        self._write_response_to_file(response)
-        self._verify_download_complete()
-
-    def _write_response_to_file(self, response):
-        """
-        Write response to the appropriate section of the file at self.local_path.
-        :param response: requests.Response: response containing stream-able data
-        """
-        with open(self.local_path, 'r+b') as outfile:  # open file for read/write (no truncate)
-            outfile.seek(self.seek_amt)
-            for chunk in response.iter_content(chunk_size=self.bytes_per_chunk):
-                if chunk:  # filter out keep-alive chunks
-                    outfile.write(chunk)
-                    self._on_bytes_read(len(chunk))
-
-    def _on_bytes_read(self, num_bytes_read):
-        """
-        Record our progress so we can validate that we receive all the data
-        :param num_bytes_read: int: number of bytes we received as part of one chunk
-        """
-        self.actual_bytes_read += num_bytes_read
-        if self.actual_bytes_read > self.bytes_to_read:
-            raise TooLargeChunkDownloadError(self.actual_bytes_read, self.bytes_to_read, self.local_path)
-        self.download_context.send_processed_message(num_bytes_read)
-
-    def _verify_download_complete(self):
-        """
-        Make sure we received all the data
-        """
-        if self.actual_bytes_read > self.bytes_to_read:
-            raise TooLargeChunkDownloadError(self.actual_bytes_read, self.bytes_to_read, self.local_path)
-        elif self.actual_bytes_read < self.bytes_to_read:
-            raise PartialChunkDownloadError(self.actual_bytes_read, self.bytes_to_read, self.local_path)
-
-    def revert_progress(self):
-        """
-        Update progress monitor with negative number so it is accurate since this download failed.
-        """
-        undo_size = self.actual_bytes_read * -1
-        self.download_context.send_processed_message(undo_size)
-
-
-class DownloadInconsistentError(Exception):
-    pass
-
-
-class PartialChunkDownloadError(Exception):
-    """
-    Raised when we only received part of a file (possibly due to connection errors)
-    """
-
-    def __init__(self, actual_bytes, expected_bytes, path):
-        self.message = "Received too few bytes downloading part of a file. " \
-                       "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
-        super(PartialChunkDownloadError, self).__init__(self.message)
-
-
-class TooLargeChunkDownloadError(Exception):
-    """
-    Raised when we only received an unexpectedly large part of a file
-    """
-    def __init__(self, actual_bytes, expected_bytes, path):
-        self.message = "Received too many bytes downloading part of a file. " \
-                       "Actual: {} Expected: {} File:{}".format(actual_bytes, expected_bytes, path)
-        super(TooLargeChunkDownloadError, self).__init__(self.message)
 
 
 class MD5FileHash(object):
@@ -664,3 +127,273 @@ class FileHashStatus(object):
                 first_failed_file_hash = failed_file_hashes[0]
                 return FileHashStatus(first_failed_file_hash, FileHashStatus.STATUS_FAILED)
         raise ValueError("Unable to validate: No supported hashes found for file {}".format(file_path))
+
+
+class FileDownloadState(object):
+    """
+    Contains details passed between foreground ProjectFileDownloader and background download_file function
+    """
+    NEW = 'new' # initial state before downloading
+    GOOD = 'good' # successfully download and verified the file's hash
+    ALREADY_COMPLETE = 'already_complete'  # the file already exists and has a correct md5 sum
+    EXPIRED_URL = 'expired_url'  # backend url expired before we got a chance to download it
+    ERROR = 'error'  # an error occurred during download
+
+    def __init__(self, project_file, output_path, config):
+        self.file_id = project_file.id
+        self.size = project_file.size
+        self.hashes = project_file.hashes
+        self.output_path = output_path
+        self.url = project_file.file_url['host'] + project_file.file_url['url']
+        self.retries = config.file_download_retries
+        self.download_bytes_per_chunk = config.download_bytes_per_chunk
+        self.state = self.NEW
+        self.status = None
+        self.msg = ''
+
+    def calculate_file_hash_status(self):
+        return FileHashStatus.determine_for_hashes(self.hashes, self.output_path)
+
+    def is_ok_state(self):
+        return self.state == self.GOOD or self.state == self.ALREADY_COMPLETE
+
+    def mark_good(self, status):
+        self.state = self.GOOD
+        self.status = status
+        self.msg = ''
+        return self
+
+    def mark_already_complete(self, status):
+        self.state = self.ALREADY_COMPLETE
+        self.status = status
+        self.msg = ''
+        return self
+
+    def mark_expired_url(self, msg):
+        self.state = self.EXPIRED_URL
+        self.status = None
+        self.msg = msg
+        return self
+
+    def mark_error(self, msg):
+        self.state = self.ERROR
+        self.status = None
+        self.msg = msg
+        return self
+
+    def raise_for_status(self):
+        if self.status:
+            self.status.raise_for_status()
+        else:
+            raise ValueError(self.msg)
+
+
+class URLExpiredException(Exception):
+    pass
+
+
+class ProjectFileDownloader(object):
+    def __init__(self, config, dest_directory, project, path_filter):
+        self.config = config
+        self.dest_directory = dest_directory
+        self.project = project
+        self.dds_connection = project.dds_connection
+        self.num_workers = config.download_workers
+        self.path_filter = path_filter
+        self.async_download_results = []
+        self.message_queue = multiprocessing.Manager().Queue()
+        self.files_downloaded = 0
+        self.files_to_download = None
+        self.file_download_statuses = {}
+        self.download_status_list = []
+
+    def run(self):
+        self._download_files()
+        self._show_downloaded_files_status()
+
+    def _download_files(self):
+        with multiprocessing.Pool(self.num_workers) as pool:
+            for project_file in self._get_project_files():
+                self._download_file(pool, project_file)
+                while self._work_queue_is_full():
+                    self._wait_for_and_retry_failed_downloads(pool)
+            while self._work_queue_is_not_empty():
+                self._wait_for_and_retry_failed_downloads(pool)
+
+    def _show_downloaded_files_status(self):
+        print("\nVerifying contents of {} downloaded files using file hashes.".format(self.files_to_download))
+        all_good = True
+        files_with_mismatched_hashes = 0
+        for download_status in self.download_status_list:
+            if not download_status.has_a_valid_hash():
+                all_good = False
+            if download_status.status == FileHashStatus.STATUS_WARNING:
+                files_with_mismatched_hashes += 1
+            print(download_status.get_status_line())
+        if all_good:
+            print("All downloaded files have been verified successfully.")
+            if files_with_mismatched_hashes:
+                print(MISMATCHED_FILE_HASH_WARNING.format(files_with_mismatched_hashes))
+        else:
+            raise ValueError("ERROR: Downloaded file(s) do not match the expected hashes.")
+
+    def _get_project_files(self):
+        project_files_generator = self.project.get_project_files_generator(self.config.page_size)
+        if self.path_filter:
+            # fetch all files so we can determine an accurate filtered count
+            project_files = self._filter_project_files(project_files_generator)
+            self._print_path_filter_warnings()
+            self.files_to_download = len(project_files)
+            self.show_progress_bar()
+        else:
+            project_files = project_files_generator
+        for project_file, headers in project_files:
+            if self.files_to_download is None:
+                self.files_to_download = int(headers.get(DDS_TOTAL_HEADER))
+                self.show_progress_bar()
+            yield project_file
+
+    def _filter_project_files(self, project_files_generator):
+        project_files = []
+        for project_file, headers in project_files_generator:
+            if self.path_filter.include_path(project_file.path):
+                project_files.append(project_file)
+        return project_files
+
+    def _print_path_filter_warnings(self):
+        if self.path_filter:
+            unused_paths = self.path_filter.get_unused_paths()
+            if unused_paths:
+                print('WARNING: Path(s) not found: {}.'.format(','.join(unused_paths)))
+
+    def _download_file(self, pool, project_file):
+        output_path = project_file.get_local_path(self.dest_directory)
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        file_download_state = FileDownloadState(project_file, output_path, self.config)
+        async_result = pool.apply_async(download_file, (self.message_queue, file_download_state))
+        self.async_download_results.append(async_result)
+
+    def _work_queue_is_full(self):
+        return len(self.async_download_results) >= self.num_workers
+
+    def _work_queue_is_not_empty(self):
+        return len(self.async_download_results) > 0
+
+    def _wait_for_and_retry_failed_downloads(self, pool):
+        download_results = self._pop_ready_download_results()
+        if download_results:
+            self._process_download_results(pool, download_results)
+        else:
+            try:
+                file_id, bytes_downloaded, file_size = self.message_queue.get_nowait()
+                self.file_download_statuses[file_id] = (bytes_downloaded, file_size)
+                self.show_progress_bar()
+            except queue.Empty:
+                pass
+            time.sleep(0)  # Pause to give up CPU since no results are ready
+
+    def show_progress_bar(self):
+        downloaded_files, download_percent = self.get_downloaded_files_and_percent()
+        sys.stdout.write("\rDownloaded {:.0f}% - {} of {} files".format(download_percent, downloaded_files,
+                                                                        self.files_to_download))
+
+    def get_downloaded_files_and_percent(self):
+        parts_per_file = 100
+        downloaded_files = 0
+        parts_to_download = float(self.files_to_download * parts_per_file)
+        parts_downloaded = 0
+        for file_id, download_info in self.file_download_statuses.items():
+            bytes_downloaded, file_size = download_info
+            if bytes_downloaded == file_size:
+                downloaded_files += 1
+                parts_downloaded += parts_per_file
+            else:
+                parts_downloaded += int(parts_per_file * float(bytes_downloaded / file_size))
+        return downloaded_files, float(parts_downloaded/parts_to_download) * 100
+
+    def _pop_ready_download_results(self):
+        ready_results = []
+        for async_result in self._get_ready_async_results():
+            result = async_result.get()
+            # retrieve the value from the async result
+            ready_results.append(result)
+            # remove the async result from the list to watch
+            self.async_download_results.remove(async_result)
+        return ready_results
+
+    def _get_ready_async_results(self):
+        ready_results = []
+        for async_result in self.async_download_results:
+            if async_result.ready():
+                ready_results.append(async_result)
+        return ready_results
+
+    def _process_download_results(self, pool, download_results):
+        for file_download_state in download_results:
+            if file_download_state.is_ok_state():
+                file_id = file_download_state.file_id
+                size = file_download_state.size
+                status = file_download_state.status
+                self.file_download_statuses[file_id] = (size, size)
+                self.download_status_list.append(status)
+            elif file_download_state.retries:
+                file_download_state.retries -= 1
+                # Refresh url in file_download_state
+                file_download = self.dds_connection.get_file_download(file_download_state.file_id)
+                file_download_state.url = file_download.host + file_download.url
+                # Re-run download process
+                async_result = pool.apply_async(download_file, (file_download_state, self.message_queue))
+                self.async_download_results.append(async_result)
+            else:
+                raise ValueError("Error downloading {}\n{}".format(
+                    file_download_state.output_path,
+                    file_download_state.msg
+                ))
+        self.show_progress_bar()
+
+
+def download_file(file_download_state, message_queue=None):
+    if os.path.exists(file_download_state.output_path):
+        file_hash_status = file_download_state.calculate_file_hash_status()
+        if file_hash_status.has_a_valid_hash():
+            return file_download_state.mark_already_complete(file_hash_status)
+    try:
+        written_size = download_url_to_path(file_download_state, message_queue)
+        return compute_download_result(file_download_state, written_size)
+    except URLExpiredException:
+        msg = 'Expired URL: {}'.format(file_download_state.url)
+        return file_download_state.mark_expired_url(file_download_state, msg)
+    except Exception as error:
+        return file_download_state.mark_error(file_download_state, msg=str(error))
+
+
+def download_url_to_path(file_download_state, message_queue=None):
+    try:
+        response = requests.get(file_download_state.url, stream=True)
+        written_size = 0
+        response.raise_for_status()
+        with open(file_download_state.output_path, "wb") as outfile:
+            for chunk in response.iter_content(chunk_size=file_download_state.download_bytes_per_chunk):
+                if chunk:  # filter out keep-alive new chunks
+                    outfile.write(chunk)
+                    written_size += len(chunk)
+                    if message_queue:
+                        message_queue.put((file_download_state.file_id, written_size, file_download_state.size))
+        return written_size
+    except requests.exceptions.HTTPError:
+        if response.status_code == SWIFT_EXPIRED_STATUS_CODE or response.status_code == S3_EXPIRED_STATUS_CODE:
+            raise URLExpiredException()
+        raise
+
+
+def compute_download_result(file_download_state, written_size):
+    if written_size == file_download_state.size:
+        file_hash_status = file_download_state.calculate_file_hash_status()
+        if file_hash_status.has_a_valid_hash():
+            return file_download_state.mark_good(file_hash_status)
+        else:
+            return file_download_state.mark_error(msg=file_hash_status.get_status_line())
+    else:
+        msg = "Downloaded file was wrong size. Expected: {} Actual: {} ".format(file_download_state.size, written_size)
+        return file_download_state.error(msg=msg)
+

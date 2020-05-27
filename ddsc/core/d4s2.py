@@ -8,11 +8,12 @@ import shutil
 import tempfile
 import requests
 from ddsc.core.upload import ProjectUpload
-from ddsc.core.download import ProjectDownload
+from ddsc.core.download import ProjectFileDownloader
 from ddsc.core.ddsapi import DataServiceAuth
 from ddsc.core.util import KindType
 from ddsc.versioncheck import get_internal_version_str
 from ddsc.core.remotestore import ProjectNameOrId, RemotePath
+from ddsc.sdk.client import Client
 
 UNAUTHORIZED_MESSAGE = """
 ERROR: Your account does not have authorization for D4S2 (the deliver/share service).
@@ -242,6 +243,7 @@ class D4S2Project(object):
         :param print_func: func used to print output somewhere
         """
         self.config = config
+        self.client = Client(config)
         auth = DataServiceAuth(self.config)
         api_token = auth.get_auth()
         self.api = D4S2Api(config.d4s2_url, api_token)
@@ -345,24 +347,30 @@ class D4S2Project(object):
         if remote_project:
             raise ValueError("A project with name '{}' already exists.".format(new_project_name))
         activity = CopyActivity(self.remote_store.data_service, project, new_project_name)
-        self._download_project(activity, project, temp_directory, path_filter)
+        self._download_project(activity, project.id, temp_directory, path_filter)
         self._upload_project(activity, new_project_name, temp_directory)
         activity.finished()
         shutil.rmtree(temp_directory)
         return self.remote_store.fetch_remote_project(new_project_name_or_id, must_exist=True)
 
-    def _download_project(self, activity, project, temp_directory, path_filter):
+    def _download_project(self, activity, project_id, temp_directory, path_filter):
         """
         Download the project with project_name to temp_directory.
         :param activity: CopyActivity: info about the copy activity are downloading for
-        :param project: remotestore.RemoteProject project to download
+        :param project_id: uuid of the project to download
         :param temp_directory: str path to directory we can download into
         :param path_filter: PathFilter: filters what files are shared
         """
+        project = self.client.get_project_by_id(project_id)
         self.print_func("Downloading a copy of '{}'.".format(project.name))
-        project_download = ProjectDownload(self.remote_store, project, temp_directory, path_filter,
-                                           file_download_pre_processor=DownloadedFileRelations(activity))
-        project_download.run()
+
+        downloader = ProjectFileDownloader(self.config, temp_directory, project, path_filter)
+        downloader.run()
+
+        downloaded_file_relations = DownloadedFileRelations(activity)
+        for project_file in project.get_project_files():
+            if path_filter.include(project_file.path):
+                downloaded_file_relations.add(project_file.path, project_file.current_version['id'])
 
     def _upload_project(self, activity, project_name, temp_directory):
         """
@@ -435,16 +443,10 @@ class DownloadedFileRelations(object):
         """
         self.activity = activity
 
-    def run(self, data_service, project_file):
+    def add(self, remote_path, file_version_id):
         """
         Attach a remote file to activity with used relationship.
-        :param data_service: DataServiceApi: service used to attach relationship
-        :param project_file: ProjectFile: contains details about a file we will attach
         """
-        remote_path = project_file.path
-        file_dict = data_service.get_file(project_file.id).json()
-        file_version_id = file_dict['current_version']['id']
-        data_service.create_used_relation(self.activity.id, KindType.file_str, file_version_id)
         self.activity.remote_path_to_file_version_id[remote_path] = file_version_id
 
 

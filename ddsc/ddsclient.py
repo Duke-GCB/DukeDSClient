@@ -9,14 +9,13 @@ from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
 from ddsc.core.localstore import LocalProject
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.projectuploader import ProjectUploadDryRun
-from ddsc.cmdparser import CommandParser, format_destination_path, replace_invalid_path_chars
-from ddsc.core.download import ProjectDownload
+from ddsc.cmdparser import CommandParser, replace_invalid_path_chars
 from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
 from ddsc.config import create_config
 from ddsc.sdk.client import Client
-from ddsc.core.simpledownload import FileDownloader
+from ddsc.core.download import ProjectFileDownloader
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 TWO_SECONDS = 2
@@ -236,14 +235,8 @@ class DownloadCommand(ClientCommand):
         path_filter = None
         if args.include_paths or  args.exclude_paths:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
-        downloader = FileDownloader(folder, project, num_workers=self.config.download_workers, path_filter=path_filter)
+        downloader = ProjectFileDownloader(self.config, folder, project, path_filter=path_filter)
         downloader.run()
-        #destination_path = format_destination_path(folder)
-        #path_filter = PathFilter(args.include_paths, args.exclude_paths)
-        #print("Fetching list of files/folders.")
-        #project = self.fetch_project(args, must_exist=True)
-        #project_download = ProjectDownload(self.remote_store, project, destination_path, path_filter)
-        #project_download.run()
 
 
 class AddUserCommand(BaseCommand):

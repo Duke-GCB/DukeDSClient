@@ -5,7 +5,7 @@ from ddsc.config import create_config
 from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile, RemotePath
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
-from ddsc.core.download import FileHashStatus, DownloadSettings, FileDownloader, FileToDownload
+from ddsc.core.download import FileDownloadState, download_file #, DownloadSettings, FileDownloader, FileToDownload
 from ddsc.core.util import KindType, NoOpProgressPrinter, REMOTE_PATH_SEP, humanize_bytes, plural_fmt
 from ddsc.core.moveutil import MoveUtil
 from future.utils import python_2_unicode_compatible
@@ -391,6 +391,10 @@ class Project(BaseResponseItem):
     def get_project_files_generator(self, page_size):
         return self.dds_connection.get_project_files_generator(self.id, page_size)
 
+    def get_project_files(self):
+        # TODO
+        return []
+
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
 
@@ -511,16 +515,10 @@ class File(BaseResponseItem):
         path = file_path
         if not path:
             path = self.name
-        project_file = ProjectFile.create_for_dds_file_dict(self._data_dict)
-        files_to_download = [FileToDownload(project_file.json_data, path)]
-        settings = DownloadSettings(self.dds_connection.data_service,
-                                    self.dds_connection.config,
-                                    NoOpProgressPrinter())
-        file_url_downloader = FileDownloader(settings, files_to_download)
-        file_url_downloader.run()
 
-        file_hash_status = FileHashStatus.determine_for_hashes(self.current_version['upload']['hashes'], path)
-        file_hash_status.raise_for_status()
+        project_file = ProjectFile.create_for_dds_file_dict(self._data_dict)
+        download_file_state = download_file(FileDownloadState(project_file, path, self.dds_connection.config))
+        download_file_state.raise_for_status()
 
     def delete(self):
         """
