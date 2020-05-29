@@ -5,8 +5,8 @@ from ddsc.config import create_config
 from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile, RemotePath
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
-from ddsc.core.download import FileDownloadState, download_file #, DownloadSettings, FileDownloader, FileToDownload
-from ddsc.core.util import KindType, NoOpProgressPrinter, REMOTE_PATH_SEP, humanize_bytes, plural_fmt
+from ddsc.core.download import FileDownloadState, download_file
+from ddsc.core.util import KindType, REMOTE_PATH_SEP, humanize_bytes, plural_fmt
 from ddsc.core.moveutil import MoveUtil
 from future.utils import python_2_unicode_compatible
 

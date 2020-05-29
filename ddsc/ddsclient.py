@@ -9,7 +9,7 @@ from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
 from ddsc.core.localstore import LocalProject
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.projectuploader import ProjectUploadDryRun
-from ddsc.cmdparser import CommandParser, replace_invalid_path_chars
+from ddsc.cmdparser import CommandParser, format_destination_path, replace_invalid_path_chars
 from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
@@ -233,9 +233,10 @@ class DownloadCommand(ClientCommand):
         if not folder:
             folder = replace_invalid_path_chars(project.name.replace(' ', '_'))
         path_filter = None
-        if args.include_paths or  args.exclude_paths:
+        if args.include_paths or args.exclude_paths:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
-        downloader = ProjectFileDownloader(self.config, folder, project, path_filter=path_filter)
+        destination_path = format_destination_path(folder)
+        downloader = ProjectFileDownloader(self.config, destination_path, project, path_filter=path_filter)
         downloader.run()
 
 

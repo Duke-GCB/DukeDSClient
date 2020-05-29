@@ -115,9 +115,10 @@ class TestD4S2Project(TestCase):
                             user_message='Yet Another Message.')
         self.assertEqual(str(raised_error.exception), USER_WITHOUT_EMAIL_MESSAGE.format('deliver', 'deliver'))
 
-    @patch('ddsc.core.d4s2.ProjectDownload')
+    @patch('ddsc.core.d4s2.ProjectFileDownloader')
+    @patch('ddsc.core.d4s2.Client')
     @patch('ddsc.core.d4s2.ProjectUpload')
-    def test_copy_project(self, mock_project_upload, mock_project_download):
+    def test_copy_project(self, mock_project_upload, mock_client, mock_project_file_downloader):
         data_service = MagicMock()
         remote_store = MagicMock(data_service=data_service)
         remote_store.fetch_remote_project.return_value = None
@@ -125,16 +126,30 @@ class TestD4S2Project(TestCase):
         path_filter = PathFilter(include_paths=[], exclude_paths=[])
         project._copy_project(Mock(name='mouse'), 'new_mouse', path_filter)
         data_service.create_activity.assert_called()
-
-        mock_project_download.assert_called()
-        args, kwargs = mock_project_download.call_args
-        download_pre_processor = kwargs['file_download_pre_processor']
-        self.assertEqual(DownloadedFileRelations, download_pre_processor.__class__)
+        mock_project_file_downloader.return_value.run.assert_called_with()
 
         mock_project_upload.create_for_paths.assert_called()
         args, kwargs = mock_project_upload.create_for_paths.call_args
         file_upload_post_processor = kwargs['file_upload_post_processor']
         self.assertEqual(UploadedFileRelations, file_upload_post_processor.__class__)
+
+    @patch('ddsc.core.d4s2.ProjectFileDownloader')
+    @patch('ddsc.core.d4s2.Client')
+    def test_download_project(self, mock_client, mock_project_file_downloader):
+        data_service = MagicMock()
+        remote_store = MagicMock(data_service=data_service)
+        remote_store.fetch_remote_project.return_value = None
+        project = D4S2Project(config=MagicMock(), remote_store=remote_store, print_func=MagicMock())
+        project.client.get_project_by_id.return_value.get_project_files.return_value = [
+            Mock(path='/data/file.txt', current_version={'id': '123'})
+        ]
+        activity = Mock(remote_path_to_file_version_id={})
+        path_filter = PathFilter(include_paths=[], exclude_paths=[])
+        project._download_project(activity, '123abc', '/tmp/data', path_filter)
+
+        mock_project_file_downloader.return_value.run.assert_called_with()
+        data_service.create_used_relation.assert_called_with(activity.id, 'dds-file', '123')
+        self.assertEqual(activity.remote_path_to_file_version_id, {'/data/file.txt': '123'})
 
 
 class TestCopyActivity(TestCase):
@@ -174,11 +189,10 @@ class TestDownloadedFileRelations(TestCase):
         data_service = MagicMock()
         data_service.create_activity().json().__getitem__.return_value = new_activity_id
         data_service.get_file.return_value.json.return_value = {'current_version': {'id': file_version_id}}
-        remote_file = Mock(path=file_remote_path, file_version_id=file_version_id)
         activity = CopyActivity(data_service, Mock(name='mouse'), "mouse_copy")
 
         downloaded_file_relations = DownloadedFileRelations(activity)
-        downloaded_file_relations.run(data_service, remote_file)
+        downloaded_file_relations.add(data_service, file_remote_path, file_version_id)
 
         # run should create a used relationship
         data_service.create_used_relation.assert_called()

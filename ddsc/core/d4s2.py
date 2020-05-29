@@ -369,8 +369,10 @@ class D4S2Project(object):
 
         downloaded_file_relations = DownloadedFileRelations(activity)
         for project_file in project.get_project_files():
-            if path_filter.include(project_file.path):
-                downloaded_file_relations.add(project_file.path, project_file.current_version['id'])
+            if path_filter.include_path(project_file.path):
+                downloaded_file_relations.add(self.remote_store.data_service,
+                                              project_file.path,
+                                              project_file.current_version['id'])
 
     def _upload_project(self, activity, project_name, temp_directory):
         """
@@ -443,10 +445,11 @@ class DownloadedFileRelations(object):
         """
         self.activity = activity
 
-    def add(self, remote_path, file_version_id):
+    def add(self, data_service, remote_path, file_version_id):
         """
         Attach a remote file to activity with used relationship.
         """
+        data_service.create_used_relation(self.activity.id, KindType.file_str, file_version_id)
         self.activity.remote_path_to_file_version_id[remote_path] = file_version_id
 
 

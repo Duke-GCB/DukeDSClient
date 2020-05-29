@@ -133,8 +133,8 @@ class FileDownloadState(object):
     """
     Contains details passed between foreground ProjectFileDownloader and background download_file function
     """
-    NEW = 'new' # initial state before downloading
-    GOOD = 'good' # successfully download and verified the file's hash
+    NEW = 'new'  # initial state before downloading
+    GOOD = 'good'  # successfully download and verified the file's hash
     ALREADY_COMPLETE = 'already_complete'  # the file already exists and has a correct md5 sum
     EXPIRED_URL = 'expired_url'  # backend url expired before we got a chance to download it
     ERROR = 'error'  # an error occurred during download
@@ -149,7 +149,7 @@ class FileDownloadState(object):
         self.download_bytes_per_chunk = config.download_bytes_per_chunk
         self.state = self.NEW
         self.status = None
-        self.msg = ''
+        self.msg = 'New state'
 
     def calculate_file_hash_status(self):
         return FileHashStatus.determine_for_hashes(self.hashes, self.output_path)
@@ -309,7 +309,7 @@ class ProjectFileDownloader(object):
                 parts_downloaded += parts_per_file
             else:
                 parts_downloaded += int(parts_per_file * float(bytes_downloaded / file_size))
-        return downloaded_files, float(parts_downloaded/parts_to_download) * 100
+        return downloaded_files, float(parts_downloaded / parts_to_download) * 100
 
     def _pop_ready_download_results(self):
         ready_results = []
@@ -396,4 +396,3 @@ def compute_download_result(file_download_state, written_size):
     else:
         msg = "Downloaded file was wrong size. Expected: {} Actual: {} ".format(file_download_state.size, written_size)
         return file_download_state.error(msg=msg)
-

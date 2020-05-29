@@ -19,6 +19,7 @@ CONNECTION_RETRY_MESSAGE = "Connection failed. Retrying."
 DDS_TOTAL_PAGES_HEADER = 'x-total-pages'
 DDS_TOTAL_HEADER = 'x-total'
 
+
 def get_user_agent_str():
     """
     Returns the user agent: DukeDSClient/<version>
