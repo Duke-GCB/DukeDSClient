@@ -1,5 +1,6 @@
 import sys
 import requests
+from requests.exceptions import HTTPError
 import os
 import multiprocessing
 import time
@@ -245,13 +246,14 @@ class ProjectFileDownloader(object):
             self._print_path_filter_warnings()
             self.files_to_download = len(project_files)
             self.show_progress_bar()
+            for project_file in project_files:
+                yield project_file
         else:
-            project_files = project_files_generator
-        for project_file, headers in project_files:
-            if self.files_to_download is None:
-                self.files_to_download = int(headers.get(DDS_TOTAL_HEADER))
-                self.show_progress_bar()
-            yield project_file
+            for project_file, headers in project_files_generator:
+                if self.files_to_download is None:
+                    self.files_to_download = int(headers.get(DDS_TOTAL_HEADER))
+                    self.show_progress_bar()
+                yield project_file
 
     def _filter_project_files(self, project_files_generator):
         project_files = []
@@ -284,13 +286,17 @@ class ProjectFileDownloader(object):
         if download_results:
             self._process_download_results(pool, download_results)
         else:
-            try:
-                file_id, bytes_downloaded, file_size = self.message_queue.get_nowait()
-                self.file_download_statuses[file_id] = (bytes_downloaded, file_size)
-                self.show_progress_bar()
-            except queue.Empty:
-                pass
+            self._try_process_message_queue()
             time.sleep(0)  # Pause to give up CPU since no results are ready
+
+    def _try_process_message_queue(self):
+        try:
+            file_id, bytes_downloaded, file_size = self.message_queue.get_nowait()
+            # This might be out of date for a little bit
+            self.file_download_statuses[file_id] = (bytes_downloaded, file_size)
+            self.show_progress_bar()
+        except queue.Empty:
+            pass
 
     def show_progress_bar(self):
         downloaded_files, download_percent = self.get_downloaded_files_and_percent()
@@ -362,9 +368,9 @@ def download_file(file_download_state, message_queue=None):
         return compute_download_result(file_download_state, written_size)
     except URLExpiredException:
         msg = 'Expired URL: {}'.format(file_download_state.url)
-        return file_download_state.mark_expired_url(file_download_state, msg)
+        return file_download_state.mark_expired_url(msg)
     except Exception as error:
-        return file_download_state.mark_error(file_download_state, msg=str(error))
+        return file_download_state.mark_error(msg=str(error))
 
 
 def download_url_to_path(file_download_state, message_queue=None):
@@ -380,7 +386,7 @@ def download_url_to_path(file_download_state, message_queue=None):
                     if message_queue:
                         message_queue.put((file_download_state.file_id, written_size, file_download_state.size))
         return written_size
-    except requests.exceptions.HTTPError:
+    except HTTPError:
         if response.status_code == SWIFT_EXPIRED_STATUS_CODE or response.status_code == S3_EXPIRED_STATUS_CODE:
             raise URLExpiredException()
         raise
@@ -394,5 +400,5 @@ def compute_download_result(file_download_state, written_size):
         else:
             return file_download_state.mark_error(msg=file_hash_status.get_status_line())
     else:
-        msg = "Downloaded file was wrong size. Expected: {} Actual: {} ".format(file_download_state.size, written_size)
-        return file_download_state.error(msg=msg)
+        msg = "Downloaded file was wrong size. Expected: {} Actual: {}".format(file_download_state.size, written_size)
+        return file_download_state.mark_error(msg=msg)
