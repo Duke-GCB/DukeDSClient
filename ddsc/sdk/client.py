@@ -394,9 +394,10 @@ class Project(BaseResponseItem):
     def get_project_files_generator(self, page_size):
         return self.dds_connection.get_project_files_generator(self.id, page_size)
 
-    def get_project_files(self):
-        # TODO
-        return []
+    def get_path_to_files(self):
+        path_to_nodes = PathToFiles()
+        path_to_nodes.add_paths_for_children_of_node(self)
+        return path_to_nodes.paths
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)

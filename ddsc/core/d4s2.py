@@ -368,11 +368,11 @@ class D4S2Project(object):
         downloader.run()
 
         downloaded_file_relations = DownloadedFileRelations(activity)
-        for project_file in project.get_project_files():
-            if path_filter.include_path(project_file.path):
+        for remote_path, dds_file in project.get_path_to_files().items():
+            if path_filter.include_path(remote_path):
                 downloaded_file_relations.add(self.remote_store.data_service,
-                                              project_file.path,
-                                              project_file.current_version['id'])
+                                              remote_path,
+                                              dds_file.current_version['id'])
 
     def _upload_project(self, activity, project_name, temp_directory):
         """
