@@ -272,7 +272,10 @@ class ProjectFileDownloader(object):
         output_path = project_file.get_local_path(self.dest_directory)
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         file_download_state = FileDownloadState(project_file, output_path, self.config)
-        async_result = pool.apply_async(download_file, (self.message_queue, file_download_state))
+        self._async_download_file(pool, file_download_state)
+
+    def _async_download_file(self, pool, file_download_state):
+        async_result = pool.apply_async(download_file, (file_download_state, self.message_queue))
         self.async_download_results.append(async_result)
 
     def _work_queue_is_full(self):
@@ -343,13 +346,13 @@ class ProjectFileDownloader(object):
                 self.file_download_statuses[file_id] = (size, size)
                 self.download_status_list.append(status)
             elif file_download_state.retries:
+                print("retriying {}".format(file_download_state.output_path))
                 file_download_state.retries -= 1
                 # Refresh url in file_download_state
                 file_download = self.dds_connection.get_file_download(file_download_state.file_id)
                 file_download_state.url = file_download.host + file_download.url
                 # Re-run download process
-                async_result = pool.apply_async(download_file, (file_download_state, self.message_queue))
-                self.async_download_results.append(async_result)
+                self._async_download_file(pool, file_download_state)
             else:
                 raise ValueError("Error downloading {}\n{}".format(
                     file_download_state.output_path,
