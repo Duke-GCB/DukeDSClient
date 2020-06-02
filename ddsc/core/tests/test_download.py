@@ -215,7 +215,7 @@ class TestProjectFileDownloader(TestCase):
 
         mock_queue = mock_multiprocessing.Manager.return_value.Queue.return_value
         mock_pool.apply_async.assert_called_with(
-            download_file, (mock_queue, mock_file_download_state.return_value)
+            download_file, (mock_file_download_state.return_value, mock_queue)
         )
         output_path = mock_project_file.get_local_path.return_value
         mock_file_download_state.assert_called_with(mock_project_file, output_path, self.config)
@@ -396,8 +396,8 @@ class TestProjectFileDownloader(TestCase):
         mock_os.path.dirname.assert_called_with("/tmp/data.out")
         mock_os.makedirs.assert_called_with(mock_os.path.dirname.return_value, exist_ok=True)
         mock_file_download_state.assert_called_with(mock_project_file, '/tmp/data.out', self.config)
-        mock_pool.apply_async.assert_called_with(download_file, (project_file_downloader.message_queue,
-                                                                 mock_file_download_state.return_value))
+        mock_pool.apply_async.assert_called_with(download_file, (mock_file_download_state.return_value,
+                                                                 project_file_downloader.message_queue))
 
     @patch('ddsc.core.download.multiprocessing')
     def test_work_queue_is_full(self, mock_multiprocessing):

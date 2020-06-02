@@ -346,7 +346,6 @@ class ProjectFileDownloader(object):
                 self.file_download_statuses[file_id] = (size, size)
                 self.download_status_list.append(status)
             elif file_download_state.retries:
-                print("retriying {}".format(file_download_state.output_path))
                 file_download_state.retries -= 1
                 # Refresh url in file_download_state
                 file_download = self.dds_connection.get_file_download(file_download_state.file_id)
