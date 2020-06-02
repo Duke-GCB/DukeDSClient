@@ -281,6 +281,9 @@ class DDSConnection(object):
         for project_file_dict, header_metadata in self.data_service.get_project_files_generator(project_id, page_size):
             yield ProjectFile(project_file_dict), header_metadata
 
+    def get_file_url_dict(self, file_id):
+        return self.data_service.get_file_url(file_id).json()
+
 
 class BaseResponseItem(object):
     """
@@ -515,8 +518,9 @@ class File(BaseResponseItem):
         path = file_path
         if not path:
             path = self.name
-
-        project_file = ProjectFile.create_for_dds_file_dict(self._data_dict)
+        project_file_dict = dict(self._data_dict)
+        project_file_dict['file_url'] = self.dds_connection.get_file_url_dict(self.id)
+        project_file = ProjectFile.create_for_dds_file_dict(project_file_dict)
         download_file_state = download_file(FileDownloadState(project_file, path, self.dds_connection.config))
         download_file_state.raise_for_status()
 

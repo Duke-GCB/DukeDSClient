@@ -629,11 +629,13 @@ class TestFile(TestCase):
     @patch('ddsc.sdk.client.download_file')
     def test_download_to_path(self, mock_download_file, mock_file_download_state, mock_project_file):
         mock_dds_connection = Mock()
-
+        mock_dds_connection.get_file_url_dict.return_value = {'host': 'somehost', 'url': 'someurl'}
         file = File(mock_dds_connection, self.file_dict)
         file.download_to_path('/tmp/data.dat')
 
-        mock_project_file.create_for_dds_file_dict.assert_called_with(self.file_dict)
+        expected_file_url_dict = dict(self.file_dict)
+        expected_file_url_dict['file_url'] = {'host': 'somehost', 'url': 'someurl'}
+        mock_project_file.create_for_dds_file_dict.assert_called_with(expected_file_url_dict)
         mock_file_download_state.assert_called_with(
             mock_project_file.create_for_dds_file_dict.return_value, '/tmp/data.dat', mock_dds_connection.config)
         mock_download_file.assert_called_with(mock_file_download_state.return_value)
