@@ -140,9 +140,9 @@ class TestD4S2Project(TestCase):
         remote_store = MagicMock(data_service=data_service)
         remote_store.fetch_remote_project.return_value = None
         project = D4S2Project(config=MagicMock(), remote_store=remote_store, print_func=MagicMock())
-        project.client.get_project_by_id.return_value.get_project_files.return_value = [
-            Mock(path='/data/file.txt', current_version={'id': '123'})
-        ]
+        project.client.get_project_by_id.return_value.get_path_to_files.return_value = {
+            '/data/file.txt': Mock(current_version={'id': '123'})
+        }
         activity = Mock(remote_path_to_file_version_id={})
         path_filter = PathFilter(include_paths=[], exclude_paths=[])
         project._download_project(activity, '123abc', '/tmp/data', path_filter)
