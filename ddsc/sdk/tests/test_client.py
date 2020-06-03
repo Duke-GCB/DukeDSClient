@@ -2,7 +2,7 @@ from unittest import TestCase
 from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File, FileDownload, FileUpload, \
     ChildFinder, PathToFiles, ItemNotFound, ProjectSummary
 from ddsc.core.util import KindType
-from mock import patch, Mock
+from mock import patch, Mock, call
 
 
 class TestClient(TestCase):
@@ -411,6 +411,34 @@ class TestDDSConnection(TestCase):
         updated_file = dds_connection.move_file('abc123', 'dds-folder', 'def456')
         self.assertEqual(updated_file, mock_file.return_value)
         mock_data_service_api.return_value.move_file.assert_called_with('abc123', 'dds-folder', 'def456')
+
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    def test_get_file_url_dict(self, mock_data_service_auth, mock_data_service_api):
+        dds_connection = DDSConnection(Mock())
+        mock_data_service_api.return_value.get_file_url.return_value.json.return_value = {"id": "123"}
+        self.assertEqual(dds_connection.get_file_url_dict('123'), {"id": "123"})
+        mock_data_service_api.return_value.get_file_url.assert_called_with('123')
+
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    @patch('ddsc.sdk.client.ProjectFile')
+    def test_get_project_files_generator(self, mock_project_file, mock_data_service_auth, mock_data_service_api):
+        mock_data_service_api.return_value.get_project_files_generator.return_value = [
+            ({'id': '123'}, {'header': 'true'}),
+            ({'id': '456'}, {'header': 'true'}),
+        ]
+        dds_connection = DDSConnection(Mock())
+        projects_and_headers = list(dds_connection.get_project_files_generator(project_id='123', page_size=10))
+        self.assertEqual(projects_and_headers, [
+            (mock_project_file.return_value, {'header': 'true'}),
+            (mock_project_file.return_value, {'header': 'true'}),
+        ])
+        mock_project_file.assert_has_calls([
+            call({'id': '123'}),
+            call({'id': '456'}),
+        ])
+        mock_data_service_api.return_value.get_project_files_generator.assert_called_with('123', 10)
 
 
 class TestBaseResponseItem(TestCase):

@@ -638,7 +638,7 @@ class TestDataServiceApi(TestCase):
             "results": [
                 {
                     "id": "1234"
-                },{
+                }, {
                     "id": "5678"
                 }
             ]
