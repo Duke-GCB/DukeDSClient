@@ -31,6 +31,7 @@ class TestConfig(TestCase):
             'agent_key': '456',
             'upload_workers': 45,
             'download_workers': 44,
+            'file_download_retries': 2
         }
 
         config.update_properties(global_config)
@@ -42,6 +43,7 @@ class TestConfig(TestCase):
         num_upload_workers = min(multiprocessing.cpu_count(), ddsc.config.MAX_DEFAULT_WORKERS)
         self.assertEqual(config.upload_workers, num_upload_workers)
         self.assertEqual(config.download_workers, int(math.ceil(num_upload_workers / 2)))
+        self.assertEqual(config.file_download_retries, ddsc.config.DEFAULT_FILE_DOWNLOAD_RETRIES)
 
         config.update_properties(local_config)
         self.assertEqual(config.url, 'dataservice2.com')
@@ -51,6 +53,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.upload_bytes_per_chunk, 1293892)
         self.assertEqual(config.upload_workers, 45)
         self.assertEqual(config.download_workers, 44)
+        self.assertEqual(config.file_download_retries, 2)
 
     def test_MB_chunk_convert(self):
         config = ddsc.config.Config()
