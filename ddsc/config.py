@@ -162,8 +162,7 @@ class Config(object):
         Return the number of parallel works to use when downloading a file.
         :return: int number of workers. Specify None or 1 to disable parallel downloading
         """
-        # Profiling download on different servers showed half the number of CPUs to be optimum for speed.
-        default_workers = int(math.ceil(default_num_workers() / 2))
+        default_workers = int(math.ceil(default_num_workers()))
         return self.values.get(Config.DOWNLOAD_WORKERS, default_workers)
 
     @property

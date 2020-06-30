@@ -7,6 +7,7 @@ import time
 import queue
 from ddsc.core.localstore import HashUtil
 from ddsc.core.ddsapi import DDS_TOTAL_HEADER
+from ddsc.core.util import humanize_bytes
 
 SWIFT_EXPIRED_STATUS_CODE = 401
 S3_EXPIRED_STATUS_CODE = 403
@@ -302,23 +303,26 @@ class ProjectFileDownloader(object):
             pass
 
     def show_progress_bar(self):
-        downloaded_files, download_percent = self.get_downloaded_files_and_percent()
-        sys.stdout.write("\rDownloaded {:.0f}% - {} of {} files".format(download_percent, downloaded_files,
-                                                                        self.files_to_download))
+        downloaded_files, download_percent, total_bytes_downloaded = self.get_downloaded_files_and_percent()
+        sys.stdout.write("\r{:.0f}% {} - Downloaded {} of {} files".format(
+            download_percent, humanize_bytes(total_bytes_downloaded), downloaded_files, self.files_to_download)
+        )
 
     def get_downloaded_files_and_percent(self):
         parts_per_file = 100
         downloaded_files = 0
         parts_to_download = float(self.files_to_download * parts_per_file)
         parts_downloaded = 0
+        total_bytes_downloaded = 0
         for file_id, download_info in self.file_download_statuses.items():
             bytes_downloaded, file_size = download_info
+            total_bytes_downloaded = bytes_downloaded
             if bytes_downloaded == file_size:
                 downloaded_files += 1
                 parts_downloaded += parts_per_file
             else:
                 parts_downloaded += int(parts_per_file * float(bytes_downloaded / file_size))
-        return downloaded_files, float(parts_downloaded / parts_to_download) * 100
+        return downloaded_files, float(parts_downloaded / parts_to_download) * 100, total_bytes_downloaded
 
     def _pop_ready_download_results(self):
         ready_results = []
