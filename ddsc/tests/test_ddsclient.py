@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand, ClientCommand, MoveCommand
-from ddsc.ddsclient import ShareCommand, DeliverCommand, InfoCommand, read_argument_file_contents
+from ddsc.ddsclient import ShareCommand, DeliverCommand, InfoCommand, read_argument_file_contents, \
+    INVALID_DELIVERY_RECIPIENT_MSG
 from mock import patch, MagicMock, Mock, call, ANY
 
 
@@ -36,10 +37,13 @@ class TestBaseCommand(TestCase):
     def test_make_user_list(self, mock_remote_store):
         mock_config = MagicMock()
         base_cmd = BaseCommand(mock_config)
-        mock_remote_store.return_value.fetch_users.return_value = [
+        mock_remote_store.return_value.get_or_register_user_by_username.side_effect = [
             Mock(username='joe', email='joe@joe.joe'),
             Mock(username='bob', email='bob@bob.bob'),
-            Mock(username='tim', email='tim@tim.tim'),
+        ]
+        mock_remote_store.return_value.get_or_register_user_by_email.side_effect = [
+            Mock(username='joe', email='joe@joe.joe'),
+            ValueError("Invalid")
         ]
 
         # Find users by username
@@ -48,15 +52,22 @@ class TestBaseCommand(TestCase):
             'bob'
         ])
         self.assertEqual([user.email for user in results], ['joe@joe.joe', 'bob@bob.bob'])
+        mock_remote_store.return_value.get_or_register_user_by_username.assert_has_calls([
+            call("joe"),
+            call("bob")
+        ])
 
         # Find users by email
         results = base_cmd.make_user_list(emails=['joe@joe.joe'], usernames=None)
         self.assertEqual([user.username for user in results], ['joe'])
+        mock_remote_store.return_value.get_or_register_user_by_email.assert_has_calls([
+            call("joe@joe.joe")
+        ])
 
-        # Should get an error for invalid emails or usernames
+        # Should get an error for invalid users
         with self.assertRaises(ValueError) as raisedError:
-            base_cmd.make_user_list(emails=['no@no.no'], usernames=['george'])
-        self.assertEqual('Unable to find users for the following email/usernames: no@no.no,george',
+            base_cmd.make_user_list(emails=['no@no.no'], usernames=[])
+        self.assertEqual('Invalid',
                          str(raisedError.exception))
 
 
@@ -285,6 +296,62 @@ class TestDeliverCommand(TestCase):
             self.assertEqual(new_project_name, None)
             args, kwargs = mock_remote_store.return_value.fetch_remote_project.call_args
             self.assertEqual('456', args[0].get_id_or_raise())
+
+    @patch('ddsc.ddsclient.RemoteStore')
+    @patch('ddsc.ddsclient.D4S2Project')
+    def test_run_share_users_good(self, mock_d4s2_project, mock_remote_store):
+        mock_to_user = Mock()
+        mock_share_user = Mock()
+        mock_remote_store.return_value.lookup_or_register_user_by_email_or_username.return_value = mock_to_user
+        mock_remote_store.return_value.get_or_register_user_by_username.return_value = mock_share_user
+        cmd = DeliverCommand(MagicMock())
+        cmd.get_new_project_name = Mock()
+        cmd.get_new_project_name.return_value = 'NewProjectName'
+        myargs = Mock(project_name='mouse',
+                      project_id=None,
+                      email=None,
+                      resend=False,
+                      username='joe123',
+                      share_usernames=['joe456'],
+                      share_emails=[],
+                      copy_project=True,
+                      include_paths=None,
+                      exclude_paths=None,
+                      msg_file=None)
+        cmd.run(myargs)
+        mock_d4s2_project.return_value.deliver.assert_called_with(
+            mock_remote_store.return_value.fetch_remote_project.return_value,
+            'NewProjectName',
+            mock_to_user,
+            [mock_share_user],
+            False,
+            ANY,
+            ''
+        )
+
+    @patch('ddsc.ddsclient.RemoteStore')
+    @patch('ddsc.ddsclient.D4S2Project')
+    def test_run_share_users_invalid(self, mock_d4s2_project, mock_remote_store):
+        mock_remote_user = Mock()
+        mock_remote_store.return_value.lookup_or_register_user_by_email_or_username.return_value = mock_remote_user
+        mock_remote_store.return_value.get_or_register_user_by_username.return_value = mock_remote_user
+        cmd = DeliverCommand(MagicMock())
+        cmd.get_new_project_name = Mock()
+        cmd.get_new_project_name.return_value = 'NewProjectName'
+        myargs = Mock(project_name='mouse',
+                      project_id=None,
+                      email=None,
+                      resend=False,
+                      username='joe123',
+                      share_usernames=['joe123'],
+                      share_emails=[],
+                      copy_project=True,
+                      include_paths=None,
+                      exclude_paths=None,
+                      msg_file=None)
+        with self.assertRaises(ValueError) as raised_exception:
+            cmd.run(myargs)
+        self.assertEqual(str(raised_exception.exception), INVALID_DELIVERY_RECIPIENT_MSG)
 
 
 class TestDDSClient(TestCase):

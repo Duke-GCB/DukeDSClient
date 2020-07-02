@@ -18,6 +18,7 @@ from ddsc.sdk.client import Client
 from ddsc.core.download import ProjectFileDownloader
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
+INVALID_DELIVERY_RECIPIENT_MSG = 'Delivery recipient cannot be a share user. Remove recipient from --share-users and try again.'
 TWO_SECONDS = 2
 
 
@@ -128,19 +129,14 @@ class BaseCommand(object):
         :return: [RemoteUser]: details about any users referenced the two parameters
         """
         to_users = []
-        remaining_emails = [] if not emails else list(emails)
-        remaining_usernames = [] if not usernames else list(usernames)
-        for user in self.remote_store.fetch_users():
-            if user.email in remaining_emails:
+        if emails:
+            for email in emails:
+                user = self.remote_store.get_or_register_user_by_email(email)
                 to_users.append(user)
-                remaining_emails.remove(user.email)
-            elif user.username in remaining_usernames:
+        if usernames:
+            for username in usernames:
+                user = self.remote_store.get_or_register_user_by_username(username)
                 to_users.append(user)
-                remaining_usernames.remove(user.username)
-        if remaining_emails or remaining_usernames:
-            unable_to_find_users = ','.join(remaining_emails + remaining_usernames)
-            msg = "Unable to find users for the following email/usernames: {}".format(unable_to_find_users)
-            raise ValueError(msg)
         return to_users
 
 
@@ -359,6 +355,8 @@ class DeliverCommand(BaseCommand):
         if copy_project:
             new_project_name = self.get_new_project_name(project.name)
         to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
+        if to_user.id in [share_user.id for share_user in share_users]:
+            raise ValueError(INVALID_DELIVERY_RECIPIENT_MSG)
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
             dest_email = self.service.deliver(project, new_project_name, to_user, share_users,
