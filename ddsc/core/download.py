@@ -319,7 +319,7 @@ class ProjectFileDownloader(object):
         total_bytes_downloaded = 0
         for file_id, download_info in self.file_download_statuses.items():
             bytes_downloaded, file_size = download_info
-            total_bytes_downloaded = bytes_downloaded
+            total_bytes_downloaded += bytes_downloaded
             if bytes_downloaded == file_size:
                 downloaded_files += 1
                 parts_downloaded += parts_per_file
