@@ -304,8 +304,11 @@ class ProjectFileDownloader(object):
 
     def show_progress_bar(self):
         downloaded_files, download_percent, total_bytes_downloaded = self.get_downloaded_files_and_percent()
-        sys.stdout.write("\r{:.0f}% {} - Downloaded {} of {} files".format(
-            download_percent, humanize_bytes(total_bytes_downloaded), downloaded_files, self.files_to_download)
+        format_pattern = "\rDownloaded {} ({} of {} files complete) "
+        sys.stdout.write(format_pattern.format(
+            humanize_bytes(total_bytes_downloaded).ljust(12),
+            downloaded_files,
+            self.files_to_download)
         )
 
     def get_downloaded_files_and_percent(self):
