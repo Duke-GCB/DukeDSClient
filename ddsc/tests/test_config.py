@@ -42,7 +42,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.upload_bytes_per_chunk, 1293892)
         num_upload_workers = min(multiprocessing.cpu_count(), ddsc.config.MAX_DEFAULT_WORKERS)
         self.assertEqual(config.upload_workers, num_upload_workers)
-        self.assertEqual(config.download_workers, int(math.ceil(num_upload_workers / 2)))
+        self.assertEqual(config.download_workers, int(math.ceil(num_upload_workers)))
         self.assertEqual(config.file_download_retries, ddsc.config.DEFAULT_FILE_DOWNLOAD_RETRIES)
 
         config.update_properties(local_config)

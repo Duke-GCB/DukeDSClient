@@ -200,7 +200,8 @@ class TestProjectFileDownloader(TestCase):
     @patch('ddsc.core.download.os')
     @patch('ddsc.core.download.print')
     @patch('ddsc.core.download.FileDownloadState')
-    def test_run(self, mock_file_download_state, mock_print, mock_os, mock_multiprocessing):
+    @patch('ddsc.core.download.time')
+    def test_run(self, mock_time, mock_file_download_state, mock_print, mock_os, mock_multiprocessing):
         mock_project_file = Mock(file_url={'host': 'somehost', 'url': '/api/file1.txt'})
         self.project.get_project_files_generator.return_value = [
             (mock_project_file, {DDS_TOTAL_HEADER: 1})
@@ -211,6 +212,7 @@ class TestProjectFileDownloader(TestCase):
 
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
                                                         path_filter=None)
+        project_file_downloader.show_progress_bar = Mock()
         project_file_downloader.run()
 
         mock_queue = mock_multiprocessing.Manager.return_value.Queue.return_value
@@ -454,35 +456,38 @@ class TestProjectFileDownloader(TestCase):
     @patch('ddsc.core.download.multiprocessing')
     def test_try_process_message_queue_has_data(self, mock_multiprocessing):
         downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
-        downloader.message_queue.get_nowait.return_value = ('123', 100, 200)
+        downloader.message_queue.get_nowait.return_value = ('123', 100, 200, FileDownloadState.DOWNLOADING)
         downloader.show_progress_bar = Mock()
         downloader._try_process_message_queue()
-        self.assertEqual(downloader.file_download_statuses, {'123': (100, 200)})
+        self.assertEqual(downloader.file_download_statuses, {'123': (100, 200, FileDownloadState.DOWNLOADING)})
         downloader.show_progress_bar.assert_called_with()
 
     @patch('ddsc.core.download.multiprocessing')
     @patch('ddsc.core.download.sys')
-    def test_show_progress_bar(self, mock_sys, mock_multiprocessing):
+    @patch('ddsc.core.download.time')
+    def test_show_progress_bar(self, mock_time, mock_sys, mock_multiprocessing):
+        mock_time.time.return_value = 100
         downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
         downloader.files_to_download = 20
-        downloader.get_downloaded_files_and_percent = Mock()
-        downloader.get_downloaded_files_and_percent.return_value = (10, 50)
+        downloader.start_time = 0
+        downloader.get_download_progress = Mock()
+        downloader.get_download_progress.return_value = (10, 1000)
         downloader.show_progress_bar()
-        mock_sys.stdout.write.assert_called_with('\rDownloaded 50% - 10 of 20 files')
+        mock_sys.stdout.write.assert_called_with('\r| downloaded 1 KB @ 10 B/s          (10 of 20 files complete)')
 
     @patch('ddsc.core.download.multiprocessing')
-    def test_get_downloaded_files_and_percent(self, mock_multiprocessing):
+    def test_get_download_progress(self, mock_multiprocessing):
         downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
         downloader.files_to_download = 10
         downloader.file_download_statuses = {
-            '123': (10, 100),
-            '124': (200, 200),
-            '125': (200, 200),
-            '126': (200, 200),
+            '123': (10, 100, FileDownloadState.DOWNLOADING),
+            '124': (200, 200, FileDownloadState.ALREADY_COMPLETE),
+            '125': (200, 200, FileDownloadState.GOOD),
+            '126': (200, 200, FileDownloadState.GOOD),
         }
-        downloaded_files, download_percent = downloader.get_downloaded_files_and_percent()
-        self.assertEqual(downloaded_files, 3)
-        self.assertEqual(download_percent, 31.0)
+        files_downloaded, total_bytes_downloaded = downloader.get_download_progress()
+        self.assertEqual(files_downloaded, 3)
+        self.assertEqual(total_bytes_downloaded, 410)
 
     @patch('ddsc.core.download.multiprocessing')
     def test_pop_ready_download_results(self, mock_multiprocessing):
@@ -510,13 +515,14 @@ class TestProjectFileDownloader(TestCase):
         result1.file_id = '123'
         result1.size = 4000
         result1.status = 'mystatus'
+        result1.state = FileDownloadState.GOOD
         download_results = [
             result1
         ]
         downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
         downloader.show_progress_bar = Mock()
         downloader._process_download_results(pool, download_results)
-        self.assertEqual(downloader.file_download_statuses, {'123': (4000, 4000)})
+        self.assertEqual(downloader.file_download_statuses, {'123': (4000, 4000, 'good')})
         self.assertEqual(downloader.download_status_list, ['mystatus'])
         downloader.show_progress_bar.assert_called_with()
 
@@ -606,7 +612,8 @@ class TestDownloadFunctions(TestCase):
             output_path='/tmp/outfile.dat',
             download_bytes_per_chunk=10,
             file_id='123abc',
-            size=100
+            size=100,
+            state=FileDownloadState.DOWNLOADING
         )
         message_queue = Mock()
         fake_open = mock_open()
@@ -618,16 +625,16 @@ class TestDownloadFunctions(TestCase):
         mock_response.iter_content.assert_called_with(chunk_size=10)
         mock_requests.get.assert_called_with('someurl', stream=True)
         message_queue.put.assert_has_calls([
-            call(('123abc', 10, 100)),
-            call(('123abc', 20, 100)),
-            call(('123abc', 30, 100)),
-            call(('123abc', 40, 100)),
-            call(('123abc', 50, 100)),
-            call(('123abc', 60, 100)),
-            call(('123abc', 70, 100)),
-            call(('123abc', 80, 100)),
-            call(('123abc', 90, 100)),
-            call(('123abc', 100, 100))
+            call(('123abc', 10, 100, 'downloading')),
+            call(('123abc', 20, 100, 'downloading')),
+            call(('123abc', 30, 100, 'downloading')),
+            call(('123abc', 40, 100, 'downloading')),
+            call(('123abc', 50, 100, 'downloading')),
+            call(('123abc', 60, 100, 'downloading')),
+            call(('123abc', 70, 100, 'downloading')),
+            call(('123abc', 80, 100, 'downloading')),
+            call(('123abc', 90, 100, 'downloading')),
+            call(('123abc', 100, 100, 'downloading'))
         ])
         self.assertEqual(written_size, 100)
 

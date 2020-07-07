@@ -825,9 +825,9 @@ class TestPathToFiles(TestCase):
 class TestProjectSummary(TestCase):
     def test_constructor(self):
         mock_file1 = Mock(kind=KindType.file_str)
-        mock_file1.current_size.return_value = 1024
+        mock_file1.current_size.return_value = 1000
         mock_file2 = Mock(kind=KindType.file_str)
-        mock_file2.current_size.return_value = 2048
+        mock_file2.current_size.return_value = 2000
         mock_folder1 = Mock(kind=KindType.folder_str)
         mock_folder1.get_children.return_value = [
             mock_file1, mock_file2
@@ -841,5 +841,5 @@ class TestProjectSummary(TestCase):
             mock_folder2
         ]
         summary = ProjectSummary(mock_project)
-        expected = "1 top level folder, 1 subfolder, 2 files (3 KiB)"
+        expected = "1 top level folder, 1 subfolder, 2 files (3 KB)"
         self.assertEqual(str(summary), expected)
