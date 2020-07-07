@@ -326,7 +326,7 @@ class ProjectFileDownloader(object):
     def make_download_speed(self, current_time, total_bytes_downloaded):
         elapsed_seconds = current_time - self.start_time
         if elapsed_seconds > 0 and total_bytes_downloaded > 0:
-            bytes_per_second = float(total_bytes_downloaded) / (elapsed_seconds  + 0.5)
+            bytes_per_second = float(total_bytes_downloaded) / (elapsed_seconds + 0.5)
             return '@ {}/s'.format(humanize_bytes(bytes_per_second))
         return ''
 

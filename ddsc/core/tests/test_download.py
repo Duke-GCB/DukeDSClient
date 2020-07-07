@@ -491,13 +491,13 @@ class TestProjectFileDownloader(TestCase):
         downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
         downloader.start_time = 0
         test_values = [
-            #current_time, total_bytes_downloaded, expected
-            (0, 0, ''), # must have elapsed time and bytes downloaded to display speed
+            # current_time, total_bytes_downloaded, expected
+            (0, 0, ''),  # must have elapsed time and bytes downloaded to display speed
             (1, 0, ''),
             (0, 1, ''),
             (59, 1000 * 60, '@ 1 KB/s'),
             (59, 60, '@ 1 B/s'),
-            (59+60, 2 * 1000 * 1000 * 60, '@ 1 MB/s'),
+            (59 + 60, 2 * 1000 * 1000 * 60, '@ 1 MB/s'),
         ]
         for current_time, total_bytes_downloaded, expected in test_values:
             result = downloader.make_download_speed(current_time, total_bytes_downloaded)
