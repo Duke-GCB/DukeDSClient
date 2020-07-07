@@ -414,15 +414,16 @@ def humanize_bytes(num_bytes):
     """
     val = num_bytes
     suffix = "B"
-    if val >= 1024:
-        val = val / 1024
-        suffix = "KiB"
-    if val >= 1024:
-        val = val / 1024
-        suffix = "MiB"
-    if val >= 1024:
-        val = val / 1024
-        suffix = "GiB"
+    factor = 1000
+    if val >= factor:
+        val = val / factor
+        suffix = "KB"
+    if val >= factor:
+        val = val / factor
+        suffix = "MB"
+    if val >= factor:
+        val = val / factor
+        suffix = "GB"
     val = "{:0.1f} {}".format(val, suffix)
     return val.replace(".0", "")
 

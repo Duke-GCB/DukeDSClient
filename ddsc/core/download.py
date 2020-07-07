@@ -136,6 +136,7 @@ class FileDownloadState(object):
     Contains details passed between foreground ProjectFileDownloader and background download_file function
     """
     NEW = 'new'  # initial state before downloading
+    DOWNLOADING = 'downloading'  # state when downloading
     GOOD = 'good'  # successfully download and verified the file's hash
     ALREADY_COMPLETE = 'already_complete'  # the file already exists and has a correct md5 sum
     EXPIRED_URL = 'expired_url'  # backend url expired before we got a chance to download it
@@ -208,8 +209,11 @@ class ProjectFileDownloader(object):
         self.files_to_download = None
         self.file_download_statuses = {}
         self.download_status_list = []
+        self.spinner_chars = "|/-\\"
+        self.start_time = None
 
     def run(self):
+        self.start_time = time.time()
         self._download_files()
         self._show_downloaded_files_status()
 
@@ -295,37 +299,49 @@ class ProjectFileDownloader(object):
 
     def _try_process_message_queue(self):
         try:
-            file_id, bytes_downloaded, file_size = self.message_queue.get_nowait()
+            file_id, bytes_downloaded, file_size, file_state = self.message_queue.get_nowait()
             # This might be out of date for a little bit
-            self.file_download_statuses[file_id] = (bytes_downloaded, file_size)
+            self.file_download_statuses[file_id] = (bytes_downloaded, file_size, file_state)
             self.show_progress_bar()
         except queue.Empty:
             pass
 
     def show_progress_bar(self):
-        downloaded_files, download_percent, total_bytes_downloaded = self.get_downloaded_files_and_percent()
-        format_pattern = "\rDownloaded {} ({} of {} files complete) "
-        sys.stdout.write(format_pattern.format(
-            humanize_bytes(total_bytes_downloaded).ljust(12),
-            downloaded_files,
-            self.files_to_download)
-        )
+        files_downloaded, total_bytes_downloaded = self.get_download_progress()
+        current_time = time.time()
+        bytes_progress = '{} {}'.format(
+            humanize_bytes(total_bytes_downloaded),
+            self.make_download_speed(current_time, total_bytes_downloaded))
+        sys.stdout.write("\r{} downloaded {} ({} of {} files complete)".format(
+            self.make_spinner_char(current_time),
+            bytes_progress.ljust(22),
+            files_downloaded,
+            self.files_to_download
+        ))
 
-    def get_downloaded_files_and_percent(self):
-        parts_per_file = 100
-        downloaded_files = 0
-        parts_to_download = float(self.files_to_download * parts_per_file)
-        parts_downloaded = 0
+    def make_spinner_char(self, current_time):
+        # changes spinner characters every 1/2 second
+        half_seconds = int(current_time * 2 + .5)
+        return self.spinner_chars[half_seconds % 4]
+
+    def make_download_speed(self, current_time, total_bytes_downloaded):
+        elapsed_seconds = current_time - self.start_time + 0.5
+        if elapsed_seconds > 0 and total_bytes_downloaded > 0:
+            bytes_per_second = float(total_bytes_downloaded) / elapsed_seconds
+            return '@ {}/s'.format(humanize_bytes(bytes_per_second))
+        return ''
+
+    def get_download_progress(self):
+        files_downloaded = 0
         total_bytes_downloaded = 0
         for file_id, download_info in self.file_download_statuses.items():
-            bytes_downloaded, file_size = download_info
-            total_bytes_downloaded += bytes_downloaded
+            bytes_downloaded, file_size, file_state = download_info
+            # do not include files that were already downloaded in bytes downloaded
+            if file_state != FileDownloadState.ALREADY_COMPLETE:
+                total_bytes_downloaded += bytes_downloaded
             if bytes_downloaded == file_size:
-                downloaded_files += 1
-                parts_downloaded += parts_per_file
-            else:
-                parts_downloaded += int(parts_per_file * float(bytes_downloaded / file_size))
-        return downloaded_files, float(parts_downloaded / parts_to_download) * 100, total_bytes_downloaded
+                files_downloaded += 1
+        return files_downloaded, total_bytes_downloaded
 
     def _pop_ready_download_results(self):
         ready_results = []
@@ -350,7 +366,7 @@ class ProjectFileDownloader(object):
                 file_id = file_download_state.file_id
                 size = file_download_state.size
                 status = file_download_state.status
-                self.file_download_statuses[file_id] = (size, size)
+                self.file_download_statuses[file_id] = (size, size, file_download_state.state)
                 self.download_status_list.append(status)
             elif file_download_state.retries:
                 file_download_state.retries -= 1
@@ -373,6 +389,7 @@ def download_file(file_download_state, message_queue=None):
         if file_hash_status.has_a_valid_hash():
             return file_download_state.mark_already_complete(file_hash_status)
     try:
+        file_download_state.state = FileDownloadState.DOWNLOADING
         written_size = download_url_to_path(file_download_state, message_queue)
         return compute_download_result(file_download_state, written_size)
     except URLExpiredException:
@@ -393,7 +410,8 @@ def download_url_to_path(file_download_state, message_queue=None):
                     outfile.write(chunk)
                     written_size += len(chunk)
                     if message_queue:
-                        message_queue.put((file_download_state.file_id, written_size, file_download_state.size))
+                        message_queue.put((file_download_state.file_id, written_size, file_download_state.size,
+                                           file_download_state.state))
         return written_size
     except HTTPError:
         if response.status_code == SWIFT_EXPIRED_STATUS_CODE or response.status_code == S3_EXPIRED_STATUS_CODE:
