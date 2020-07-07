@@ -320,14 +320,13 @@ class ProjectFileDownloader(object):
         ))
 
     def make_spinner_char(self, current_time):
-        # changes spinner characters every 1/2 second
-        half_seconds = int(current_time * 2 + .5)
+        half_seconds = int(current_time)
         return self.spinner_chars[half_seconds % 4]
 
     def make_download_speed(self, current_time, total_bytes_downloaded):
-        elapsed_seconds = current_time - self.start_time + 0.5
+        elapsed_seconds = current_time - self.start_time
         if elapsed_seconds > 0 and total_bytes_downloaded > 0:
-            bytes_per_second = float(total_bytes_downloaded) / elapsed_seconds
+            bytes_per_second = float(total_bytes_downloaded) / (elapsed_seconds  + 0.5)
             return '@ {}/s'.format(humanize_bytes(bytes_per_second))
         return ''
 

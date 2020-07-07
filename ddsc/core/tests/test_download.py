@@ -476,6 +476,34 @@ class TestProjectFileDownloader(TestCase):
         mock_sys.stdout.write.assert_called_with('\r| downloaded 1 KB @ 10 B/s          (10 of 20 files complete)')
 
     @patch('ddsc.core.download.multiprocessing')
+    def test_make_spinner_char(self, mock_multiprocessing):
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader.start_time = 0
+        self.assertEqual(downloader.make_spinner_char(current_time=0), '|')
+        self.assertEqual(downloader.make_spinner_char(current_time=1), '/')
+        self.assertEqual(downloader.make_spinner_char(current_time=2), '-')
+        self.assertEqual(downloader.make_spinner_char(current_time=3), '\\')
+        self.assertEqual(downloader.make_spinner_char(current_time=4), '|')
+        self.assertEqual(downloader.make_spinner_char(current_time=5), '/')
+
+    @patch('ddsc.core.download.multiprocessing')
+    def test_make_download_speed(self, mock_multiprocessing):
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader.start_time = 0
+        test_values = [
+            #current_time, total_bytes_downloaded, expected
+            (0, 0, ''), # must have elapsed time and bytes downloaded to display speed
+            (1, 0, ''),
+            (0, 1, ''),
+            (59, 1000 * 60, '@ 1 KB/s'),
+            (59, 60, '@ 1 B/s'),
+            (59+60, 2 * 1000 * 1000 * 60, '@ 1 MB/s'),
+        ]
+        for current_time, total_bytes_downloaded, expected in test_values:
+            result = downloader.make_download_speed(current_time, total_bytes_downloaded)
+            self.assertEqual(result, expected)
+
+    @patch('ddsc.core.download.multiprocessing')
     def test_get_download_progress(self, mock_multiprocessing):
         downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
         downloader.files_to_download = 10
