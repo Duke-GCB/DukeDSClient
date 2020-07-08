@@ -671,7 +671,7 @@ class ProjectFile(object):
             "size": file_dict["current_version"]["upload"]["size"],
             "hashes": file_dict["current_version"]["upload"]["hashes"],
             "ancestors": file_dict["ancestors"],
-            "file_url": None,
+            "file_url": file_dict["file_url"],
 
         }
         return ProjectFile(project_file_dict)

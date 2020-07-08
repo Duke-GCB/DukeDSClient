@@ -930,18 +930,22 @@ class TestProjectFile(TestCase):
             },
             "ancestors": [
                 {"name": "parentdir"}
-            ]
+            ],
+            'file_url': {
+                'host': 'somehost',
+                'url': 'someurl'
+            }
         }
         project_file = ProjectFile.create_for_dds_file_dict(file_dict)
         self.assertEqual(project_file.id, "123")
         self.assertEqual(project_file.name, "file1.txt")
         self.assertEqual(project_file.size, 100)
-        self.assertEqual(project_file.file_url, None)
+        self.assertEqual(project_file.file_url, {'host': 'somehost', 'url': 'someurl'})
         self.assertEqual(project_file.hashes, [{"algorithm": "md5", "value": "abc"}])
         self.assertEqual(project_file.ancestors, [{"name": "parentdir"}])
         self.assertEqual(project_file.json_data, {
             'ancestors': [{'name': 'parentdir'}],
-            'file_url': None,
+            'file_url': {'host': 'somehost', 'url': 'someurl'},
             'hashes': [{'algorithm': 'md5', 'value': 'abc'}],
             'id': '123',
             'name': 'file1.txt',

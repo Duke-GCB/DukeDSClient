@@ -5,8 +5,8 @@ from ddsc.config import create_config
 from ddsc.core.remotestore import DOWNLOAD_FILE_CHUNK_SIZE, RemoteFile, ProjectFile, RemotePath
 from ddsc.core.fileuploader import FileUploadOperations, ParallelChunkProcessor, ParentData
 from ddsc.core.localstore import PathData
-from ddsc.core.download import FileHashStatus, DownloadSettings, FileDownloader, FileToDownload
-from ddsc.core.util import KindType, NoOpProgressPrinter, REMOTE_PATH_SEP, humanize_bytes, plural_fmt
+from ddsc.core.download import FileDownloadState, download_file
+from ddsc.core.util import KindType, REMOTE_PATH_SEP, humanize_bytes, plural_fmt
 from ddsc.core.moveutil import MoveUtil
 from future.utils import python_2_unicode_compatible
 
@@ -277,6 +277,13 @@ class DDSConnection(object):
             File
         )
 
+    def get_project_files_generator(self, project_id, page_size):
+        for project_file_dict, header_metadata in self.data_service.get_project_files_generator(project_id, page_size):
+            yield ProjectFile(project_file_dict), header_metadata
+
+    def get_file_url_dict(self, file_id):
+        return self.data_service.get_file_url(file_id).json()
+
 
 class BaseResponseItem(object):
     """
@@ -383,6 +390,14 @@ class Project(BaseResponseItem):
 
     def portal_url(self):
         return self.dds_connection.data_service.portal_url(self.id)
+
+    def get_project_files_generator(self, page_size):
+        return self.dds_connection.get_project_files_generator(self.id, page_size)
+
+    def get_path_to_files(self):
+        path_to_nodes = PathToFiles()
+        path_to_nodes.add_paths_for_children_of_node(self)
+        return path_to_nodes.paths
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
@@ -504,16 +519,11 @@ class File(BaseResponseItem):
         path = file_path
         if not path:
             path = self.name
-        project_file = ProjectFile.create_for_dds_file_dict(self._data_dict)
-        files_to_download = [FileToDownload(project_file.json_data, path)]
-        settings = DownloadSettings(self.dds_connection.data_service,
-                                    self.dds_connection.config,
-                                    NoOpProgressPrinter())
-        file_url_downloader = FileDownloader(settings, files_to_download)
-        file_url_downloader.run()
-
-        file_hash_status = FileHashStatus.determine_for_hashes(self.current_version['upload']['hashes'], path)
-        file_hash_status.raise_for_status()
+        project_file_dict = dict(self._data_dict)
+        project_file_dict['file_url'] = self.dds_connection.get_file_url_dict(self.id)
+        project_file = ProjectFile.create_for_dds_file_dict(project_file_dict)
+        download_file_state = download_file(FileDownloadState(project_file, path, self.dds_connection.config))
+        download_file_state.raise_for_status()
 
     def delete(self):
         """
