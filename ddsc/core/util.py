@@ -2,6 +2,7 @@ import sys
 import os
 import platform
 import stat
+import time
 
 TERMINAL_ENCODING_NOT_UTF_ERROR = """
 ERROR: DukeDSClient requires UTF terminal encoding.
@@ -70,8 +71,10 @@ class ProgressPrinter(object):
         self.waiting = False
         self.msg_verb = msg_verb
         self.progress_bar = ProgressBar()
+        self.transfered_bytes = 0
+        self.total_bytes = 0
 
-    def transferring_item(self, item, increment_amt=1, override_msg_verb=None):
+    def transferring_item(self, item, increment_amt=1, override_msg_verb=None, transfered_bytes=0):
         """
         Update progress that item is about to be transferred.
         :param item: LocalFile, LocalFolder, or LocalContent(project) that is about to be sent.
@@ -87,7 +90,8 @@ class ProgressPrinter(object):
         msg_verb = self.msg_verb
         if override_msg_verb:
             msg_verb = override_msg_verb
-        self.progress_bar.update(percent_done, '{} {}'.format(msg_verb, details))
+        self.transfered_bytes += transfered_bytes
+        self.progress_bar.update(percent_done, self.transfered_bytes, '{} {}'.format(msg_verb, details))
         self.progress_bar.show()
 
     def increment_progress(self, amt=1):
@@ -138,21 +142,32 @@ class ProgressBar(object):
         self.line = ''
         self.state = self.STATE_RUNNING
         self.wait_msg = 'Waiting'
+        self.transfered_bytes = 0
+        self.start_time = time.time()
 
-    def update(self, percent_done, details):
+    def update(self, percent_done, transfered_bytes, details):
         self.percent_done = percent_done
         self.current_item_details = details
+        self.transfered_bytes = transfered_bytes
 
     def set_state(self, state):
         self.state = state
 
     def _get_line(self):
         if self.state == self.STATE_DONE:
-            return 'Done: 100%'
+            return 'Done: 100%{}'.format(self._speed())
         details = self.current_item_details
         if self.state == self.STATE_WAITING:
             details = self.wait_msg
-        return 'Progress: {}% - {}'.format(self.percent_done, details)
+        return 'Progress: {}%{} - {}'.format(self.percent_done, self._speed(), details)
+
+    def _speed(self):
+        current_time = time.time()
+        elapsed_seconds = current_time - self.start_time
+        if elapsed_seconds > 0 and self.transfered_bytes > 0:
+            bytes_per_second = float(self.transfered_bytes) / (elapsed_seconds + 0.5)
+            return ' @ {}/s'.format(humanize_bytes(bytes_per_second))
+        return ''
 
     def show(self):
         line = self._get_line()
@@ -344,8 +359,8 @@ def wait_for_processes(processes, size, progress_queue, watcher, item):
     while size > 0:
         progress_type, value = progress_queue.get()
         if progress_type == ProgressQueue.PROCESSED:
-            chunk_size = value
-            watcher.transferring_item(item, increment_amt=chunk_size)
+            chunk_size, transfered_bytes = value
+            watcher.transferring_item(item, increment_amt=chunk_size, transfered_bytes=transfered_bytes)
             size -= chunk_size
         elif progress_type == ProgressQueue.START_WAITING:
             watcher.start_waiting()
