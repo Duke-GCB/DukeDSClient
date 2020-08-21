@@ -327,7 +327,7 @@ class ProjectFileDownloader(object):
         return transfer_speed_str(
             current_time=current_time,
             start_time=self.start_time,
-            transfered_bytes=total_bytes_downloaded
+            transferred_bytes=total_bytes_downloaded
         )
 
     def get_download_progress(self):

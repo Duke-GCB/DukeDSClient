@@ -71,10 +71,10 @@ class ProgressPrinter(object):
         self.waiting = False
         self.msg_verb = msg_verb
         self.progress_bar = ProgressBar()
-        self.transfered_bytes = 0
+        self.transferred_bytes = 0
         self.total_bytes = 0
 
-    def transferring_item(self, item, increment_amt=1, override_msg_verb=None, transfered_bytes=0):
+    def transferring_item(self, item, increment_amt=1, override_msg_verb=None, transferred_bytes=0):
         """
         Update progress that item is about to be transferred.
         :param item: LocalFile, LocalFolder, or LocalContent(project) that is about to be sent.
@@ -90,8 +90,8 @@ class ProgressPrinter(object):
         msg_verb = self.msg_verb
         if override_msg_verb:
             msg_verb = override_msg_verb
-        self.transfered_bytes += transfered_bytes
-        self.progress_bar.update(percent_done, self.transfered_bytes, '{} {}'.format(msg_verb, details))
+        self.transferred_bytes += transferred_bytes
+        self.progress_bar.update(percent_done, self.transferred_bytes, '{} {}'.format(msg_verb, details))
         self.progress_bar.show()
 
     def increment_progress(self, amt=1):
@@ -142,20 +142,20 @@ class ProgressBar(object):
         self.line = ''
         self.state = self.STATE_RUNNING
         self.wait_msg = 'Waiting'
-        self.transfered_bytes = 0
+        self.transferred_bytes = 0
         self.start_time = time.time()
 
-    def update(self, percent_done, transfered_bytes, details):
+    def update(self, percent_done, transferred_bytes, details):
         self.percent_done = percent_done
         self.current_item_details = details
-        self.transfered_bytes = transfered_bytes
+        self.transferred_bytes = transferred_bytes
 
     def set_state(self, state):
         self.state = state
 
     def _get_line(self):
         speed = transfer_speed_str(current_time=time.time(), start_time=self.start_time,
-                                   transfered_bytes=self.transfered_bytes)
+                                   transferred_bytes=self.transferred_bytes)
         if self.state == self.STATE_DONE:
             return 'Done: 100%{}'.format(speed)
         details = self.current_item_details
@@ -353,8 +353,8 @@ def wait_for_processes(processes, size, progress_queue, watcher, item):
     while size > 0:
         progress_type, value = progress_queue.get()
         if progress_type == ProgressQueue.PROCESSED:
-            chunk_size, transfered_bytes = value
-            watcher.transferring_item(item, increment_amt=chunk_size, transfered_bytes=transfered_bytes)
+            chunk_size, transferred_bytes = value
+            watcher.transferring_item(item, increment_amt=chunk_size, transferred_bytes=transferred_bytes)
             size -= chunk_size
         elif progress_type == ProgressQueue.START_WAITING:
             watcher.start_waiting()
@@ -462,16 +462,16 @@ def join_with_commas_and_and(items):
         return last_item
 
 
-def transfer_speed_str(current_time, start_time, transfered_bytes):
+def transfer_speed_str(current_time, start_time, transferred_bytes):
     """
     Return transfer speed str based
     :param current_time: float: current time
     :param start_time: float: starting time
-    :param transfered_bytes: int: bytes transferred
+    :param transferred_bytes: int: bytes transferred
     :return: str: end user str
     """
     elapsed_seconds = current_time - start_time
-    if elapsed_seconds > 0 and transfered_bytes > 0:
-        bytes_per_second = float(transfered_bytes) / (elapsed_seconds + 0.5)
+    if elapsed_seconds > 0 and transferred_bytes > 0:
+        bytes_per_second = float(transferred_bytes) / (elapsed_seconds + 0.5)
         return '@ {}/s'.format(humanize_bytes(bytes_per_second))
     return ''

@@ -32,18 +32,18 @@ class TestProgressBar(TestCase):
         mock_transfer_speed_str.return_value = ' @ 100 MB/s'
 
         # replace line with our progress
-        progress_bar.update(percent_done=0, details='sending really_long_filename.txt', transfered_bytes=0)
+        progress_bar.update(percent_done=0, details='sending really_long_filename.txt', transferred_bytes=0)
         progress_bar.show()
         expected = '\rProgress: 0% @ 100 MB/s - sending really_long_filename.txt'
         mock_stdout.write.assert_called_with(expected)
 
         # replace line with our progress (make sure it is long enough to blank out previous line)
-        progress_bar.update(percent_done=10, details='sending short.txt', transfered_bytes=100)
+        progress_bar.update(percent_done=10, details='sending short.txt', transferred_bytes=100)
         progress_bar.show()
         expected = '\rProgress: 10% @ 100 MB/s - sending short.txt              '
         mock_stdout.write.assert_called_with(expected)
 
-        progress_bar.update(percent_done=15, details='sending short.txt', transfered_bytes=50)
+        progress_bar.update(percent_done=15, details='sending short.txt', transferred_bytes=50)
         progress_bar.show()
         expected = '\rProgress: 15% @ 100 MB/s - sending short.txt              '
         mock_stdout.write.assert_called_with(expected)
@@ -61,7 +61,7 @@ class TestProgressBar(TestCase):
         mock_transfer_speed_str.return_value = ' @ 100 MB/s'
 
         # we make some progress
-        progress_bar.update(percent_done=10, details='sending short.txt', transfered_bytes=100)
+        progress_bar.update(percent_done=10, details='sending short.txt', transferred_bytes=100)
         progress_bar.show()
         expected = '\rProgress: 10% @ 100 MB/s - sending short.txt'
         mock_stdout.write.assert_called_with(expected)
@@ -75,7 +75,7 @@ class TestProgressBar(TestCase):
 
         # waiting takes priority over progress updates
         # (we may be able to upload some folders while waiting to upload files)
-        progress_bar.update(percent_done=15, details='sending short.txt', transfered_bytes=50)
+        progress_bar.update(percent_done=15, details='sending short.txt', transferred_bytes=50)
         progress_bar.show()
         expected = '\rProgress: 15% @ 100 MB/s - Waiting for project'
         mock_stdout.write.assert_called_with(expected)
@@ -120,14 +120,14 @@ class TestProgressPrinter(TestCase):
 
         # pretend we just created a project
         mock_project = Mock(kind=KindType.project_str, path='')
-        progress_printer.transferring_item(item=mock_project, increment_amt=1, transfered_bytes=100)
+        progress_printer.transferring_item(item=mock_project, increment_amt=1, transferred_bytes=100)
         mock_progress_bar.return_value.update.assert_called_with(10, 100, 'sending project')
         mock_progress_bar.return_value.show.assert_called()
         mock_progress_bar.reset_mock()
 
         # pretend we just created a folder
         mock_project = Mock(kind=KindType.folder_str, path='/data')
-        progress_printer.transferring_item(item=mock_project, increment_amt=2, transfered_bytes=200)
+        progress_printer.transferring_item(item=mock_project, increment_amt=2, transferred_bytes=200)
         mock_progress_bar.return_value.update.assert_called_with(30, 300, 'sending data')
         mock_progress_bar.return_value.show.assert_called()
         mock_progress_bar.reset_mock()

@@ -453,7 +453,7 @@ class CreateSmallFileCommand(object):
             self.local_file.set_remote_values_after_send(remote_file_id,
                                                          remote_hash_dict['algorithm'],
                                                          remote_hash_dict['value'])
-            self.settings.watcher.transferring_item(self.local_file, transfered_bytes=self.local_file.size)
+            self.settings.watcher.transferring_item(self.local_file, transferred_bytes=self.local_file.size)
         else:
             self.settings.watcher.increment_progress()
 
