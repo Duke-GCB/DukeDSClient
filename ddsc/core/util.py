@@ -154,20 +154,14 @@ class ProgressBar(object):
         self.state = state
 
     def _get_line(self):
+        speed = transfer_speed_str(current_time=time.time(), start_time=self.start_time,
+                                   transfered_bytes=self.transfered_bytes)
         if self.state == self.STATE_DONE:
-            return 'Done: 100%{}'.format(self._speed())
+            return 'Done: 100%{}'.format(speed)
         details = self.current_item_details
         if self.state == self.STATE_WAITING:
             details = self.wait_msg
-        return 'Progress: {}%{} - {}'.format(self.percent_done, self._speed(), details)
-
-    def _speed(self):
-        current_time = time.time()
-        elapsed_seconds = current_time - self.start_time
-        if elapsed_seconds > 0 and self.transfered_bytes > 0:
-            bytes_per_second = float(self.transfered_bytes) / (elapsed_seconds + 0.5)
-            return ' @ {}/s'.format(humanize_bytes(bytes_per_second))
-        return ''
+        return 'Progress: {}%{} - {}'.format(self.percent_done, speed, details)
 
     def show(self):
         line = self._get_line()
@@ -466,3 +460,18 @@ def join_with_commas_and_and(items):
         return ' and '.join([head_items_str, last_item])
     else:
         return last_item
+
+
+def transfer_speed_str(current_time, start_time, transfered_bytes):
+    """
+    Return transfer speed str based
+    :param current_time: float: current time
+    :param start_time: float: starting time
+    :param transfered_bytes: int: bytes transferred
+    :return: str: end user str
+    """
+    elapsed_seconds = current_time - start_time
+    if elapsed_seconds > 0 and transfered_bytes > 0:
+        bytes_per_second = float(transfered_bytes) / (elapsed_seconds + 0.5)
+        return '@ {}/s'.format(humanize_bytes(bytes_per_second))
+    return ''

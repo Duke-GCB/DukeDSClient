@@ -26,10 +26,10 @@ class TestUtil(TestCase):
 
 class TestProgressBar(TestCase):
     @patch('ddsc.core.util.sys.stdout')
-    def test_show_no_waiting(self, mock_stdout):
+    @patch('ddsc.core.util.transfer_speed_str')
+    def test_show_no_waiting(self, mock_transfer_speed_str, mock_stdout):
         progress_bar = ProgressBar()
-        progress_bar._speed = Mock()
-        progress_bar._speed.return_value = ' @ 100 MB/s'
+        mock_transfer_speed_str.return_value = ' @ 100 MB/s'
 
         # replace line with our progress
         progress_bar.update(percent_done=0, details='sending really_long_filename.txt', transfered_bytes=0)
@@ -55,10 +55,10 @@ class TestProgressBar(TestCase):
         mock_stdout.write.assert_called_with(expected)
 
     @patch('ddsc.core.util.sys.stdout')
-    def test_show_with_waiting(self, mock_stdout):
+    @patch('ddsc.core.util.transfer_speed_str')
+    def test_show_with_waiting(self, mock_transfer_speed_str, mock_stdout):
         progress_bar = ProgressBar()
-        progress_bar._speed = Mock()
-        progress_bar._speed.return_value = ' @ 100 MB/s'
+        mock_transfer_speed_str.return_value = ' @ 100 MB/s'
 
         # we make some progress
         progress_bar.update(percent_done=10, details='sending short.txt', transfered_bytes=100)

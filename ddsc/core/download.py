@@ -7,7 +7,7 @@ import time
 import queue
 from ddsc.core.localstore import HashUtil
 from ddsc.core.ddsapi import DDS_TOTAL_HEADER
-from ddsc.core.util import humanize_bytes
+from ddsc.core.util import humanize_bytes, transfer_speed_str
 
 SWIFT_EXPIRED_STATUS_CODE = 401
 S3_EXPIRED_STATUS_CODE = 403
@@ -324,11 +324,11 @@ class ProjectFileDownloader(object):
         return self.spinner_chars[half_seconds % 4]
 
     def make_download_speed(self, current_time, total_bytes_downloaded):
-        elapsed_seconds = current_time - self.start_time
-        if elapsed_seconds > 0 and total_bytes_downloaded > 0:
-            bytes_per_second = float(total_bytes_downloaded) / (elapsed_seconds + 0.5)
-            return '@ {}/s'.format(humanize_bytes(bytes_per_second))
-        return ''
+        return transfer_speed_str(
+            current_time=current_time,
+            start_time=self.start_time,
+            transfered_bytes=total_bytes_downloaded
+        )
 
     def get_download_progress(self):
         files_downloaded = 0
