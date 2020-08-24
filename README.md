@@ -1,10 +1,10 @@
-# DukeDSClient [![CircleCI](https://circleci.com/gh/Duke-GCB/DukeDSClient.svg?style=svg)](https://circleci.com/gh/Duke-GCB/DukeDSClient)
+# DukeDSClient
 Command line tool to upload/manage projects on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
 
 For help email <gcb-help@duke.edu>.
 
+[![CircleCI](https://circleci.com/gh/Duke-GCB/DukeDSClient.svg?style=svg)](https://circleci.com/gh/Duke-GCB/DukeDSClient)
 [![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg)](https://coveralls.io/github/Duke-GCB/DukeDSClient)
-
 
 # Requirements
 
