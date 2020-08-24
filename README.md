@@ -5,7 +5,7 @@ Command line tool to upload/manage project on the [duke-data-service](https://gi
 [![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg)](https://coveralls.io/github/Duke-GCB/DukeDSClient)
 
 
-To get help installing or using this tool send an email to <gcb-help@duke.edu>.
+For help email <gcb-help@duke.edu>.
 
 # Requirements
 
@@ -19,11 +19,11 @@ To get help installing or using this tool send an email to <gcb-help@duke.edu>.
 DukeDSClient is written in Python and packaged for easy installation from [PyPI](https://pypi.org/project/DukeDSClient/) using `pip3`.
 If you do not have superuser or administrative privileges on your machine, you will either have to run `pip3` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme) or create a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments).
 
-Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for full details, but the below commands will install **DukeDSClient** using `pip3`:
-
+To simply install **DukeDSClient** run the following from a Terminal/Command Prompt:
 ```
 pip3 install DukeDSClient
 ```
+Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for other options on installing python packages.
 
 ### Config file setup.
 
@@ -37,13 +37,6 @@ Details of all configuration options: [Configuration options](https://github.com
 [Instructions for adding agent and user keys to the user config file.](https://github.com/Duke-GCB/DukeDSClient/wiki/Agent-User-Keys-(setup))
 
 ### Usage:
-
-If DukeDSClient is installed in a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments), you must activate the virtual environment before running ddsclient:
-
-```
-source ddsclient-env/bin/activate
-```
-
 See general help screen:
 
 ```
@@ -59,6 +52,12 @@ ddsclient <command> -h
 All commands take the form:
 ```
 ddsclient <command> <arguments...>
+```
+
+If DukeDSClient has been installed in a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments), you must activate the virtual environment before running ddsclient:
+
+```
+source ddsclient-env/bin/activate
 ```
 
 ### Upload:
