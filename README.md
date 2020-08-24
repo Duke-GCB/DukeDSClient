@@ -1,11 +1,10 @@
-# DukeDSClient
-Command line tool to upload/manage project on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
-
-[![CircleCI](https://circleci.com/gh/Duke-GCB/DukeDSClient.svg?style=svg)](https://circleci.com/gh/Duke-GCB/DukeDSClient)
-[![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg)](https://coveralls.io/github/Duke-GCB/DukeDSClient)
-
+# DukeDSClient [![CircleCI](https://circleci.com/gh/Duke-GCB/DukeDSClient.svg?style=svg)](https://circleci.com/gh/Duke-GCB/DukeDSClient)
+Command line tool to upload/manage projects on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
 
 For help email <gcb-help@duke.edu>.
+
+[![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg)](https://coveralls.io/github/Duke-GCB/DukeDSClient)
+
 
 # Requirements
 
@@ -17,13 +16,12 @@ For help email <gcb-help@duke.edu>.
 # Installation:
 
 DukeDSClient is written in Python and packaged for easy installation from [PyPI](https://pypi.org/project/DukeDSClient/) using `pip3`.
-If you do not have superuser or administrative privileges on your machine, you will either have to run `pip3` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme) or create a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments).
-
 To simply install **DukeDSClient** run the following from a Terminal/Command Prompt:
 ```
 pip3 install DukeDSClient
 ```
-Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for other options on installing python packages.
+If you do not have superuser or administrative privileges on your machine, you will either have to run `pip3` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme) or create a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments).
+Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for more details.
 
 ### Config file setup.
 
