@@ -16,7 +16,8 @@ For help email <gcb-help@duke.edu>.
 # Installation:
 
 DukeDSClient is written in Python and packaged for easy installation from [PyPI](https://pypi.org/project/DukeDSClient/) using `pip3`.
-To simply install **DukeDSClient** run the following from a Terminal/Command Prompt:
+
+To install **DukeDSClient** from a Terminal/Command Prompt run the following:
 ```
 pip3 install DukeDSClient
 ```
