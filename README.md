@@ -5,26 +5,24 @@ Command line tool to upload/manage project on the [duke-data-service](https://gi
 [![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg)](https://coveralls.io/github/Duke-GCB/DukeDSClient)
 
 
+To get help installing or using this tool send an email to <gcb-help@duke.edu>.
+
 # Requirements
 
-- [python](https://www.python.org/) - version 2.7+ with a functional ssl module.
+- [python](https://www.python.org/) - version 3.5+
 - [requests](http://docs.python-requests.org/en/master/) - python module
 - [PyYAML](http://pyyaml.org/wiki/PyYAML) - python module
 
-The preferred python versions are 2.7.9+ or 3.4.1+ as they have functional ssl modules by default.
-Older python 2.7 may work by following this guide: [Older-python-2.7-setup](https://github.com/Duke-GCB/DukeDSClient/wiki/Older-python-2.7-setup)
 
 # Installation:
 
-DukeDSClient is written in Python and packaged for easy installation from [PyPI](https://pypi.org/project/DukeDSClient/) using `pip`.
-If you do not have superuser or administrative privileges on your machine, you will either have to create a [virtual environment (recommended)](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments) or run `pip` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme).
+DukeDSClient is written in Python and packaged for easy installation from [PyPI](https://pypi.org/project/DukeDSClient/) using `pip3`.
+If you do not have superuser or administrative privileges on your machine, you will either have to run `pip3` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme) or create a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments).
 
-Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for full details, but the below commands will create a virtual environment named **ddsclient-env** and install **DukeDSClient**:
+Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for full details, but the below commands will install **DukeDSClient** using `pip3`:
 
 ```
-python3 -m venv ddsclient-env       # Creates an environment called 'ddsclient-env'
-source ddsclient-env/bin/activate   # Activates the ddsclient-env environment
-pip3 install DukeDSClient           # Installs 'DukeDSClient' into 'ddsclient-env'
+pip3 install DukeDSClient
 ```
 
 ### Config file setup.
