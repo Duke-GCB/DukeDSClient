@@ -16,6 +16,8 @@ The operation will be retried automatically, so no action is required. It will c
 To cancel this operation, press Ctrl+C.
 """
 CONNECTION_RETRY_MESSAGE = "Connection failed. Retrying."
+DDS_TOTAL_PAGES_HEADER = 'x-total-pages'
+DDS_TOTAL_HEADER = 'x-total'
 
 
 def get_user_agent_str():
@@ -339,7 +341,7 @@ class DataServiceApi(object):
         return self._check_err(resp, url_suffix, data, allow_pagination=False)
 
     @retry_connection_exceptions
-    def _get_single_page(self, url_suffix, data, page_num):
+    def _get_single_page(self, url_suffix, data, page_num, page_size=None):
         """
         Send GET request to API at url_suffix with post_data adding page and per_page parameters to
         retrieve a single page. Page size is determined by config.page_size.
@@ -350,7 +352,9 @@ class DataServiceApi(object):
         """
         data_with_per_page = dict(data)
         data_with_per_page['page'] = page_num
-        data_with_per_page['per_page'] = self._get_page_size()
+        if not page_size:
+            page_size = self._get_page_size()
+        data_with_per_page['per_page'] = page_size
         (url, data_str, headers) = self._url_parts(url_suffix, data_with_per_page,
                                                    content_type=ContentType.form)
         resp = self.http.get(url, headers=headers, params=data_str)
@@ -558,6 +562,26 @@ class DataServiceApi(object):
         url_prefix = "/projects/{}/files".format(project_id)
         return self._get_collection(url_prefix, {})
 
+    def get_project_files_generator(self, project_id, page_size):
+        """
+        Send GET to /projects/{project_id}/files
+        :param project_id: str uuid of the project
+        :param page_size: int page size to fetch
+        :return: generator that returns (DDS file download JSON, header metadata) pairs
+        """
+        url_suffix = "/projects/{}/files".format(project_id)
+        data = {}
+        # process first page separately to read total pages
+        response = self._get_single_page(url_suffix, data, page_size=page_size, page_num=1)
+        total_pages = int(response.headers.get('x-total-pages'))
+        for item in response.json()["results"]:
+            yield item, response.headers
+        # process the rest of the pages
+        for page in range(2, total_pages + 1):
+            response = self._get_single_page(url_suffix, data, page_size=page_size, page_num=page)
+            for item in response.json()["results"]:
+                yield item, response.headers
+
     def get_folder_children(self, folder_id, name_contains):
         """
         Send GET to /folders/{folder_id} filtering by a name.
@@ -635,6 +659,13 @@ class DataServiceApi(object):
             }
         }
         return self._put("/uploads/" + upload_id + "/chunks", data)
+
+    def get_upload(self, upload_id):
+        """
+        Get details about an upload.
+        :param upload_id: uuid of the upload
+        """
+        return self._get_single_item("/uploads/" + upload_id, {})
 
     def complete_upload(self, upload_id, hash_value, hash_alg):
         """

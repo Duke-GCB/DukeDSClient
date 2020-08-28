@@ -2,7 +2,7 @@ from unittest import TestCase
 from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File, FileDownload, FileUpload, \
     ChildFinder, PathToFiles, ItemNotFound, ProjectSummary
 from ddsc.core.util import KindType
-from mock import patch, Mock, ANY
+from mock import patch, Mock, call
 
 
 class TestClient(TestCase):
@@ -412,6 +412,34 @@ class TestDDSConnection(TestCase):
         self.assertEqual(updated_file, mock_file.return_value)
         mock_data_service_api.return_value.move_file.assert_called_with('abc123', 'dds-folder', 'def456')
 
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    def test_get_file_url_dict(self, mock_data_service_auth, mock_data_service_api):
+        dds_connection = DDSConnection(Mock())
+        mock_data_service_api.return_value.get_file_url.return_value.json.return_value = {"id": "123"}
+        self.assertEqual(dds_connection.get_file_url_dict('123'), {"id": "123"})
+        mock_data_service_api.return_value.get_file_url.assert_called_with('123')
+
+    @patch('ddsc.sdk.client.DataServiceApi')
+    @patch('ddsc.sdk.client.DataServiceAuth')
+    @patch('ddsc.sdk.client.ProjectFile')
+    def test_get_project_files_generator(self, mock_project_file, mock_data_service_auth, mock_data_service_api):
+        mock_data_service_api.return_value.get_project_files_generator.return_value = [
+            ({'id': '123'}, {'header': 'true'}),
+            ({'id': '456'}, {'header': 'true'}),
+        ]
+        dds_connection = DDSConnection(Mock())
+        projects_and_headers = list(dds_connection.get_project_files_generator(project_id='123', page_size=10))
+        self.assertEqual(projects_and_headers, [
+            (mock_project_file.return_value, {'header': 'true'}),
+            (mock_project_file.return_value, {'header': 'true'}),
+        ])
+        mock_project_file.assert_has_calls([
+            call({'id': '123'}),
+            call({'id': '456'}),
+        ])
+        mock_data_service_api.return_value.get_project_files_generator.assert_called_with('123', 10)
+
 
 class TestBaseResponseItem(TestCase):
     def test_get_attr(self):
@@ -574,12 +602,17 @@ class TestFile(TestCase):
     def setUp(self):
         self.file_dict = {
             'id': '456',
+            'name': 'data.txt',
             'kind': KindType.file_str,
             'project': {'id': '123'},
             'parent': {
                 'id': '123',
                 'kind': KindType.project_str
             },
+            'ancestors': [{
+                'id': '123',
+                'kind': KindType.project_str
+            }],
             'current_version': {
                 'upload': {
                     'size': 1234,
@@ -594,27 +627,21 @@ class TestFile(TestCase):
         }
 
     @patch('ddsc.sdk.client.ProjectFile')
-    @patch('ddsc.sdk.client.FileToDownload')
-    @patch('ddsc.sdk.client.DownloadSettings')
-    @patch('ddsc.sdk.client.FileDownloader')
-    @patch('ddsc.sdk.client.FileHashStatus')
-    def test_download_to_path(self, mock_file_hash_status, mock_file_downloader, mock_download_settings,
-                              mock_file_to_download, mock_project_file):
+    @patch('ddsc.sdk.client.FileDownloadState')
+    @patch('ddsc.sdk.client.download_file')
+    def test_download_to_path(self, mock_download_file, mock_file_download_state, mock_project_file):
         mock_dds_connection = Mock()
-
+        mock_dds_connection.get_file_url_dict.return_value = {'host': 'somehost', 'url': 'someurl'}
         file = File(mock_dds_connection, self.file_dict)
         file.download_to_path('/tmp/data.dat')
 
-        mock_project_file.create_for_dds_file_dict.assert_called_with(self.file_dict)
-        mock_project_file = mock_project_file.create_for_dds_file_dict.return_value
-        mock_file_to_download.assert_called_with(mock_project_file.json_data, "/tmp/data.dat")
-        mock_download_settings.assert_called_with(mock_dds_connection.data_service, mock_dds_connection.config, ANY)
-        mock_file_downloader.assert_called_with(mock_download_settings.return_value,
-                                                [mock_file_to_download.return_value])
-        mock_file_downloader.return_value.run.assert_called_with()
-        mock_file_hash_status.determine_for_hashes.assert_called_with(
-            [{'algorithm': 'md5', 'value': 'abcd'}], "/tmp/data.dat")
-        mock_file_hash_status.determine_for_hashes.return_value.raise_for_status.assert_called_with()
+        expected_file_url_dict = dict(self.file_dict)
+        expected_file_url_dict['file_url'] = {'host': 'somehost', 'url': 'someurl'}
+        mock_project_file.create_for_dds_file_dict.assert_called_with(expected_file_url_dict)
+        mock_file_download_state.assert_called_with(
+            mock_project_file.create_for_dds_file_dict.return_value, '/tmp/data.dat', mock_dds_connection.config)
+        mock_download_file.assert_called_with(mock_file_download_state.return_value)
+        mock_download_file.return_value.raise_for_status.assert_called_with()
 
     def test_delete(self):
         mock_dds_connection = Mock()
@@ -772,9 +799,9 @@ class TestPathToFiles(TestCase):
 class TestProjectSummary(TestCase):
     def test_constructor(self):
         mock_file1 = Mock(kind=KindType.file_str)
-        mock_file1.current_size.return_value = 1024
+        mock_file1.current_size.return_value = 1000
         mock_file2 = Mock(kind=KindType.file_str)
-        mock_file2.current_size.return_value = 2048
+        mock_file2.current_size.return_value = 2000
         mock_folder1 = Mock(kind=KindType.folder_str)
         mock_folder1.get_children.return_value = [
             mock_file1, mock_file2
@@ -788,5 +815,5 @@ class TestProjectSummary(TestCase):
             mock_folder2
         ]
         summary = ProjectSummary(mock_project)
-        expected = "1 top level folder, 1 subfolder, 2 files (3 KiB)"
+        expected = "1 top level folder, 1 subfolder, 2 files (3 KB)"
         self.assertEqual(str(summary), expected)

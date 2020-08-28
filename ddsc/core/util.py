@@ -2,6 +2,7 @@ import sys
 import os
 import platform
 import stat
+import time
 
 TERMINAL_ENCODING_NOT_UTF_ERROR = """
 ERROR: DukeDSClient requires UTF terminal encoding.
@@ -70,8 +71,10 @@ class ProgressPrinter(object):
         self.waiting = False
         self.msg_verb = msg_verb
         self.progress_bar = ProgressBar()
+        self.transferred_bytes = 0
+        self.total_bytes = 0
 
-    def transferring_item(self, item, increment_amt=1, override_msg_verb=None):
+    def transferring_item(self, item, increment_amt=1, override_msg_verb=None, transferred_bytes=0):
         """
         Update progress that item is about to be transferred.
         :param item: LocalFile, LocalFolder, or LocalContent(project) that is about to be sent.
@@ -87,7 +90,8 @@ class ProgressPrinter(object):
         msg_verb = self.msg_verb
         if override_msg_verb:
             msg_verb = override_msg_verb
-        self.progress_bar.update(percent_done, '{} {}'.format(msg_verb, details))
+        self.transferred_bytes += transferred_bytes
+        self.progress_bar.update(percent_done, self.transferred_bytes, '{} {}'.format(msg_verb, details))
         self.progress_bar.show()
 
     def increment_progress(self, amt=1):
@@ -138,21 +142,26 @@ class ProgressBar(object):
         self.line = ''
         self.state = self.STATE_RUNNING
         self.wait_msg = 'Waiting'
+        self.transferred_bytes = 0
+        self.start_time = time.time()
 
-    def update(self, percent_done, details):
+    def update(self, percent_done, transferred_bytes, details):
         self.percent_done = percent_done
         self.current_item_details = details
+        self.transferred_bytes = transferred_bytes
 
     def set_state(self, state):
         self.state = state
 
     def _get_line(self):
+        speed = transfer_speed_str(current_time=time.time(), start_time=self.start_time,
+                                   transferred_bytes=self.transferred_bytes)
         if self.state == self.STATE_DONE:
-            return 'Done: 100%'
+            return 'Done: 100%{}'.format(speed)
         details = self.current_item_details
         if self.state == self.STATE_WAITING:
             details = self.wait_msg
-        return 'Progress: {}% - {}'.format(self.percent_done, details)
+        return 'Progress: {}%{} - {}'.format(self.percent_done, speed, details)
 
     def show(self):
         line = self._get_line()
@@ -344,8 +353,8 @@ def wait_for_processes(processes, size, progress_queue, watcher, item):
     while size > 0:
         progress_type, value = progress_queue.get()
         if progress_type == ProgressQueue.PROCESSED:
-            chunk_size = value
-            watcher.transferring_item(item, increment_amt=chunk_size)
+            chunk_size, transferred_bytes = value
+            watcher.transferring_item(item, increment_amt=chunk_size, transferred_bytes=transferred_bytes)
             size -= chunk_size
         elif progress_type == ProgressQueue.START_WAITING:
             watcher.start_waiting()
@@ -414,15 +423,16 @@ def humanize_bytes(num_bytes):
     """
     val = num_bytes
     suffix = "B"
-    if val >= 1024:
-        val = val / 1024
-        suffix = "KiB"
-    if val >= 1024:
-        val = val / 1024
-        suffix = "MiB"
-    if val >= 1024:
-        val = val / 1024
-        suffix = "GiB"
+    factor = 1000
+    if val >= factor:
+        val = val / factor
+        suffix = "KB"
+    if val >= factor:
+        val = val / factor
+        suffix = "MB"
+    if val >= factor:
+        val = val / factor
+        suffix = "GB"
     val = "{:0.1f} {}".format(val, suffix)
     return val.replace(".0", "")
 
@@ -450,3 +460,18 @@ def join_with_commas_and_and(items):
         return ' and '.join([head_items_str, last_item])
     else:
         return last_item
+
+
+def transfer_speed_str(current_time, start_time, transferred_bytes):
+    """
+    Return transfer speed str based
+    :param current_time: float: current time
+    :param start_time: float: starting time
+    :param transferred_bytes: int: bytes transferred
+    :return: str: end user str
+    """
+    elapsed_seconds = current_time - start_time
+    if elapsed_seconds > 0 and transferred_bytes > 0:
+        bytes_per_second = float(transferred_bytes) / (elapsed_seconds + 0.5)
+        return '@ {}/s'.format(humanize_bytes(bytes_per_second))
+    return ''

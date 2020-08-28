@@ -235,6 +235,8 @@ class FileUploadOperations(object):
         :param remote_file_id: str: uuid of this file if it already exists or None if it is a new file
         :return: dict: DukeDS details about this file
         """
+        upload_response = self.data_service.get_upload(upload_id)
+        self._verify_upload_response(upload_response)
         self.data_service.complete_upload(upload_id, hash_data.value, hash_data.alg)
         if remote_file_id:
             result = self.data_service.update_file(remote_file_id, upload_id)
@@ -242,6 +244,24 @@ class FileUploadOperations(object):
         else:
             result = self.data_service.create_file(parent_data.kind, parent_data.id, upload_id)
             return result.json()
+
+    @staticmethod
+    def _verify_upload_response(upload_response):
+        """
+        Verifies upload has correct sizes. Checks that the total size of the chunks matches the size of the file.
+        Raises ValueError if there is a mismatch
+        :param upload_response: requests.Response
+        """
+        upload_data = upload_response.json()
+        file_name = upload_data['name']
+        file_size = upload_data['size']
+        file_chunks = upload_data.get('chunks')
+        # Only multi-chunk file uploads have 'chunks' payload (even though single chunk files have 1 chunk uploaded)
+        if file_chunks:
+            total_chunk_size = sum([chunk['size'] for chunk in file_chunks])
+            if file_size != total_chunk_size:
+                raise ValueError("Failure uploading {}. Size mismatch file: {} vs chunks:{}."
+                                 "\nPlease retry uploading.".format(file_name, file_size, total_chunk_size))
 
 
 class ParallelChunkProcessor(object):
@@ -383,7 +403,7 @@ class ChunkSender(object):
             while sent_chunks != self.num_chunks_to_send:
                 chunk = infile.read(self.chunk_size)
                 self._send_chunk(chunk, chunk_num)
-                self.progress_queue.processed(1)
+                self.progress_queue.processed((1, len(chunk)))
                 chunk_num += 1
                 sent_chunks += 1
 

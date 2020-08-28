@@ -26,66 +26,70 @@ class TestUtil(TestCase):
 
 class TestProgressBar(TestCase):
     @patch('ddsc.core.util.sys.stdout')
-    def test_show_no_waiting(self, mock_stdout):
+    @patch('ddsc.core.util.transfer_speed_str')
+    def test_show_no_waiting(self, mock_transfer_speed_str, mock_stdout):
         progress_bar = ProgressBar()
+        mock_transfer_speed_str.return_value = ' @ 100 MB/s'
 
         # replace line with our progress
-        progress_bar.update(percent_done=0, details='sending really_long_filename.txt')
+        progress_bar.update(percent_done=0, details='sending really_long_filename.txt', transferred_bytes=0)
         progress_bar.show()
-        expected = '\rProgress: 0% - sending really_long_filename.txt'
+        expected = '\rProgress: 0% @ 100 MB/s - sending really_long_filename.txt'
         mock_stdout.write.assert_called_with(expected)
 
         # replace line with our progress (make sure it is long enough to blank out previous line)
-        progress_bar.update(percent_done=10, details='sending short.txt')
+        progress_bar.update(percent_done=10, details='sending short.txt', transferred_bytes=100)
         progress_bar.show()
-        expected = '\rProgress: 10% - sending short.txt              '
+        expected = '\rProgress: 10% @ 100 MB/s - sending short.txt              '
         mock_stdout.write.assert_called_with(expected)
 
-        progress_bar.update(percent_done=15, details='sending short.txt')
+        progress_bar.update(percent_done=15, details='sending short.txt', transferred_bytes=50)
         progress_bar.show()
-        expected = '\rProgress: 15% - sending short.txt              '
+        expected = '\rProgress: 15% @ 100 MB/s - sending short.txt              '
         mock_stdout.write.assert_called_with(expected)
 
         # we finish uploading(go to newline)
         progress_bar.set_state(ProgressBar.STATE_DONE)
         progress_bar.show()
-        expected = '\rDone: 100%                                     \n'
+        expected = '\rDone: 100% @ 100 MB/s                                     \n'
         mock_stdout.write.assert_called_with(expected)
 
     @patch('ddsc.core.util.sys.stdout')
-    def test_show_with_waiting(self, mock_stdout):
+    @patch('ddsc.core.util.transfer_speed_str')
+    def test_show_with_waiting(self, mock_transfer_speed_str, mock_stdout):
         progress_bar = ProgressBar()
+        mock_transfer_speed_str.return_value = ' @ 100 MB/s'
 
         # we make some progress
-        progress_bar.update(percent_done=10, details='sending short.txt')
+        progress_bar.update(percent_done=10, details='sending short.txt', transferred_bytes=100)
         progress_bar.show()
-        expected = '\rProgress: 10% - sending short.txt'
+        expected = '\rProgress: 10% @ 100 MB/s - sending short.txt'
         mock_stdout.write.assert_called_with(expected)
 
         # we get stuck waiting
         progress_bar.wait_msg = "Waiting for project"
         progress_bar.set_state(ProgressBar.STATE_WAITING)
         progress_bar.show()
-        expected = '\rProgress: 10% - Waiting for project'
+        expected = '\rProgress: 10% @ 100 MB/s - Waiting for project'
         mock_stdout.write.assert_called_with(expected)
 
         # waiting takes priority over progress updates
         # (we may be able to upload some folders while waiting to upload files)
-        progress_bar.update(percent_done=15, details='sending short.txt')
+        progress_bar.update(percent_done=15, details='sending short.txt', transferred_bytes=50)
         progress_bar.show()
-        expected = '\rProgress: 15% - Waiting for project'
+        expected = '\rProgress: 15% @ 100 MB/s - Waiting for project'
         mock_stdout.write.assert_called_with(expected)
 
         # we are not longer waiting
         progress_bar.set_state(ProgressBar.STATE_RUNNING)
         progress_bar.show()
-        expected = '\rProgress: 15% - sending short.txt  '
+        expected = '\rProgress: 15% @ 100 MB/s - sending short.txt  '
         mock_stdout.write.assert_called_with(expected)
 
         # we finish uploading(go to newline)
         progress_bar.set_state(ProgressBar.STATE_DONE)
         progress_bar.show()
-        expected = '\rDone: 100%                         \n'
+        expected = '\rDone: 100% @ 100 MB/s                         \n'
         mock_stdout.write.assert_called_with(expected)
 
     @patch('ddsc.core.util.sys.stdout')
@@ -111,20 +115,20 @@ class TestProgressBar(TestCase):
 
 class TestProgressPrinter(TestCase):
     @patch('ddsc.core.util.ProgressBar')
-    def test_stuff(self, mock_progress_bar):
+    def test_general_functionality(self, mock_progress_bar):
         progress_printer = ProgressPrinter(total=10, msg_verb='sending')
 
         # pretend we just created a project
         mock_project = Mock(kind=KindType.project_str, path='')
-        progress_printer.transferring_item(item=mock_project, increment_amt=1)
-        mock_progress_bar.return_value.update.assert_called_with(10, 'sending project')
+        progress_printer.transferring_item(item=mock_project, increment_amt=1, transferred_bytes=100)
+        mock_progress_bar.return_value.update.assert_called_with(10, 100, 'sending project')
         mock_progress_bar.return_value.show.assert_called()
         mock_progress_bar.reset_mock()
 
         # pretend we just created a folder
         mock_project = Mock(kind=KindType.folder_str, path='/data')
-        progress_printer.transferring_item(item=mock_project, increment_amt=2)
-        mock_progress_bar.return_value.update.assert_called_with(30, 'sending data')
+        progress_printer.transferring_item(item=mock_project, increment_amt=2, transferred_bytes=200)
+        mock_progress_bar.return_value.update.assert_called_with(30, 300, 'sending data')
         mock_progress_bar.return_value.show.assert_called()
         mock_progress_bar.reset_mock()
 
@@ -141,7 +145,7 @@ class TestProgressPrinter(TestCase):
         # pretend we uploaded a file
         mock_project = Mock(kind=KindType.file_str, path='/data/log.txt')
         progress_printer.transferring_item(item=mock_project, increment_amt=2)
-        mock_progress_bar.return_value.update.assert_called_with(50, 'sending log.txt')
+        mock_progress_bar.return_value.update.assert_called_with(50, 300, 'sending log.txt')
         mock_progress_bar.return_value.show.assert_called()
         mock_progress_bar.reset_mock()
 
@@ -181,10 +185,10 @@ class TestProgressPrinter(TestCase):
         mock_os.path.basename.return_value = 'somefile.txt'
         progress_printer = ProgressPrinter(total=10, msg_verb='sending')
         progress_printer.transferring_item(Mock(), increment_amt=0)
-        progress_bar.update.assert_called_with(0, "sending somefile.txt")
+        progress_bar.update.assert_called_with(0, 0, "sending somefile.txt")
         progress_bar.reset_mock()
         progress_printer.transferring_item(Mock(), increment_amt=0, override_msg_verb='checking')
-        progress_bar.update.assert_called_with(0, "checking somefile.txt")
+        progress_bar.update.assert_called_with(0, 0, "checking somefile.txt")
 
     def test_increment_progress(self):
         progress_printer = ProgressPrinter(total=10, msg_verb='sending')
@@ -215,12 +219,12 @@ class TestHumanizeBytes(TestCase):
     def test_humanize_bytes(self):
         vals = [
             (1, "1 B"),
-            (1023, "1023 B"),
-            (1024, "1 KiB"),
-            (1536, "1.5 KiB"),
-            (1024 ** 2, "1 MiB"),
-            (1024 ** 3, "1 GiB"),
-            (1024 ** 4, "1024 GiB"),
+            (999, "999 B"),
+            (1000, "1 KB"),
+            (1536, "1.5 KB"),
+            (1000 ** 2, "1 MB"),
+            (1000 ** 3, "1 GB"),
+            (1000 ** 4, "1000 GB"),
         ]
         for input_val, expected_result in vals:
             self.assertEqual(humanize_bytes(input_val), expected_result)

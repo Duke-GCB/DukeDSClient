@@ -10,14 +10,15 @@ from ddsc.core.localstore import LocalProject
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.projectuploader import ProjectUploadDryRun
 from ddsc.cmdparser import CommandParser, format_destination_path, replace_invalid_path_chars
-from ddsc.core.download import ProjectDownload
 from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
 from ddsc.config import create_config
 from ddsc.sdk.client import Client
+from ddsc.core.download import ProjectFileDownloader
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
+INVALID_DELIVERY_RECIPIENT_MSG = 'Delivery recipient cannot be a share user. Remove recipient from --share-users and try again.'
 TWO_SECONDS = 2
 
 
@@ -128,20 +129,26 @@ class BaseCommand(object):
         :return: [RemoteUser]: details about any users referenced the two parameters
         """
         to_users = []
-        remaining_emails = [] if not emails else list(emails)
-        remaining_usernames = [] if not usernames else list(usernames)
-        for user in self.remote_store.fetch_users():
-            if user.email in remaining_emails:
+        if emails:
+            for email in emails:
+                user = self.remote_store.get_or_register_user_by_email(email)
                 to_users.append(user)
-                remaining_emails.remove(user.email)
-            elif user.username in remaining_usernames:
+        if usernames:
+            for username in usernames:
+                user = self.remote_store.get_or_register_user_by_username(username)
                 to_users.append(user)
-                remaining_usernames.remove(user.username)
-        if remaining_emails or remaining_usernames:
-            unable_to_find_users = ','.join(remaining_emails + remaining_usernames)
-            msg = "Unable to find users for the following email/usernames: {}".format(unable_to_find_users)
-            raise ValueError(msg)
         return to_users
+
+
+class ClientCommand(object):
+    def __init__(self, config):
+        self.client = Client(config)
+
+    def get_project_by_name_or_id(self, args):
+        if args.project_name:
+            return self.client.get_project_by_name(args.project_name)
+        else:
+            return self.client.get_project_by_id(args.project_id)
 
 
 class UploadCommand(BaseCommand):
@@ -199,7 +206,7 @@ class UploadCommand(BaseCommand):
             print(project_upload.get_url_msg())
 
 
-class DownloadCommand(BaseCommand):
+class DownloadCommand(ClientCommand):
     """
     Downloads the content from a remote project into a folder.
     """
@@ -209,23 +216,24 @@ class DownloadCommand(BaseCommand):
         :param config: Config global configuration for use with this command.
         """
         super(DownloadCommand, self).__init__(config)
+        self.config = config
 
     def run(self, args):
         """
         Download a project based on passed in args.
         :param args: Namespace arguments parsed from the command line.
         """
-        project_name_or_id = self.create_project_name_or_id_from_args(args)
+        project = self.get_project_by_name_or_id(args)
         folder = args.folder                # path to a folder to download data into
         # Default to project name with spaces replaced with '_' if not specified
         if not folder:
-            folder = replace_invalid_path_chars(project_name_or_id.value.replace(' ', '_'))
+            folder = replace_invalid_path_chars(project.name.replace(' ', '_'))
+        path_filter = None
+        if args.include_paths or args.exclude_paths:
+            path_filter = PathFilter(args.include_paths, args.exclude_paths)
         destination_path = format_destination_path(folder)
-        path_filter = PathFilter(args.include_paths, args.exclude_paths)
-        print("Fetching list of files/folders.")
-        project = self.fetch_project(args, must_exist=True)
-        project_download = ProjectDownload(self.remote_store, project, destination_path, path_filter)
-        project_download.run()
+        downloader = ProjectFileDownloader(self.config, destination_path, project, path_filter=path_filter)
+        downloader.run()
 
 
 class AddUserCommand(BaseCommand):
@@ -347,6 +355,8 @@ class DeliverCommand(BaseCommand):
         if copy_project:
             new_project_name = self.get_new_project_name(project.name)
         to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
+        if to_user.id in [share_user.id for share_user in share_users]:
+            raise ValueError(INVALID_DELIVERY_RECIPIENT_MSG)
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
             dest_email = self.service.deliver(project, new_project_name, to_user, share_users,
@@ -471,17 +481,6 @@ class ListAuthRolesCommand(BaseCommand):
                 print(auth_role.id, "-", auth_role.description)
         else:
             print("No authorization roles found.")
-
-
-class ClientCommand(object):
-    def __init__(self, config):
-        self.client = Client(config)
-
-    def get_project_by_name_or_id(self, args):
-        if args.project_name:
-            return self.client.get_project_by_name(args.project_name)
-        else:
-            return self.client.get_project_by_id(args.project_id)
 
 
 class MoveCommand(ClientCommand):

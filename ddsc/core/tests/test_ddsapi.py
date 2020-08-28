@@ -7,7 +7,7 @@ from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundErro
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
     retry_until_resource_is_consistent, retry_connection_exceptions, CONNECTION_RETRY_MESSAGE, \
     RetrySettings
-from mock import MagicMock, Mock, patch, ANY
+from mock import MagicMock, Mock, patch, ANY, call
 
 
 def fake_response_with_pages(status_code, json_return_value, num_pages=1):
@@ -631,6 +631,49 @@ class TestDataServiceApi(TestCase):
 
         args, kwargs = mock_requests.get.call_args
         self.assertEqual(args[0], 'something.com/v1/projects/123/files')
+
+    def test_get_project_files_generator(self):
+        mock_requests = MagicMock()
+        page1 = {
+            "results": [
+                {
+                    "id": "1234"
+                }, {
+                    "id": "5678"
+                }
+            ]
+        }
+        page2 = {
+            "results": [
+                {
+                    "id": "9012"
+                }
+            ]
+        }
+        mock_requests.get.side_effect = [
+            fake_response_with_pages(status_code=200, json_return_value=page1, num_pages=2),
+            fake_response_with_pages(status_code=200, json_return_value=page2, num_pages=2),
+        ]
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1",
+                             http=mock_requests)
+        project_files = api.get_project_files_generator(project_id='123', page_size=2)
+
+        project_file, header_data = next(project_files)
+        self.assertEqual(header_data, {'x-total-pages': '2'})
+        self.assertEqual(project_file, {"id": "1234"})
+
+        project_file, header_data = next(project_files)
+        self.assertEqual(header_data, {'x-total-pages': '2'})
+        self.assertEqual(project_file, {"id": "5678"})
+
+        project_file, header_data = next(project_files)
+        self.assertEqual(header_data, {'x-total-pages': '2'})
+        self.assertEqual(project_file, {"id": "9012"})
+
+        mock_requests.get.assert_has_calls([
+            call('something.com/v1/projects/123/files', headers=ANY, params={'page': 1, 'per_page': 2}),
+            call('something.com/v1/projects/123/files', headers=ANY, params={'page': 2, 'per_page': 2})
+        ])
 
     def test_get_project_permissions(self):
         mock_requests = MagicMock()

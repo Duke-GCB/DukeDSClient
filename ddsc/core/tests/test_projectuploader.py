@@ -373,4 +373,4 @@ class TestCreateSmallFileCommand(TestCase):
         cmd.after_run(remote_file_data)
         cmd.file_upload_post_processor.run.assert_called_with(cmd.settings.data_service, remote_file_data)
         cmd.local_file.set_remote_values_after_send.assert_called_with('abc123', 'md5', 'abcdefg')
-        cmd.settings.watcher.transferring_item.assert_called_with(cmd.local_file)
+        cmd.settings.watcher.transferring_item.assert_called_with(cmd.local_file, transferred_bytes=cmd.local_file.size)

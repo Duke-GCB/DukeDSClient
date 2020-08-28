@@ -2,7 +2,7 @@ import os
 from ddsc.core.ddsapi import DataServiceApi, DataServiceError, DataServiceAuth
 from ddsc.core.util import KindType, REMOTE_PATH_SEP, RemotePath
 from ddsc.core.localstore import HashUtil
-from ddsc.core.userutil import UserUtil
+from ddsc.core.userutil import UserUtil, DUKE_EMAIL_SUFFIX
 
 FETCH_ALL_USERS_PAGE_SIZE = 25
 DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
@@ -472,6 +472,8 @@ class RemoteUser(object):
         self.username = json_data['username']
         self.full_name = json_data['full_name']
         self.email = json_data['email']
+        if not self.email and self.username:
+            self.email = '{}{}'.format(self.username, DUKE_EMAIL_SUFFIX)
         self.first_name = json_data['first_name']
         self.last_name = json_data['last_name']
 
@@ -669,7 +671,7 @@ class ProjectFile(object):
             "size": file_dict["current_version"]["upload"]["size"],
             "hashes": file_dict["current_version"]["upload"]["hashes"],
             "ancestors": file_dict["ancestors"],
-            "file_url": None,
+            "file_url": file_dict["file_url"],
 
         }
         return ProjectFile(project_file_dict)

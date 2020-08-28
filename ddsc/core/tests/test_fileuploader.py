@@ -166,6 +166,41 @@ class TestFileUploadOperations(TestCase):
 
     def test_finish_upload(self):
         data_service = MagicMock()
+        data_service.get_upload.return_value.json.return_value = {
+            'name': 'somefile.txt',
+            'size': 100,
+            'chunks': [{'size': 50}, {'size': 50}]
+        }
+        fop = FileUploadOperations(data_service, MagicMock())
+        fop.finish_upload(upload_id="123",
+                          hash_data=MagicMock(),
+                          parent_data=MagicMock(),
+                          remote_file_id="456")
+        data_service.complete_upload.assert_called()
+
+    def test_finish_upload_with_bad_chunks(self):
+        data_service = MagicMock()
+        data_service.get_upload.return_value.json.return_value = {
+            'name': 'somefile.txt',
+            'size': 150,
+            'chunks': [{'size': 50}, {'size': 50}]
+        }
+        fop = FileUploadOperations(data_service, MagicMock())
+        with self.assertRaises(ValueError) as raised_exception:
+            fop.finish_upload(upload_id="123",
+                              hash_data=MagicMock(),
+                              parent_data=MagicMock(),
+                              remote_file_id="456")
+        self.assertEqual(str(raised_exception.exception),
+                         'Failure uploading somefile.txt. Size mismatch file: 150 vs chunks:100.\n'
+                         'Please retry uploading.')
+
+    def test_finish_upload_with_no_chunks(self):
+        data_service = MagicMock()
+        data_service.get_upload.return_value.json.return_value = {
+            'name': 'somefile.txt',
+            'size': 150
+        }
         fop = FileUploadOperations(data_service, MagicMock())
         fop.finish_upload(upload_id="123",
                           hash_data=MagicMock(),
