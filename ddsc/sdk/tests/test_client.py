@@ -1,6 +1,6 @@
 from unittest import TestCase
 from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File, FileDownload, FileUpload, \
-    ChildFinder, PathToFiles, ItemNotFound, ProjectSummary
+    ChildFinder, PathToFiles, ItemNotFound, ProjectSummary, REMOTE_PATH_SEP
 from ddsc.core.util import KindType
 from mock import patch, Mock, call
 
@@ -767,6 +767,24 @@ class TestChildFinder(TestCase):
         child_finder = ChildFinder('data.txt', mock_project)
         with self.assertRaises(ItemNotFound):
             child_finder.get_child()
+
+    def test_try_get_item_for_path_with_slash(self):
+        node = Mock()
+        result = ChildFinder.try_get_item_for_path(node, REMOTE_PATH_SEP)
+        self.assertEqual(result, node)
+
+    @patch('ddsc.sdk.client.ChildFinder.get_child_for_path')
+    def test_try_get_item_for_path_with_child_found(self, mock_get_child_for_path):
+        node = Mock()
+        result = ChildFinder.try_get_item_for_path(node, '/file.txt')
+        self.assertEqual(result, mock_get_child_for_path.return_value)
+
+    @patch('ddsc.sdk.client.ChildFinder.get_child_for_path')
+    def test_try_get_item_for_path_with_child_found(self, mock_get_child_for_path):
+        mock_get_child_for_path.side_effect = ItemNotFound()
+        node = Mock()
+        result = ChildFinder.try_get_item_for_path(node, '/file.txt')
+        self.assertEqual(result, None)
 
 
 class TestPathToFiles(TestCase):

@@ -205,6 +205,21 @@ class TestDukeDS(TestCase):
         DukeDS.move_file_or_folder('myproject', '/data/file1.txt', '/data/file1_bak.txt')
         mock_project.move_file_or_folder.assert_called_with('/data/file1.txt', '/data/file1_bak.txt')
 
+    @patch('ddsc.sdk.dukeds.Client')
+    def test_create_folder(self, mock_client):
+        mock_project = Mock()
+        mock_project.try_get_item_for_path.return_value = None
+        mock_project.create_folder.return_value.try_get_item_for_path.return_value = None
+        mock_project.name = 'myproject'
+        mock_client.return_value.get_projects.return_value = [
+            mock_project
+        ]
+        DukeDS.create_folder('myproject', '/data/raw')
+        mock_project.create_folder.assert_called_with("data")
+        mock_project.create_folder.return_value.create_folder.assert_called_with("raw")
+
+
+
 
 class TestSession(TestCase):
     @patch('ddsc.sdk.dukeds.Client', autospec=True)
