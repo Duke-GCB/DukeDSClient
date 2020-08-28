@@ -9,9 +9,6 @@ For help email <gcb-help@duke.edu>.
 # Requirements
 
 - [python](https://www.python.org/) - version 3.5+
-- [requests](http://docs.python-requests.org/en/master/) - python module
-- [PyYAML](http://pyyaml.org/wiki/PyYAML) - python module
-
 
 # Installation:
 
