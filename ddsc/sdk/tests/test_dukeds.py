@@ -219,8 +219,6 @@ class TestDukeDS(TestCase):
         mock_project.create_folder.return_value.create_folder.assert_called_with("raw")
 
 
-
-
 class TestSession(TestCase):
     @patch('ddsc.sdk.dukeds.Client', autospec=True)
     def test_constructor_default_args(self, mock_client):

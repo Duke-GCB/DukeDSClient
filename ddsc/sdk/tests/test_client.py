@@ -780,7 +780,7 @@ class TestChildFinder(TestCase):
         self.assertEqual(result, mock_get_child_for_path.return_value)
 
     @patch('ddsc.sdk.client.ChildFinder.get_child_for_path')
-    def test_try_get_item_for_path_with_child_found(self, mock_get_child_for_path):
+    def test_try_get_item_for_path_with_child_not_found(self, mock_get_child_for_path):
         mock_get_child_for_path.side_effect = ItemNotFound()
         node = Mock()
         result = ChildFinder.try_get_item_for_path(node, '/file.txt')
