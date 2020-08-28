@@ -738,7 +738,7 @@ class TestChildFinder(TestCase):
             mock_folder,
             mock_file
         ]
-        child_finder = ChildFinder('data.txt', mock_project)
+        child_finder = ChildFinder(mock_project, 'data.txt')
         found_child = child_finder.get_child()
         self.assertEqual(found_child, mock_file)
 
@@ -754,7 +754,7 @@ class TestChildFinder(TestCase):
         mock_project.get_children.return_value = [
             mock_folder,
         ]
-        child_finder = ChildFinder('results/data.txt', mock_project)
+        child_finder = ChildFinder(mock_project, 'results/data.txt')
         found_child = child_finder.get_child()
         self.assertEqual(found_child, mock_file)
 
@@ -764,7 +764,7 @@ class TestChildFinder(TestCase):
         mock_project.get_children.return_value = [
             mock_folder,
         ]
-        child_finder = ChildFinder('data.txt', mock_project)
+        child_finder = ChildFinder(mock_project, 'data.txt')
         with self.assertRaises(ItemNotFound):
             child_finder.get_child()
 

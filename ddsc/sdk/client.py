@@ -636,13 +636,13 @@ class ChildFinder(object):
     """
     Recursively looks for a child based on a path
     """
-    def __init__(self, remote_path, node):
+    def __init__(self, node, remote_path):
         """
-        :param remote_path: path under a project in DDSConnection
         :param node: Project|Folder to find children under
+        :param remote_path: path under a project in DDSConnection
         """
-        self.remote_path = remote_path
         self.node = node
+        self.remote_path = remote_path
 
     def get_child(self):
         """
