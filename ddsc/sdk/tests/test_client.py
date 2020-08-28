@@ -444,39 +444,13 @@ class TestProject(TestCase):
     def test_get_child_for_path(self, mock_child_finder):
         mock_dds_connection = Mock()
         mock_child = Mock()
-        mock_child_finder.return_value.get_child.return_value = mock_child
+        mock_child_finder.get_child_for_path.return_value = mock_child
 
         project = Project(mock_dds_connection, self.project_dict)
         child = project.get_child_for_path('/data/file1.dat')
 
-        mock_child_finder.assert_called_with('/data/file1.dat', project)
+        mock_child_finder.get_child_for_path.assert_called_with(project, '/data/file1.dat')
         self.assertEqual(child, mock_child)
-
-    @patch('ddsc.sdk.client.ChildFinder')
-    def test_try_get_item_for_path__with_project(self, mock_child_finder):
-        mock_dds_connection = Mock()
-        project = Project(mock_dds_connection, self.project_dict)
-        project.get_child_for_path = Mock()
-        item = project.try_get_item_for_path('/')
-        self.assertEqual(item, project)
-        project.get_child_for_path.assert_not_called()
-
-    def test_try_get_item_for_path__with_child(self):
-        mock_dds_connection = Mock()
-        project = Project(mock_dds_connection, self.project_dict)
-        project.get_child_for_path = Mock()
-        item = project.try_get_item_for_path('/data/file1.dat')
-        self.assertEqual(item, project.get_child_for_path.return_value)
-        project.get_child_for_path.assert_called_with('/data/file1.dat')
-
-    def test_try_get_item_for_path__child_not_found(self):
-        mock_dds_connection = Mock()
-        project = Project(mock_dds_connection, self.project_dict)
-        project.get_child_for_path = Mock()
-        project.get_child_for_path.side_effect = ItemNotFound("Not Found")
-        item = project.try_get_item_for_path('/data/file1.dat')
-        self.assertEqual(item, None)
-        project.get_child_for_path.assert_called_with('/data/file1.dat')
 
     def test_create_folder(self):
         mock_dds_connection = Mock()
@@ -766,6 +740,36 @@ class TestChildFinder(TestCase):
         child_finder = ChildFinder('data.txt', mock_project)
         with self.assertRaises(ItemNotFound):
             child_finder.get_child()
+
+    @patch('ddsc.sdk.client.ChildFinder')
+    def test_try_get_item_for_path__with_project(self, mock_child_finder):
+        mock_child_finder.try_get_item_for_path = ChildFinder.try_get_item_for_path
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        project.get_child_for_path = Mock()
+        item = mock_child_finder.try_get_item_for_path(project, '/')
+        self.assertEqual(item, project)
+        mock_child_finder.get_child_for_path.assert_not_called()
+
+    @patch('ddsc.sdk.client.ChildFinder')
+    def test_try_get_item_for_path__with_child(self, mock_child_finder):
+        mock_child_finder.try_get_item_for_path = ChildFinder.try_get_item_for_path
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        project.get_child_for_path = Mock()
+        item = mock_child_finder.try_get_item_for_path(project, '/data/file1.dat')
+        self.assertEqual(item, project.get_child_for_path.return_value)
+        mock_child_finder.get_child_for_path.assert_called_with('/data/file1.dat')
+
+    @patch('ddsc.sdk.client.ChildFinder')
+    def test_try_get_item_for_path__child_not_found(self, mock_child_finder):
+        mock_dds_connection = Mock()
+        project = Project(mock_dds_connection, self.project_dict)
+        project.get_child_for_path = Mock()
+        mock_child_finder.get_child_for_path.side_effect = ItemNotFound("Not Found")
+        item = mock_child_finder.try_get_item_for_path(project, '/data/file1.dat')
+        self.assertEqual(item, None)
+        project.get_child_for_path.assert_called_with('/data/file1.dat')
 
 
 class TestPathToFiles(TestCase):

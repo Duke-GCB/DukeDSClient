@@ -658,7 +658,7 @@ class ChildFinder(object):
         :param path: str: path within a project specifying a file or folder to download
         :return: File|Folder
         """
-        child_finder = ChildFinder(path, node)
+        child_finder = ChildFinder(node, path)
         return child_finder.get_child()
 
     @staticmethod
