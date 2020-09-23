@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 import logging
-from ddsc.sdk.client import Client, FileUpload, PathToFiles, ItemNotFound, DuplicateNameError
+from ddsc.sdk.client import Client, FileUpload, PathToFiles, ItemNotFound, DuplicateNameError, RemotePath
 from ddsc.core.userutil import UserUtil
 
 
@@ -34,6 +34,15 @@ class DukeDS(object):
         :return:
         """
         Session().delete_project(project_name)
+
+    @staticmethod
+    def create_folder(project_name, remote_path):
+        """
+        Create a folder and any necessary parent folders for the specified path.
+        :param project_name: str: name of the project to create a folder in
+        :param remote_path: str: remote path specifying which folder(s) to create
+        """
+        return Session().create_folder(project_name, remote_path)
 
     @staticmethod
     def list_files(project_name):
@@ -150,6 +159,21 @@ class Session(object):
         project = self._get_project_for_name(project_name)
         project.delete()
         self.clear_project_cache()
+
+    def create_folder(self, project_name, remote_path):
+        """
+        Create a folder and any necessary parent folders for the specified path.
+        :param project_name: str: name of the project to create a folder in
+        :param remote_path: str: remote path specifying which folder(s) to create
+        """
+        project = self._get_project_for_name(project_name)
+        remote_path_parts = RemotePath.split(remote_path)
+        parent = project
+        for path_part in remote_path_parts:
+            parent_folder = parent.try_get_item_for_path(path_part)
+            if not parent_folder:
+                parent_folder = parent.create_folder(path_part)
+            parent = parent_folder
 
     def list_files(self, project_name):
         """
