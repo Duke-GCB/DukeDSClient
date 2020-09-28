@@ -396,6 +396,7 @@ class TestProjectFileDownloader(TestCase):
                                                         path_filter=None)
         project_file_downloader._download_file(mock_pool, mock_project_file)
         mock_os.path.dirname.assert_called_with("/tmp/data.out")
+        mock_os.path.exists.assert_called_with(mock_os.path.dirname.return_value)
         mock_os.makedirs.assert_called_with(mock_os.path.dirname.return_value)
         mock_file_download_state.assert_called_with(mock_project_file, '/tmp/data.out', self.config)
         mock_pool.apply_async.assert_called_with(download_file, (mock_file_download_state.return_value,
@@ -474,6 +475,7 @@ class TestProjectFileDownloader(TestCase):
         downloader.get_download_progress.return_value = (10, 1000)
         downloader.show_progress_bar()
         mock_sys.stdout.write.assert_called_with('\r| downloaded 1 KB @ 10 B/s          (10 of 20 files complete)')
+        mock_sys.stdout.flush.assert_called_with()
 
     @patch('ddsc.core.download.multiprocessing')
     def test_make_spinner_char(self, mock_multiprocessing):

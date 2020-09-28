@@ -278,8 +278,9 @@ class ProjectFileDownloader(object):
 
     def _download_file(self, pool, project_file):
         output_path = project_file.get_local_path(self.dest_directory)
-        if not os.path.exists(output_path):
-            os.makedirs(os.path.dirname(output_path))
+        output_path_parent = os.path.dirname(output_path)
+        if not os.path.exists(output_path_parent):
+            os.makedirs(output_path_parent)
         file_download_state = FileDownloadState(project_file, output_path, self.config)
         self._async_download_file(pool, file_download_state)
 
@@ -322,6 +323,7 @@ class ProjectFileDownloader(object):
             files_downloaded,
             self.files_to_download
         ))
+        sys.stdout.flush()
 
     def make_spinner_char(self, current_time):
         half_seconds = int(current_time)
