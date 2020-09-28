@@ -5,7 +5,7 @@ from ddsc.core.download import FileHash, FileHashStatus, FileDownloadState, Proj
 from ddsc.core.pathfilter import PathFilter
 import queue
 import requests
-from mock.mock import patch, Mock, call, mock_open
+from mock.mock import patch, Mock, call, mock_open, ANY
 
 
 class TestFileHash(TestCase):
@@ -206,7 +206,7 @@ class TestProjectFileDownloader(TestCase):
         self.project.get_project_files_generator.return_value = [
             (mock_project_file, {DDS_TOTAL_HEADER: 1})
         ]
-        mock_pool = mock_multiprocessing.Pool.return_value.__enter__.return_value
+        mock_pool = mock_multiprocessing.Pool.return_value
         mock_apply_async = mock_pool.apply_async
         mock_apply_async.return_value.get.return_value.status.get_status_line.return_value = 'Hash Status Line'
 
@@ -229,7 +229,6 @@ class TestProjectFileDownloader(TestCase):
 
     @patch('ddsc.core.download.multiprocessing')
     def test_download_files(self, mock_multiprocessing):
-        mock_pool = mock_multiprocessing.Pool.return_value.__enter__.return_value
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
                                                         path_filter=None)
         project_file_downloader.show_progress_bar = Mock()
@@ -262,14 +261,14 @@ class TestProjectFileDownloader(TestCase):
 
         # Expected behavior is to download file 1, wait for that to finish, download file 2, then wait for one more time
         manager.assert_has_calls([
-            call.download_file(mock_pool, 'project_file1_obj'),
+            call.download_file(ANY, 'project_file1_obj'),
             call.work_queue_is_full(),
-            call.wait_for_and_retry_failed_downloads(mock_pool),
+            call.wait_for_and_retry_failed_downloads(ANY),
             call.work_queue_is_full(),
-            call.download_file(mock_pool, 'project_file2_obj'),
+            call.download_file(ANY, 'project_file2_obj'),
             call.work_queue_is_full(),
             call.work_queue_is_not_empty(),
-            call.wait_for_and_retry_failed_downloads(mock_pool),
+            call.wait_for_and_retry_failed_downloads(ANY),
             call.work_queue_is_not_empty()
         ])
 
@@ -389,6 +388,7 @@ class TestProjectFileDownloader(TestCase):
     @patch('ddsc.core.download.os')
     @patch('ddsc.core.download.FileDownloadState')
     def test_download_file(self, mock_file_download_state, mock_os, mock_multiprocessing):
+        mock_os.path.exists.return_value = False
         mock_pool = Mock()
         mock_project_file = Mock(file_url={'host': 'somehost', 'url': 'someurl'})
         mock_project_file.get_local_path.return_value = '/tmp/data.out'
@@ -396,7 +396,8 @@ class TestProjectFileDownloader(TestCase):
                                                         path_filter=None)
         project_file_downloader._download_file(mock_pool, mock_project_file)
         mock_os.path.dirname.assert_called_with("/tmp/data.out")
-        mock_os.makedirs.assert_called_with(mock_os.path.dirname.return_value, exist_ok=True)
+        mock_os.path.exists.assert_called_with(mock_os.path.dirname.return_value)
+        mock_os.makedirs.assert_called_with(mock_os.path.dirname.return_value)
         mock_file_download_state.assert_called_with(mock_project_file, '/tmp/data.out', self.config)
         mock_pool.apply_async.assert_called_with(download_file, (mock_file_download_state.return_value,
                                                                  project_file_downloader.message_queue))
@@ -474,6 +475,7 @@ class TestProjectFileDownloader(TestCase):
         downloader.get_download_progress.return_value = (10, 1000)
         downloader.show_progress_bar()
         mock_sys.stdout.write.assert_called_with('\r| downloaded 1 KB @ 10 B/s          (10 of 20 files complete)')
+        mock_sys.stdout.flush.assert_called_with()
 
     @patch('ddsc.core.download.multiprocessing')
     def test_make_spinner_char(self, mock_multiprocessing):
