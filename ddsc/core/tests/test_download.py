@@ -229,7 +229,6 @@ class TestProjectFileDownloader(TestCase):
 
     @patch('ddsc.core.download.multiprocessing')
     def test_download_files(self, mock_multiprocessing):
-        mock_pool = mock_multiprocessing.Pool.return_value.__enter__.return_value
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
                                                         path_filter=None)
         project_file_downloader.show_progress_bar = Mock()
