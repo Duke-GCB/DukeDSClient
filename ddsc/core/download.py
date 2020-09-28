@@ -218,13 +218,16 @@ class ProjectFileDownloader(object):
         self._show_downloaded_files_status()
 
     def _download_files(self):
-        with multiprocessing.Pool(self.num_workers) as pool:
+        pool = multiprocessing.Pool(self.num_workers)
+        try:
             for project_file in self._get_project_files():
                 self._download_file(pool, project_file)
                 while self._work_queue_is_full():
                     self._wait_for_and_retry_failed_downloads(pool)
             while self._work_queue_is_not_empty():
                 self._wait_for_and_retry_failed_downloads(pool)
+        finally:
+            pool.close()
 
     def _show_downloaded_files_status(self):
         print("\nVerifying contents of {} downloaded files using file hashes.".format(self.files_to_download))
@@ -275,7 +278,8 @@ class ProjectFileDownloader(object):
 
     def _download_file(self, pool, project_file):
         output_path = project_file.get_local_path(self.dest_directory)
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        if not os.path.exists(output_path):
+            os.makedirs(os.path.dirname(output_path))
         file_download_state = FileDownloadState(project_file, output_path, self.config)
         self._async_download_file(pool, file_download_state)
 
