@@ -7,7 +7,7 @@ import time
 import queue
 from ddsc.core.localstore import HashUtil
 from ddsc.core.ddsapi import DDS_TOTAL_HEADER
-from ddsc.core.util import humanize_bytes
+from ddsc.core.util import humanize_bytes, transfer_speed_str
 
 SWIFT_EXPIRED_STATUS_CODE = 401
 S3_EXPIRED_STATUS_CODE = 403
@@ -218,13 +218,16 @@ class ProjectFileDownloader(object):
         self._show_downloaded_files_status()
 
     def _download_files(self):
-        with multiprocessing.Pool(self.num_workers) as pool:
+        pool = multiprocessing.Pool(self.num_workers)
+        try:
             for project_file in self._get_project_files():
                 self._download_file(pool, project_file)
                 while self._work_queue_is_full():
                     self._wait_for_and_retry_failed_downloads(pool)
             while self._work_queue_is_not_empty():
                 self._wait_for_and_retry_failed_downloads(pool)
+        finally:
+            pool.close()
 
     def _show_downloaded_files_status(self):
         print("\nVerifying contents of {} downloaded files using file hashes.".format(self.files_to_download))
@@ -275,7 +278,9 @@ class ProjectFileDownloader(object):
 
     def _download_file(self, pool, project_file):
         output_path = project_file.get_local_path(self.dest_directory)
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        output_path_parent = os.path.dirname(output_path)
+        if not os.path.exists(output_path_parent):
+            os.makedirs(output_path_parent)
         file_download_state = FileDownloadState(project_file, output_path, self.config)
         self._async_download_file(pool, file_download_state)
 
@@ -318,17 +323,18 @@ class ProjectFileDownloader(object):
             files_downloaded,
             self.files_to_download
         ))
+        sys.stdout.flush()
 
     def make_spinner_char(self, current_time):
         half_seconds = int(current_time)
         return self.spinner_chars[half_seconds % 4]
 
     def make_download_speed(self, current_time, total_bytes_downloaded):
-        elapsed_seconds = current_time - self.start_time
-        if elapsed_seconds > 0 and total_bytes_downloaded > 0:
-            bytes_per_second = float(total_bytes_downloaded) / (elapsed_seconds + 0.5)
-            return '@ {}/s'.format(humanize_bytes(bytes_per_second))
-        return ''
+        return transfer_speed_str(
+            current_time=current_time,
+            start_time=self.start_time,
+            transferred_bytes=total_bytes_downloaded
+        )
 
     def get_download_progress(self):
         files_downloaded = 0

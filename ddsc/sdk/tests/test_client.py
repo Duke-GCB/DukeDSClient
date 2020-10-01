@@ -1,6 +1,6 @@
 from unittest import TestCase
 from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File, FileDownload, FileUpload, \
-    ChildFinder, PathToFiles, ItemNotFound, ProjectSummary
+    ChildFinder, PathToFiles, ItemNotFound, ProjectSummary, REMOTE_PATH_SEP
 from ddsc.core.util import KindType
 from mock import patch, Mock, call
 
@@ -472,39 +472,13 @@ class TestProject(TestCase):
     def test_get_child_for_path(self, mock_child_finder):
         mock_dds_connection = Mock()
         mock_child = Mock()
-        mock_child_finder.return_value.get_child.return_value = mock_child
+        mock_child_finder.get_child_for_path.return_value = mock_child
 
         project = Project(mock_dds_connection, self.project_dict)
         child = project.get_child_for_path('/data/file1.dat')
 
-        mock_child_finder.assert_called_with('/data/file1.dat', project)
+        mock_child_finder.get_child_for_path.assert_called_with(project, '/data/file1.dat')
         self.assertEqual(child, mock_child)
-
-    @patch('ddsc.sdk.client.ChildFinder')
-    def test_try_get_item_for_path__with_project(self, mock_child_finder):
-        mock_dds_connection = Mock()
-        project = Project(mock_dds_connection, self.project_dict)
-        project.get_child_for_path = Mock()
-        item = project.try_get_item_for_path('/')
-        self.assertEqual(item, project)
-        project.get_child_for_path.assert_not_called()
-
-    def test_try_get_item_for_path__with_child(self):
-        mock_dds_connection = Mock()
-        project = Project(mock_dds_connection, self.project_dict)
-        project.get_child_for_path = Mock()
-        item = project.try_get_item_for_path('/data/file1.dat')
-        self.assertEqual(item, project.get_child_for_path.return_value)
-        project.get_child_for_path.assert_called_with('/data/file1.dat')
-
-    def test_try_get_item_for_path__child_not_found(self):
-        mock_dds_connection = Mock()
-        project = Project(mock_dds_connection, self.project_dict)
-        project.get_child_for_path = Mock()
-        project.get_child_for_path.side_effect = ItemNotFound("Not Found")
-        item = project.try_get_item_for_path('/data/file1.dat')
-        self.assertEqual(item, None)
-        project.get_child_for_path.assert_called_with('/data/file1.dat')
 
     def test_create_folder(self):
         mock_dds_connection = Mock()
@@ -764,7 +738,7 @@ class TestChildFinder(TestCase):
             mock_folder,
             mock_file
         ]
-        child_finder = ChildFinder('data.txt', mock_project)
+        child_finder = ChildFinder(mock_project, 'data.txt')
         found_child = child_finder.get_child()
         self.assertEqual(found_child, mock_file)
 
@@ -780,7 +754,7 @@ class TestChildFinder(TestCase):
         mock_project.get_children.return_value = [
             mock_folder,
         ]
-        child_finder = ChildFinder('results/data.txt', mock_project)
+        child_finder = ChildFinder(mock_project, 'results/data.txt')
         found_child = child_finder.get_child()
         self.assertEqual(found_child, mock_file)
 
@@ -790,9 +764,27 @@ class TestChildFinder(TestCase):
         mock_project.get_children.return_value = [
             mock_folder,
         ]
-        child_finder = ChildFinder('data.txt', mock_project)
+        child_finder = ChildFinder(mock_project, 'data.txt')
         with self.assertRaises(ItemNotFound):
             child_finder.get_child()
+
+    def test_try_get_item_for_path_with_slash(self):
+        node = Mock()
+        result = ChildFinder.try_get_item_for_path(node, REMOTE_PATH_SEP)
+        self.assertEqual(result, node)
+
+    @patch('ddsc.sdk.client.ChildFinder.get_child_for_path')
+    def test_try_get_item_for_path_with_child_found(self, mock_get_child_for_path):
+        node = Mock()
+        result = ChildFinder.try_get_item_for_path(node, '/file.txt')
+        self.assertEqual(result, mock_get_child_for_path.return_value)
+
+    @patch('ddsc.sdk.client.ChildFinder.get_child_for_path')
+    def test_try_get_item_for_path_with_child_not_found(self, mock_get_child_for_path):
+        mock_get_child_for_path.side_effect = ItemNotFound()
+        node = Mock()
+        result = ChildFinder.try_get_item_for_path(node, '/file.txt')
+        self.assertEqual(result, None)
 
 
 class TestPathToFiles(TestCase):

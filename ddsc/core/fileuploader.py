@@ -403,7 +403,7 @@ class ChunkSender(object):
             while sent_chunks != self.num_chunks_to_send:
                 chunk = infile.read(self.chunk_size)
                 self._send_chunk(chunk, chunk_num)
-                self.progress_queue.processed(1)
+                self.progress_queue.processed((1, len(chunk)))
                 chunk_num += 1
                 sent_chunks += 1
 
