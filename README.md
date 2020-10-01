@@ -11,9 +11,9 @@ For help email <gcb-help@duke.edu>.
 
 # Installation:
 
-DukeDSClient is can be installed using the `pip3` command line program.
+DukeDSClient can be installed using the `pip3` command line program.
 
-To install or upgrade **DukeDSClient** from a Terminal/Command Prompt run the following:
+To install or upgrade **DukeDSClient** from a Terminal or Command Prompt run the following:
 ```
 pip3 install --upgrade DukeDSClient
 ```
