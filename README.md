@@ -9,6 +9,8 @@ For help email <gcb-help@duke.edu>.
 
 - [python](https://www.python.org/) - version 3.5+
 
+__NOTE:__ When installing Python on Windows be sure to check the `Add Python to PATH` checkbox. This will avoid a problem where `pip3` and/or `ddsclient` cannot be found. 
+
 # Installation:
 
 DukeDSClient can be installed using the `pip3` command line program.
