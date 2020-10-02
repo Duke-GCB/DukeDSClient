@@ -22,7 +22,7 @@ pip3 install --upgrade DukeDSClient
 
 The above commmand will install the latest version of DukeDSClient from [PyPI](https://pypi.org/project/DukeDSClient/).
 
-If you do not have superuser or administrative privileges on your machine, you will either have to run `pip3` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme) or create a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments).
+If you receive a permission denied error it may be due to you not having superuser or administrative privileges on your machine. You can run `pip3` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme) or create a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments) to work around this limitation.
 Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for more details.
 
 ### Config file setup.
