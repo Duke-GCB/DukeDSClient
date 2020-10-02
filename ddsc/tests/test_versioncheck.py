@@ -5,12 +5,6 @@ import requests
 
 
 class TestVerifyEncoding(TestCase):
-    def test_check_version_works(self):
-        """
-        pypi shouldn't be a greater version than the development version
-        """
-        check_version()
-
     @patch("ddsc.versioncheck.get_internal_version")
     @patch("ddsc.versioncheck.get_pypi_version")
     def test_check_version_new_version_raises(self, mock_get_pypi_version, mock_get_internal_version):

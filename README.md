@@ -1,51 +1,40 @@
-# DukeDSClient
-Command line tool to upload/manage project on the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
+# DukeDSClient [![CircleCI](https://circleci.com/gh/Duke-GCB/DukeDSClient.svg?style=svg)](https://circleci.com/gh/Duke-GCB/DukeDSClient) [![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg)](https://coveralls.io/github/Duke-GCB/DukeDSClient)
 
-[![CircleCI](https://circleci.com/gh/Duke-GCB/DukeDSClient.svg?style=svg)](https://circleci.com/gh/Duke-GCB/DukeDSClient)
-[![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg)](https://coveralls.io/github/Duke-GCB/DukeDSClient)
+This command line program will allow you to upload, download, and manage projects in the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
+
+For help email <gcb-help@duke.edu>.
 
 
 # Requirements
 
-- [python](https://www.python.org/) - version 2.7+ with a functional ssl module.
-- [requests](http://docs.python-requests.org/en/master/) - python module
-- [PyYAML](http://pyyaml.org/wiki/PyYAML) - python module
+- [python](https://www.python.org/) - version 3.5+
 
-The preferred python versions are 2.7.9+ or 3.4.1+ as they have functional ssl modules by default.
-Older python 2.7 may work by following this guide: [Older-python-2.7-setup](https://github.com/Duke-GCB/DukeDSClient/wiki/Older-python-2.7-setup)
+__NOTE:__ When installing Python on Windows be sure to check the `Add Python to PATH` checkbox. This will avoid a problem where `pip3` and/or `ddsclient` cannot be found. 
 
 # Installation:
 
-DukeDSClient is written in Python and packaged for easy installation from [PyPI](https://pypi.org/project/DukeDSClient/) using `pip`.
-If you do not have superuser or administrative privileges on your machine, you will either have to create a [virtual environment (recommended)](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments) or run `pip` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme).
+DukeDSClient can be installed using the `pip3` command line program.
 
-Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for full details, but the below commands will create a virtual environment named **ddsclient-env** and install **DukeDSClient**:
+To install or upgrade **DukeDSClient** from a Terminal or Command Prompt run the following:
+```
+pip3 install --upgrade DukeDSClient
+```
 
-```
-python3 -m venv ddsclient-env       # Creates an environment called 'ddsclient-env'
-source ddsclient-env/bin/activate   # Activates the ddsclient-env environment
-pip3 install DukeDSClient           # Installs 'DukeDSClient' into 'ddsclient-env'
-```
+The above commmand will install the latest version of DukeDSClient from [PyPI](https://pypi.org/project/DukeDSClient/).
+
+If you receive a permission denied error it may be due to you not having superuser or administrative privileges on your machine. You can run `pip3` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme) or create a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments) to work around this limitation.
+Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for more details.
 
 ### Config file setup.
 
-DukeDSClient requires a config file containing an __agent_key__ and a __user_key__.
-DukeDSClient supports a global configuration file at /etc/ddsclient.conf and a user configuration file at ~/.ddsclient.
-Settings in the user configuration file override those in the global configuration.
-Details of all configuration options: [Configuration options](https://github.com/Duke-GCB/DukeDSClient/wiki/Configuration).
+DukeDSClient requires a config file containing your credentials used to access the duke-data-service.
+Complete details are available in the [configuration documentation](https://github.com/Duke-GCB/DukeDSClient/wiki/Configuration).
 
-#####  Follow these instructions to setup your __user_key__ and  __agent_key__:
+#####  Create credentials and config file
 
 [Instructions for adding agent and user keys to the user config file.](https://github.com/Duke-GCB/DukeDSClient/wiki/Agent-User-Keys-(setup))
 
 ### Usage:
-
-If DukeDSClient is installed in a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments), you must activate the virtual environment before running ddsclient:
-
-```
-source ddsclient-env/bin/activate
-```
-
 See general help screen:
 
 ```
