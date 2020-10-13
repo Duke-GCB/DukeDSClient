@@ -363,6 +363,7 @@ def upload_async(data_service_auth_data, config, upload_id,
     except:
         error_msg = "".join(traceback.format_exception(*sys.exc_info()))
         progress_queue.error(error_msg)
+    data_service.close()
 
 
 class ChunkSender(object):

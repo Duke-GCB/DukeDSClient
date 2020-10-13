@@ -67,6 +67,9 @@ class ProjectUpload(object):
         url = '{}: {}'.format(msg, self.remote_store.data_service.portal_url(project_id))
         return url
 
+    def cleanup(self):
+        self.remote_store.close()
+
 
 class UploadReport(object):
     """

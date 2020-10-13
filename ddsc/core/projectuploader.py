@@ -312,6 +312,7 @@ def upload_project_run(upload_context):
     data_service = upload_context.make_data_service()
     project_name = upload_context.project_name_or_id.get_name_or_raise()
     result = data_service.create_project(project_name, project_name)
+    data_service.close()
     return result.json()['id']
 
 
@@ -363,6 +364,7 @@ def upload_folder_run(upload_context):
     data_service = upload_context.make_data_service()
     folder_name, parent_kind, parent_remote_id = upload_context.params
     result = data_service.create_folder(folder_name, parent_kind, parent_remote_id)
+    data_service.close()
     return result.json()['id']
 
 
@@ -489,7 +491,9 @@ def create_small_file(upload_context):
     upload_id, url_info = upload_operations.create_upload_and_chunk_url(
         upload_context.project_id, path_data, hash_data, storage_provider_id=upload_context.config.storage_provider_id)
     upload_operations.send_file_external(url_info, chunk)
-    return upload_operations.finish_upload(upload_id, hash_data, parent_data, remote_file_id)
+    file_response_json = upload_operations.finish_upload(upload_id, hash_data, parent_data, remote_file_id)
+    data_service.close()
+    return file_response_json
 
 
 class ProjectUploadDryRun(object):
