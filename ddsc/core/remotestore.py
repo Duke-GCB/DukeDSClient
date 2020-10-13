@@ -320,6 +320,9 @@ class RemoteStore(object):
         """
         return RemoteFileUrl(self.data_service.get_file_url(file_id).json())
 
+    def close(self):
+        self.data_service.close()
+
 
 class RemoteProject(object):
     """

@@ -345,6 +345,12 @@ class TestRemoteAuthRole(TestCase):
 
 
 class TestRemoteStore(TestCase):
+    @patch('ddsc.core.remotestore.DataServiceApi')
+    def test_close(self, mock_data_service_api):
+        remote_store = RemoteStore(config=MagicMock())
+        remote_store.close()
+        mock_data_service_api.return_value.close.assert_called_with()
+
     def test_auth_roles_system(self):
         JSON_DATA = {
             "results": [

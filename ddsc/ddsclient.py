@@ -88,6 +88,7 @@ class DDSClient(object):
         self.show_error_stack_trace = config.debug_mode
         command = command_constructor(config)
         command.run(args)
+        command.cleanup()
 
 
 class BaseCommand(object):
@@ -138,6 +139,9 @@ class BaseCommand(object):
                 user = self.remote_store.get_or_register_user_by_username(username)
                 to_users.append(user)
         return to_users
+
+    def cleanup(self):
+        self.remote_store.close()
 
 
 class ClientCommand(object):

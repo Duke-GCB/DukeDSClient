@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand, ClientCommand, MoveCommand
 from ddsc.ddsclient import ShareCommand, DeliverCommand, InfoCommand, read_argument_file_contents, \
-    INVALID_DELIVERY_RECIPIENT_MSG
+    INVALID_DELIVERY_RECIPIENT_MSG, DDSClient
 from mock import patch, MagicMock, Mock, call, ANY
 
 
@@ -359,6 +359,15 @@ class TestDDSClient(TestCase):
         self.assertEqual('', read_argument_file_contents(None))
         with open("setup.py") as infile:
             self.assertIn("setup(", read_argument_file_contents(infile))
+
+    @patch('ddsc.ddsclient.create_config')
+    def test_run_command(self, mock_create_config):
+        ddsclient = DDSClient()
+        command_constructor = Mock()
+        mock_args = Mock(allow_insecure_config_file=False)
+        ddsclient._run_command(command_constructor, mock_args)
+        command_constructor.return_value.run.assert_called_with(mock_args)
+        command_constructor.return_value.cleanup.assert_called_with()
 
 
 class TestListCommand(TestCase):

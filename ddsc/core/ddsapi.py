@@ -278,6 +278,10 @@ class DataServiceApi(object):
         """
         self.http = requests.Session()
 
+    def close(self):
+        self.http.close()
+        self.http = None
+
     def _url_parts(self, url_suffix, data, content_type):
         """
         Format the url data based on config_type.
