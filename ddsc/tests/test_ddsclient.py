@@ -70,6 +70,13 @@ class TestBaseCommand(TestCase):
         self.assertEqual('Invalid',
                          str(raisedError.exception))
 
+    @patch('ddsc.ddsclient.RemoteStore', autospec=True)
+    def test_cleanup(self, mock_remote_store):
+        mock_config = MagicMock()
+        base_cmd = BaseCommand(mock_config)
+        base_cmd.cleanup()
+        mock_remote_store.return_value.close.assert_called_with()
+
 
 class TestUploadCommand(TestCase):
     @patch("ddsc.ddsclient.ProjectUpload")
@@ -113,6 +120,7 @@ class TestUploadCommand(TestCase):
             call('\n'),
             call(mock_project_upload.return_value.get_url_msg.return_value),
         ])
+        mock_project_upload.return_value.cleanup.assert_called_with()
 
     @patch("ddsc.ddsclient.ProjectUpload")
     @patch("ddsc.ddsclient.ProjectNameOrId")
@@ -470,6 +478,12 @@ class TestClientCommand(TestCase):
         self.assertEqual(client_command.client, mock_client.return_value)
         self.assertEqual(project, mock_client.return_value.get_project_by_id.return_value)
         mock_client.return_value.get_project_by_id.assert_called_with('123abc')
+
+    @patch('ddsc.ddsclient.Client')
+    def test_cleanup(self, mock_client):
+        client_command = ClientCommand(config=Mock())
+        client_command.cleanup()
+        mock_client.return_value.close.assert_called_with()
 
 
 class TestMoveCommand(TestCase):
