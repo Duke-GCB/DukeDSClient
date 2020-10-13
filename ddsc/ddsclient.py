@@ -16,9 +16,7 @@ from ddsc.versioncheck import check_version, VersionException, get_internal_vers
 from ddsc.config import create_config
 from ddsc.sdk.client import Client
 from ddsc.core.download import ProjectFileDownloader
-import tracemalloc
 
-tracemalloc.start(25)
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 INVALID_DELIVERY_RECIPIENT_MSG = 'Delivery recipient cannot be a share user. Remove recipient from --share-users and try again.'
