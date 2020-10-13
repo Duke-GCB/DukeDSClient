@@ -31,7 +31,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            python -W error setup.py test
+            python setup.py test
             flake8 --ignore E501 ddsc/
             coverage run --source=ddsc setup.py test
   deploy:
