@@ -86,7 +86,9 @@ Example: Download the contents of project named 'Mouse RNA' into '/tmp/mouserna'
 ddsclient download -p 'Mouse RNA' /tmp/mouserna
 ```
 
-__NOTE:__ To download a project onto a mounted share (such as a CIFS share) specify a path within the share to download directly there.
+#### Downloading to a mounted file share
+
+To download a project onto a mounted share (such as a CIFS share) specify a path within the share to download directly there.
 
 
 ### Add User To Project:
