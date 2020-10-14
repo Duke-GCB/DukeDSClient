@@ -77,6 +77,9 @@ class Client(object):
         """
         return self.dds_connection.get_file_by_id(file_id)
 
+    def close(self):
+        self.dds_connection.close()
+
 
 class DDSConnection(object):
     """
@@ -88,6 +91,9 @@ class DDSConnection(object):
         """
         self.config = config
         self.data_service = DataServiceApi(DataServiceAuth(config), config.url)
+
+    def close(self):
+        self.data_service.close()
 
     def _create_array_response(self, resp, array_item_constructor):
         items = resp.json()['results']

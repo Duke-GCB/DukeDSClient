@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand, ClientCommand, MoveCommand
 from ddsc.ddsclient import ShareCommand, DeliverCommand, InfoCommand, read_argument_file_contents, \
-    INVALID_DELIVERY_RECIPIENT_MSG
+    INVALID_DELIVERY_RECIPIENT_MSG, DDSClient
 from mock import patch, MagicMock, Mock, call, ANY
 
 
@@ -70,6 +70,13 @@ class TestBaseCommand(TestCase):
         self.assertEqual('Invalid',
                          str(raisedError.exception))
 
+    @patch('ddsc.ddsclient.RemoteStore', autospec=True)
+    def test_cleanup(self, mock_remote_store):
+        mock_config = MagicMock()
+        base_cmd = BaseCommand(mock_config)
+        base_cmd.cleanup()
+        mock_remote_store.return_value.close.assert_called_with()
+
 
 class TestUploadCommand(TestCase):
     @patch("ddsc.ddsclient.ProjectUpload")
@@ -113,6 +120,7 @@ class TestUploadCommand(TestCase):
             call('\n'),
             call(mock_project_upload.return_value.get_url_msg.return_value),
         ])
+        mock_project_upload.return_value.cleanup.assert_called_with()
 
     @patch("ddsc.ddsclient.ProjectUpload")
     @patch("ddsc.ddsclient.ProjectNameOrId")
@@ -360,6 +368,15 @@ class TestDDSClient(TestCase):
         with open("setup.py") as infile:
             self.assertIn("setup(", read_argument_file_contents(infile))
 
+    @patch('ddsc.ddsclient.create_config')
+    def test_run_command(self, mock_create_config):
+        ddsclient = DDSClient()
+        command_constructor = Mock()
+        mock_args = Mock(allow_insecure_config_file=False)
+        ddsclient._run_command(command_constructor, mock_args)
+        command_constructor.return_value.run.assert_called_with(mock_args)
+        command_constructor.return_value.cleanup.assert_called_with()
+
 
 class TestListCommand(TestCase):
     @patch('sys.stdout.write')
@@ -461,6 +478,12 @@ class TestClientCommand(TestCase):
         self.assertEqual(client_command.client, mock_client.return_value)
         self.assertEqual(project, mock_client.return_value.get_project_by_id.return_value)
         mock_client.return_value.get_project_by_id.assert_called_with('123abc')
+
+    @patch('ddsc.ddsclient.Client')
+    def test_cleanup(self, mock_client):
+        client_command = ClientCommand(config=Mock())
+        client_command.cleanup()
+        mock_client.return_value.close.assert_called_with()
 
 
 class TestMoveCommand(TestCase):

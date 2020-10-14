@@ -125,6 +125,13 @@ class TestClient(TestCase):
         self.assertEqual(folder, some_file)
         mock_dss_connection.return_value.get_file_by_id.assert_called_with('456')
 
+    @patch('ddsc.sdk.client.create_config')
+    @patch('ddsc.sdk.client.DDSConnection')
+    def test_close(self, mock_dss_connection, mock_create_config):
+        client = Client()
+        client.close()
+        mock_dss_connection.return_value.close.assert_called_with()
+
 
 class TestDDSConnection(TestCase):
     @patch('ddsc.sdk.client.DataServiceApi')

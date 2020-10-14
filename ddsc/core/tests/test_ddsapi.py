@@ -488,6 +488,14 @@ class TestDataServiceApi(TestCase):
         self.assertIsNotNone(api.http)
         self.assertEqual(type(api.http), requests.sessions.Session)
 
+    @patch('ddsc.core.ddsapi.requests')
+    def test_close(self, mock_requests):
+        api = DataServiceApi(auth=self.create_mock_auth(config_page_size=100), url="something.com/v1/", http=None)
+        self.assertIsNotNone(api.http)
+        api.close()
+        self.assertIsNone(api.http)
+        mock_requests.Session.return_value.close.assert_called_with()
+
     def test_check_err_with_good_response(self):
         resp = Mock(headers={}, status_code=202)
         url_suffix = ""

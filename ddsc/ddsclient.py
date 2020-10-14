@@ -17,6 +17,7 @@ from ddsc.config import create_config
 from ddsc.sdk.client import Client
 from ddsc.core.download import ProjectFileDownloader
 
+
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 INVALID_DELIVERY_RECIPIENT_MSG = 'Delivery recipient cannot be a share user. Remove recipient from --share-users and try again.'
 TWO_SECONDS = 2
@@ -88,6 +89,7 @@ class DDSClient(object):
         self.show_error_stack_trace = config.debug_mode
         command = command_constructor(config)
         command.run(args)
+        command.cleanup()
 
 
 class BaseCommand(object):
@@ -139,6 +141,9 @@ class BaseCommand(object):
                 to_users.append(user)
         return to_users
 
+    def cleanup(self):
+        self.remote_store.close()
+
 
 class ClientCommand(object):
     def __init__(self, config):
@@ -149,6 +154,9 @@ class ClientCommand(object):
             return self.client.get_project_by_name(args.project_name)
         else:
             return self.client.get_project_by_id(args.project_id)
+
+    def cleanup(self):
+        self.client.close()
 
 
 class UploadCommand(BaseCommand):
@@ -204,6 +212,7 @@ class UploadCommand(BaseCommand):
                 print(upload_report.get_content())
                 print('\n')
             print(project_upload.get_url_msg())
+            project_upload.cleanup()
 
 
 class DownloadCommand(ClientCommand):

@@ -2,7 +2,7 @@ from unittest import TestCase
 import pickle
 import multiprocessing
 from ddsc.core.projectuploader import UploadSettings, UploadContext, ProjectUploadDryRun, CreateProjectCommand, \
-    upload_project_run, create_small_file, ProjectUploader, HashFileCommand, CreateSmallFileCommand
+    upload_project_run, create_small_file, ProjectUploader, HashFileCommand, CreateSmallFileCommand, upload_folder_run
 from ddsc.core.util import KindType
 from ddsc.core.remotestore import ProjectNameOrId
 from mock import MagicMock, Mock, patch, call, ANY
@@ -169,6 +169,19 @@ class TestCreateProjectCommand(TestCase):
         mock_upload_context.project_name_or_id = ProjectNameOrId.create_from_name('mouse')
         upload_project_run(mock_upload_context)
         mock_data_service.create_project.assert_called_with('mouse', 'mouse')
+        mock_data_service.close.assert_called_with()
+
+
+class TestCreateFolderCommand(TestCase):
+    def test_upload_folder_run(self):
+        context = Mock(params=["data", "dds-project", "1234"])
+        mock_data_service = context.make_data_service.return_value
+        mock_data_service.create_folder.return_value.json.return_value = {"id": "5678"}
+        upload_id = upload_folder_run(context)
+
+        self.assertEqual(upload_id, "5678")
+        mock_data_service.create_folder.assert_called_with("data", "dds-project", "1234")
+        mock_data_service.close.assert_called_with()
 
 
 class TestCreateSmallFile(TestCase):
@@ -187,6 +200,7 @@ class TestCreateSmallFile(TestCase):
 
         self.assertEqual(resp, mock_file_operations.return_value.finish_upload.return_value)
         mock_file_operations.return_value.create_file_chunk_url.assert_not_called()
+        upload_context.make_data_service.return_value.close.assert_called_with()
 
     @patch('ddsc.core.projectuploader.FileUploadOperations', autospec=True)
     def test_create_small_file_hash_matches(self, mock_file_operations):

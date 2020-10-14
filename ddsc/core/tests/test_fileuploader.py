@@ -51,7 +51,8 @@ class TestParallelChunkProcessor(TestCase):
 
 class TestUploadAsync(TestCase):
     @patch('ddsc.core.fileuploader.ChunkSender')
-    def test_upload_async_sends_exception_to_progress_queue(self, mock_chunk_sender):
+    @patch('ddsc.core.fileuploader.DataServiceApi')
+    def test_upload_async_sends_exception_to_progress_queue(self, mock_data_service_api, mock_chunk_sender):
         data_service_auth_data = MagicMock()
         config = MagicMock()
         upload_id = 123
@@ -65,6 +66,7 @@ class TestUploadAsync(TestCase):
         params = progress_queue.error.call_args
         positional_args = params[0]
         self.assertIn('Something Failed!', positional_args[0])
+        mock_data_service_api.return_value.close.assert_called_with()
 
 
 class TestFileUploadOperations(TestCase):
