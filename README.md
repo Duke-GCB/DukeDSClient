@@ -88,7 +88,7 @@ ddsclient download -p 'Mouse RNA' /tmp/mouserna
 
 #### Downloading to a mounted file share
 
-To download a project onto a mounted file share (such as a CIFS share) specify a path within the share to download directly there.
+To download a project onto a mounted file share (such as a CIFS share) specify a path within the share for the `Folder` to download directly there.
 
 
 ### Add User To Project:
