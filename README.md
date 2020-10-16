@@ -86,6 +86,11 @@ Example: Download the contents of project named 'Mouse RNA' into '/tmp/mouserna'
 ddsclient download -p 'Mouse RNA' /tmp/mouserna
 ```
 
+#### Downloading to a file share
+
+To download a project onto a file share (such as a CIFS share) specify a path within the share for the `Folder` to download directly there.
+
+
 ### Add User To Project:
 
 #### Using duke netid:

@@ -13,9 +13,9 @@ Follow this guide for adjusting your terminal encoding:
 """
 
 CONFIG_FILE_PERMISSIONS_ERROR = """
-ERROR: Your config file ~/.ddsclient permissions are open and can allow other users to see your secret key.
-Please disable group and other permissions for your DukeDSClient configuration file.
-You may be able to fix this by running:
+ERROR: Your config file ~/.ddsclient permissions can allow other users to see your secret key.
+Please remove group and other permissions for your DukeDSClient configuration file.
+To do so run the following command:
 chmod 600 ~/.ddsclient
 
 """
