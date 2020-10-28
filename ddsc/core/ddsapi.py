@@ -175,8 +175,11 @@ class DataServiceAuth(object):
         elif response.status_code != 201:
             raise AuthTokenCreationError(response)
         resp_json = response.json()
-        self._auth = resp_json['api_token']
-        self._expires = resp_json['expires_on']
+        self.set_token(resp_json['api_token'], resp_json['expires_on'])
+
+    def set_token(self, auth, expires):
+        self._auth = auth
+        self._expires = expires
 
     def get_auth_data(self):
         """
@@ -212,6 +215,44 @@ class DataServiceAuth(object):
 
     def set_status_message(self, msg):
         print(msg)
+
+
+class OAuthDataServiceAuth(DataServiceAuth):
+    """
+    Creates DDS authentication tokens based on OAuth tokens.
+    """
+    @retry_connection_exceptions
+    def claim_new_token(self):
+        headers = {
+            'Content-Type': ContentType.json,
+            'User-Agent': self.user_agent_str
+        }
+        data = {
+            "access_token": self.create_oauth_access_token(),
+            "authentication_service_id": self.get_authentication_service_id(),
+        }
+        url = self.config.url + "/user/api_token"
+        response = requests.get(url, headers=headers, params=data)
+        try:
+            response.raise_for_status()
+            resp_json = response.json()
+            self.set_token(resp_json['api_token'], resp_json['expires_on'])
+        except requests.exceptions.HTTPError:
+            raise AuthTokenCreationError(response)
+
+    def create_oauth_access_token(self):
+        """
+        This method should be overridden with a method that returns an access token.
+        :return: str: access_token usable with DDS API /user/api_token
+        """
+        raise NotImplementedError("Users of OAuthDataServiceAuth must implement create_oauth_access_token.")
+
+    def get_authentication_service_id(self):
+        """
+        This method should be overridden with a method that returns authentication service id.
+        :return: str: authentication_service_id usable with DDS API /user/api_token
+        """
+        raise NotImplementedError("Users of OAuthDataServiceAuth must implement get_authentication_service_id.")
 
 
 class DataServiceError(Exception):

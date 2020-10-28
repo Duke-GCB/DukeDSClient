@@ -16,13 +16,14 @@ class Client(object):
     Client that connects to the DDSConnection base on ~/.ddsclient configuration.
     This configuration can be customized by passing in a ddsc.config.Config object
     """
-    def __init__(self, config=None):
+    def __init__(self, config=None, create_data_service_auth=DataServiceAuth):
         """
         :param config: ddsc.config.Config: settings used to connect to DDSConnection
+        :param create_data_service_auth: func(config): function used to create a DataServiceAuth object
         """
         if not config:
             config = create_config()
-        self.dds_connection = DDSConnection(config)
+        self.dds_connection = DDSConnection(config, create_data_service_auth)
 
     def get_projects(self):
         """
@@ -85,12 +86,13 @@ class DDSConnection(object):
     """
     Contains methods for accessing various DDSConnection API functionality
     """
-    def __init__(self, config):
+    def __init__(self, config, create_data_service_auth=DataServiceAuth):
         """
         :param config: ddsc.config.Config: settings used to connect to DDSConnection
+        :param create_data_service_auth: func(config): function used to create a DataServiceAuth object
         """
         self.config = config
-        self.data_service = DataServiceApi(DataServiceAuth(config), config.url)
+        self.data_service = DataServiceApi(create_data_service_auth(config), config.url)
 
     def close(self):
         self.data_service.close()

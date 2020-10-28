@@ -6,7 +6,7 @@ from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth,
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
     retry_until_resource_is_consistent, retry_connection_exceptions, CONNECTION_RETRY_MESSAGE, \
-    RetrySettings
+    RetrySettings, OAuthDataServiceAuth
 from mock import MagicMock, Mock, patch, ANY, call
 
 
@@ -1129,3 +1129,29 @@ class TestRetryConnectionExceptions(TestCase):
             self.func('123')
         self.assertEqual(0, mock_time.sleep.call_count)
         self.assertEqual(0, len(self.status_messages))
+
+
+class MyOAuthDataServiceAuth(OAuthDataServiceAuth):
+    def create_oauth_access_token(self):
+        return '123'
+
+    def get_authentication_service_id(self):
+        return '456'
+
+
+class TestOAuthDataServiceAuth(TestCase):
+    @patch('ddsc.core.ddsapi.requests')
+    def test_claim_new_token(self, mock_requests):
+        mock_requests.get.return_value.json.return_value = {
+            'api_token': '789',
+            'expires_on': 123456
+        }
+        config = Mock(url='myurl')
+        auth = MyOAuthDataServiceAuth(config)
+
+        auth.claim_new_token()
+
+        self.assertEqual(auth._auth, '789')
+        self.assertEqual(auth._expires, 123456)
+        expected_params = {'access_token': '123', 'authentication_service_id': '456'}
+        mock_requests.get.assert_called_with('myurl/user/api_token', headers=ANY, params=expected_params)
