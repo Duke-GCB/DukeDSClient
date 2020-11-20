@@ -88,7 +88,11 @@ class Config(object):
         filename = os.path.expanduser(filename)
         if os.path.exists(filename):
             with open(filename, 'r') as yaml_file:
-                self.update_properties(yaml.safe_load(yaml_file))
+                config_data = yaml.safe_load(yaml_file)
+                if config_data:
+                    self.update_properties(config_data)
+                else:
+                    raise ValueError("Error: Empty config file {}".format(filename))
 
     def update_properties(self, new_values):
         """
