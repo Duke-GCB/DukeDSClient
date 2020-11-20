@@ -1,4 +1,5 @@
 import logging
+from ddsc.exceptions import DDSUserException
 
 DUKE_EMAIL_SUFFIX = "@duke.edu"
 
@@ -56,4 +57,4 @@ class UserUtil(object):
             return None
         if len(results) == 1:
             return results[0]
-        raise ValueError("Found multiple users for {}.".format(lookup_value))
+        raise DDSUserException("Found multiple users for {}.".format(lookup_value))

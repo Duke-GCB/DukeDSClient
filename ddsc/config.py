@@ -5,6 +5,7 @@ import math
 import yaml
 import multiprocessing
 from ddsc.core.util import verify_file_private
+from ddsc.exceptions import DDSUserException
 
 try:
     from urllib.parse import urlparse
@@ -92,7 +93,7 @@ class Config(object):
                 if config_data:
                     self.update_properties(config_data)
                 else:
-                    raise ValueError("Error: Empty config file {}".format(filename))
+                    raise DDSUserException("Error: Empty config file {}".format(filename))
 
     def update_properties(self, new_values):
         """

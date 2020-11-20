@@ -1,5 +1,6 @@
 import os
 from ddsc.core.util import KindType
+from ddsc.exceptions import DDSUserException
 
 
 class MoveUtil(object):
@@ -24,7 +25,7 @@ class MoveUtil(object):
             if self.is_folder_or_project(target):
                 return target
             else:
-                raise ValueError("Cannot move to existing file {}.".format(self.target_remote_path))
+                raise DDSUserException("Cannot move to existing file {}.".format(self.target_remote_path))
         else:
             source_parent_remote_path = os.path.dirname(self.source_remote_path)
             target_parent_remote_path = os.path.dirname(self.target_remote_path)
@@ -34,9 +35,9 @@ class MoveUtil(object):
                     if self.is_folder_or_project(target_parent):
                         return target_parent
                     else:
-                        raise ValueError("Target parent {} is a file.".format(target_parent_remote_path))
+                        raise DDSUserException("Target parent {} is a file.".format(target_parent_remote_path))
                 else:
-                    raise ValueError("Target parent directory {} does not exist.".format(target_parent_remote_path))
+                    raise DDSUserException("Target parent directory {} does not exist.".format(target_parent_remote_path))
         return None
 
     def get_new_name(self):

@@ -9,6 +9,7 @@ from ddsc.core.ddsapi import DataServiceAuth, DataServiceApi, retry_until_resour
 from ddsc.core.util import ProgressQueue, wait_for_processes
 from ddsc.core.localstore import HashData
 from ddsc.core.retry import RetrySettings
+from ddsc.exceptions import DDSUserException
 import traceback
 import sys
 import time
@@ -260,8 +261,8 @@ class FileUploadOperations(object):
         if file_chunks:
             total_chunk_size = sum([chunk['size'] for chunk in file_chunks])
             if file_size != total_chunk_size:
-                raise ValueError("Failure uploading {}. Size mismatch file: {} vs chunks:{}."
-                                 "\nPlease retry uploading.".format(file_name, file_size, total_chunk_size))
+                raise DDSUserException("Failure uploading {}. Size mismatch file: {} vs chunks:{}."
+                                       "\nPlease retry uploading.".format(file_name, file_size, total_chunk_size))
 
 
 class ParallelChunkProcessor(object):

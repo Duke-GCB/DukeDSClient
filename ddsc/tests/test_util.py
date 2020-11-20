@@ -3,6 +3,7 @@ import subprocess
 import os
 import tempfile
 from ddsc.core.util import mode_allows_group_or_other, verify_file_private, ProjectDetailsList, KindType
+from ddsc.exceptions import DDSUserException
 from mock import patch, Mock
 
 
@@ -62,7 +63,7 @@ class TestUtil(TestCase):
         mock_platform.system.return_value = 'Linux'
         tempfilename = make_temp_filename()
         set_file_perm(tempfilename, '0777')
-        with self.assertRaises(ValueError):
+        with self.assertRaises(DDSUserException):
             verify_file_private(tempfilename)
 
     @patch("ddsc.core.util.platform")

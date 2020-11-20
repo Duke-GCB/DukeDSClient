@@ -3,6 +3,7 @@ from unittest import TestCase
 from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand, ClientCommand, MoveCommand
 from ddsc.ddsclient import ShareCommand, DeliverCommand, InfoCommand, read_argument_file_contents, \
     INVALID_DELIVERY_RECIPIENT_MSG, DDSClient
+from ddsc.exceptions import DDSUserException
 from mock import patch, MagicMock, Mock, call, ANY
 
 
@@ -357,7 +358,7 @@ class TestDeliverCommand(TestCase):
                       include_paths=None,
                       exclude_paths=None,
                       msg_file=None)
-        with self.assertRaises(ValueError) as raised_exception:
+        with self.assertRaises(DDSUserException) as raised_exception:
             cmd.run(myargs)
         self.assertEqual(str(raised_exception.exception), INVALID_DELIVERY_RECIPIENT_MSG)
 

@@ -4,6 +4,7 @@ Compares installed DukeDSClient vs what is on PyPI.
 from __future__ import print_function
 import requests
 import pkg_resources
+from ddsc.exceptions import DDSUserException
 
 APP_NAME = "DukeDSClient"
 HALF_SECOND_TIMEOUT = 0.5
@@ -62,6 +63,6 @@ def check_version():
         raise VersionException(UPDATE_VERSION_MESSAGE)
 
 
-class VersionException(Exception):
+class VersionException(DDSUserException):
     def __init__(self, message):
         super(VersionException, self).__init__(message)

@@ -7,6 +7,7 @@ import datetime
 from ddsc.config import get_user_config_filename
 from ddsc.versioncheck import APP_NAME, get_internal_version_str
 from ddsc.core.retry import RetrySettings
+from ddsc.exceptions import DDSUserException
 
 AUTH_TOKEN_CLOCK_SKEW_MAX = 5 * 60  # 5 minutes
 SETUP_GUIDE_URL = "https://github.com/Duke-GCB/DukeDSClient/blob/master/docs/GettingAgentAndUserKeys.md"
@@ -1278,7 +1279,7 @@ class ActivityRelationTypes(object):
     WAS_INVALIDATED_BY = "was_invalidated_by"
 
 
-class AuthTokenException(Exception):
+class AuthTokenException(DDSUserException):
     def __init__(self, message):
         super(AuthTokenException, self).__init__(message)
 

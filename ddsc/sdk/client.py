@@ -8,6 +8,7 @@ from ddsc.core.localstore import PathData
 from ddsc.core.download import FileDownloadState, download_file
 from ddsc.core.util import KindType, REMOTE_PATH_SEP, humanize_bytes, plural_fmt
 from ddsc.core.moveutil import MoveUtil
+from ddsc.exceptions import DDSUserException
 from future.utils import python_2_unicode_compatible
 
 
@@ -50,7 +51,7 @@ class Client(object):
         if not projects:
             raise ItemNotFound("No project named {} found.".format(project_name))
         if len(projects) != 1:
-            raise ValueError("Multiple projects found with name {}.".format(project_name))
+            raise DDSUserException("Multiple projects found with name {}.".format(project_name))
         return projects[0]
 
     def create_project(self, name, description):
@@ -751,9 +752,9 @@ class UploadFileInfo(object):
         self.kind = KindType.file_str
 
 
-class ItemNotFound(Exception):
+class ItemNotFound(DDSUserException):
     pass
 
 
-class DuplicateNameError(Exception):
+class DuplicateNameError(DDSUserException):
     pass

@@ -2,6 +2,7 @@ from unittest import TestCase
 from ddsc.core.fileuploader import ParallelChunkProcessor, upload_async, FileUploadOperations, \
     RetrySettings, ForbiddenSendExternalException, ChunkSender, FileUploader
 from ddsc.core.ddsapi import DSResourceNotConsistentError, DataServiceError
+from ddsc.exceptions import DDSUserException
 import requests
 from mock import MagicMock, Mock, patch, call, ANY
 
@@ -188,7 +189,7 @@ class TestFileUploadOperations(TestCase):
             'chunks': [{'size': 50}, {'size': 50}]
         }
         fop = FileUploadOperations(data_service, MagicMock())
-        with self.assertRaises(ValueError) as raised_exception:
+        with self.assertRaises(DDSUserException) as raised_exception:
             fop.finish_upload(upload_id="123",
                               hash_data=MagicMock(),
                               parent_data=MagicMock(),

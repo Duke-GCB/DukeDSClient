@@ -14,6 +14,7 @@ from ddsc.core.util import KindType
 from ddsc.versioncheck import get_internal_version_str
 from ddsc.core.remotestore import ProjectNameOrId, RemotePath
 from ddsc.sdk.client import Client
+from ddsc.exceptions import DDSUserException
 
 UNAUTHORIZED_MESSAGE = """
 ERROR: Your account does not have authorization for D4S2 (the deliver/share service).
@@ -33,7 +34,7 @@ We are unable to contact them to {} your project.
 """
 
 
-class D4S2Error(Exception):
+class D4S2Error(DDSUserException):
     def __init__(self, message, warning=False):
         """
         Setup error.
@@ -45,7 +46,7 @@ class D4S2Error(Exception):
         self.warning = warning
 
 
-class ShareWithSelfError(Exception):
+class ShareWithSelfError(DDSUserException):
     """
     Error raised whe user attempts to share/deliver a project just themselves
     """
@@ -56,7 +57,7 @@ class ShareWithSelfError(Exception):
         Exception.__init__(self, message)
 
 
-class UserMissingEmailError(Exception):
+class UserMissingEmailError(DDSUserException):
     """
     Raised when attempting to deliver or share with a DukeDS user that has a null email
     """
@@ -345,7 +346,7 @@ class D4S2Project(object):
         new_project_name_or_id = ProjectNameOrId.create_from_name(new_project_name)
         remote_project = self.remote_store.fetch_remote_project(new_project_name_or_id)
         if remote_project:
-            raise ValueError("A project with name '{}' already exists.".format(new_project_name))
+            raise DDSUserException("A project with name '{}' already exists.".format(new_project_name))
         activity = CopyActivity(self.remote_store.data_service, project, new_project_name)
         self._download_project(activity, project.id, temp_directory, path_filter)
         self._upload_project(activity, new_project_name, temp_directory)

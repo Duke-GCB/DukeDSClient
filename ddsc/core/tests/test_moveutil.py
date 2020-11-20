@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.core.moveutil import MoveUtil, KindType
+from ddsc.exceptions import DDSUserException
 from mock import Mock
 
 
@@ -49,7 +50,7 @@ class MoveUtilTestCase(TestCase):
         move_util.is_folder_or_project.return_value = False
         mock_folder = Mock()
         mock_project.try_get_item_for_path.return_value = mock_folder
-        with self.assertRaises(ValueError) as raised_exception:
+        with self.assertRaises(DDSUserException) as raised_exception:
             move_util.get_new_parent()
         self.assertEqual(str(raised_exception.exception), 'Cannot move to existing file data/file2.txt.')
 
@@ -79,7 +80,7 @@ class MoveUtilTestCase(TestCase):
             None,
             mock_parent_folder
         ]
-        with self.assertRaises(ValueError) as raised_exception:
+        with self.assertRaises(DDSUserException) as raised_exception:
             move_util.get_new_parent()
         self.assertEqual(str(raised_exception.exception), 'Target parent /data2/file1.txt is a file.')
 
@@ -90,7 +91,7 @@ class MoveUtilTestCase(TestCase):
             None,
             None
         ]
-        with self.assertRaises(ValueError) as raised_exception:
+        with self.assertRaises(DDSUserException) as raised_exception:
             move_util.get_new_parent()
         self.assertEqual(str(raised_exception.exception), 'Target parent directory /data2 does not exist.')
 

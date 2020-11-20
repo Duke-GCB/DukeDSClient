@@ -2,6 +2,7 @@ from unittest import TestCase
 
 from ddsc.core.util import verify_terminal_encoding, ProgressBar, ProgressPrinter, KindType, RemotePath, humanize_bytes,\
     plural_fmt, join_with_commas_and_and
+from ddsc.exceptions import DDSUserException
 from mock import patch, Mock
 
 
@@ -14,7 +15,7 @@ class TestUtil(TestCase):
         verify_terminal_encoding('utf')
 
     def test_verify_terminal_encoding_ascii_raises(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(DDSUserException):
             verify_terminal_encoding('ascii')
 
     def test_verify_terminal_encoding_empty_is_ok(self):

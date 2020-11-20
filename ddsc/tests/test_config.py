@@ -1,6 +1,7 @@
 from unittest import TestCase
 import math
 import ddsc.config
+from ddsc.exceptions import DDSUserException
 import multiprocessing
 from mock.mock import patch, mock_open
 
@@ -165,7 +166,7 @@ class TestConfig(TestCase):
         mock_os.path.expanduser.return_value = '/home/user/.ddsclient'
         mock_os.path.exists.return_value = True
         config = ddsc.config.Config()
-        with self.assertRaises(ValueError) as raised_exception:
+        with self.assertRaises(DDSUserException) as raised_exception:
             with patch('builtins.open', mock_open(read_data='')):
                 config.add_properties('~/.ddsclient')
         self.assertEqual(str(raised_exception.exception), 'Error: Empty config file /home/user/.ddsclient')

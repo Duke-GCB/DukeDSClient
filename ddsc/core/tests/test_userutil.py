@@ -1,6 +1,7 @@
 from unittest import TestCase
 from mock import Mock
 from ddsc.core.userutil import UserUtil
+from ddsc.exceptions import DDSUserException
 
 
 class UserUtilTestCase(TestCase):
@@ -126,6 +127,6 @@ class UserUtilTestCase(TestCase):
 
         # When multiple found raise exception
         response.json.return_value = {"results": [{"id": "123"}, {"id": "456"}]}
-        with self.assertRaises(ValueError) as raised_exception:
+        with self.assertRaises(DDSUserException) as raised_exception:
             self.user_util._get_single_user_or_none(response, lookup_value="fakeuser@duke.edu")
         self.assertEqual(str(raised_exception.exception), 'Found multiple users for fakeuser@duke.edu.')
