@@ -2,7 +2,7 @@ from unittest import TestCase
 import math
 import ddsc.config
 import multiprocessing
-from mock.mock import patch
+from mock.mock import patch, mock_open
 
 
 class TestConfig(TestCase):
@@ -159,3 +159,13 @@ class TestConfig(TestCase):
         }
         config.update_properties(some_config)
         self.assertEqual(config.storage_provider_id, '123456')
+
+    @patch('ddsc.config.os')
+    def test_add_properties_empty_file(self, mock_os):
+        mock_os.path.expanduser.return_value = '/home/user/.ddsclient'
+        mock_os.path.exists.return_value = True
+        config = ddsc.config.Config()
+        with self.assertRaises(ValueError) as raised_exception:
+            with patch('builtins.open', mock_open(read_data='')):
+                config.add_properties('~/.ddsclient')
+        self.assertEqual(str(raised_exception.exception), 'Error: Empty config file /home/user/.ddsclient')
