@@ -10,7 +10,7 @@ def main(args=None):
     client = DDSClient()
     try:
         client.run_command(args)
-    except DDSUserException:
+    except DDSUserException as ex:
         if client.show_error_stack_trace:
             raise
         else:
