@@ -1,6 +1,7 @@
 """Duke data service command line project management utility."""
 import sys
 from ddsc.ddsclient import DDSClient
+from ddsc.exceptions import DDSUserException
 
 
 def main(args=None):
@@ -9,7 +10,7 @@ def main(args=None):
     client = DDSClient()
     try:
         client.run_command(args)
-    except Exception as ex:
+    except DDSUserException as ex:
         if client.show_error_stack_trace:
             raise
         else:

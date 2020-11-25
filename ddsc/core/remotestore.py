@@ -3,6 +3,7 @@ from ddsc.core.ddsapi import DataServiceApi, DataServiceError, DataServiceAuth
 from ddsc.core.util import KindType, REMOTE_PATH_SEP, RemotePath
 from ddsc.core.localstore import HashUtil
 from ddsc.core.userutil import UserUtil, DUKE_EMAIL_SUFFIX
+from ddsc.exceptions import DDSUserException
 
 FETCH_ALL_USERS_PAGE_SIZE = 25
 DOWNLOAD_FILE_CHUNK_SIZE = 20 * 1024 * 1024
@@ -110,7 +111,7 @@ class RemoteStore(object):
         if found_cnt == 0:
             raise NotFoundError("User not found:" + full_name)
         elif found_cnt > 1:
-            raise ValueError("Multiple users with name:" + full_name)
+            raise DDSUserException("Multiple users with name:" + full_name)
         user = RemoteUser(results[0])
         if user.full_name.lower() != full_name.lower():
             raise NotFoundError("User not found:" + full_name)
@@ -142,7 +143,7 @@ class RemoteStore(object):
             if affiliate:
                 user_json = util.register_user_by_username(affiliate['uid'])
             else:
-                raise ValueError("Unable to find or register a user with email {}".format(email))
+                raise DDSUserException("Unable to find or register a user with email {}".format(email))
         return RemoteUser(user_json)
 
     def get_auth_providers(self):
@@ -272,7 +273,7 @@ class RemoteStore(object):
         if project:
             self.data_service.delete_project(project.id)
         else:
-            raise ValueError("No project with {} found.\n".format(project_name_or_id.description()))
+            raise DDSUserException("No project with {} found.\n".format(project_name_or_id.description()))
 
     def get_active_auth_roles(self, context):
         """
@@ -435,7 +436,7 @@ class RemoteFile(object):
             if 'upload' in json_data:
                 return json_data['upload']
             else:
-                raise ValueError("Invalid file json data, unable to find upload.")
+                raise DDSUserException("Invalid file json data, unable to find upload.")
 
     @staticmethod
     def get_hash_from_upload(upload, target_algorithm=HashUtil.HASH_NAME):
@@ -572,7 +573,7 @@ class RemoteAuthProvider(object):
         self.login_initiation_url = json_data['login_initiation_url']
 
 
-class NotFoundError(Exception):
+class NotFoundError(DDSUserException):
     def __init__(self, message):
         Exception.__init__(self, message)
         self.message = message

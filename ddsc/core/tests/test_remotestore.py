@@ -10,6 +10,7 @@ from ddsc.core.remotestore import RemoteProjectChildren
 from ddsc.core.remotestore import RemoteAuthProvider
 from ddsc.core.remotestore import ProjectNameOrId
 from ddsc.core.remotestore import ProjectFile, RemoteFileUrl
+from ddsc.exceptions import DDSUserException
 
 
 class TestProjectFolderFile(TestCase):
@@ -664,7 +665,7 @@ class TestRemoteStore(TestCase):
         mock_user_util.return_value.find_affiliate_by_email.return_value = None
 
         remote_store = RemoteStore(config=MagicMock())
-        with self.assertRaises(ValueError) as raised_exception:
+        with self.assertRaises(DDSUserException) as raised_exception:
             remote_store.get_or_register_user_by_email("user@user.user")
         self.assertEqual(str(raised_exception.exception), 'Unable to find or register a user with email user@user.user')
         mock_util = mock_user_util.return_value

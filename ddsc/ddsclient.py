@@ -16,6 +16,7 @@ from ddsc.versioncheck import check_version, VersionException, get_internal_vers
 from ddsc.config import create_config
 from ddsc.sdk.client import Client
 from ddsc.core.download import ProjectFileDownloader
+from ddsc.exceptions import DDSUserException
 
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
@@ -365,7 +366,7 @@ class DeliverCommand(BaseCommand):
             new_project_name = self.get_new_project_name(project.name)
         to_user = self.remote_store.lookup_or_register_user_by_email_or_username(email, username)
         if to_user.id in [share_user.id for share_user in share_users]:
-            raise ValueError(INVALID_DELIVERY_RECIPIENT_MSG)
+            raise DDSUserException(INVALID_DELIVERY_RECIPIENT_MSG)
         try:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
             dest_email = self.service.deliver(project, new_project_name, to_user, share_users,

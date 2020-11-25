@@ -3,6 +3,7 @@ import os
 import platform
 import stat
 import time
+from ddsc.exceptions import DDSUserException
 
 TERMINAL_ENCODING_NOT_UTF_ERROR = """
 ERROR: DukeDSClient requires UTF terminal encoding.
@@ -364,7 +365,7 @@ def wait_for_processes(processes, size, progress_queue, watcher, item):
             error_message = value
             for process in processes:
                 process.terminate()
-            raise ValueError(error_message)
+            raise DDSUserException(error_message)
     for process in processes:
         process.join()
 
@@ -375,7 +376,7 @@ def verify_terminal_encoding(encoding):
     :param encoding: str: encoding we want to check
     """
     if encoding and not ("UTF" in encoding.upper()):
-        raise ValueError(TERMINAL_ENCODING_NOT_UTF_ERROR)
+        raise DDSUserException(TERMINAL_ENCODING_NOT_UTF_ERROR)
 
 
 def verify_file_private(filename):
@@ -388,7 +389,7 @@ def verify_file_private(filename):
         if os.path.exists(filename):
             file_stat = os.stat(filename)
             if mode_allows_group_or_other(file_stat.st_mode):
-                raise ValueError(CONFIG_FILE_PERMISSIONS_ERROR)
+                raise DDSUserException(CONFIG_FILE_PERMISSIONS_ERROR)
 
 
 def mode_allows_group_or_other(st_mode):

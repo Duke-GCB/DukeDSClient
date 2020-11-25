@@ -2,6 +2,7 @@ from unittest import TestCase
 from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File, FileDownload, FileUpload, \
     ChildFinder, PathToFiles, ItemNotFound, ProjectSummary, REMOTE_PATH_SEP
 from ddsc.core.util import KindType
+from ddsc.exceptions import DDSUserException
 from mock import patch, Mock, call
 
 
@@ -85,7 +86,7 @@ class TestClient(TestCase):
         ]
 
         client = Client()
-        with self.assertRaises(ValueError) as raised_exception:
+        with self.assertRaises(DDSUserException) as raised_exception:
             client.get_project_by_name('myproject')
         self.assertEqual(str(raised_exception.exception), 'Multiple projects found with name myproject.')
 
