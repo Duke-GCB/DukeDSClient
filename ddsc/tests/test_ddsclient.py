@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand, ClientCommand, MoveCommand
 from ddsc.ddsclient import ShareCommand, DeliverCommand, InfoCommand, read_argument_file_contents, \
-    INVALID_DELIVERY_RECIPIENT_MSG, DDSClient
+    INVALID_DELIVERY_RECIPIENT_MSG, DDSClient, DeleteCommand
 from ddsc.exceptions import DDSUserException
 from mock import patch, MagicMock, Mock, call, ANY
 
@@ -517,3 +517,22 @@ class TestInfoCommand(TestCase):
             call("Size: 3 top level folders, 0 subfolders, 1 file (12 KiB)"),
             call(),
         ])
+
+
+class TestDeleteCommand(TestCase):
+    @patch('ddsc.ddsclient.Client')
+    def test_run_project_delete(self, mock_client):
+        move_command = DeleteCommand(config=Mock())
+        move_command.run(Mock(project_name='mouse', remote_path=None))
+        mock_project = mock_client.return_value.get_project_by_name.return_value
+        mock_client.return_value.get_project_by_name.assert_called_with("mouse")
+        mock_project.delete.assert_called_with()
+
+    @patch('ddsc.ddsclient.Client')
+    def test_run_project_delete_path(self, mock_client):
+        move_command = DeleteCommand(config=Mock())
+        move_command.run(Mock(project_name='mouse', remote_path='/data/file1.dat'))
+        mock_project = mock_client.return_value.get_project_by_name.return_value
+        mock_client.return_value.get_project_by_name.assert_called_with("mouse")
+        mock_project.get_child_for_path.assert_called_with('/data/file1.dat')
+        mock_project.get_child_for_path.return_value.delete.assert_called_with()
