@@ -208,3 +208,14 @@ class TestCommandParser(TestCase):
         mock_os.path.exists.return_value = True
         mock_os.listdir.return_value = ['stuff']
         format_destination_path(path='/tmp/somepath')
+
+    def test_register_delete_command(self):
+        command_parser = CommandParser(version_str='1.0')
+        command_parser.register_delete_command(self.set_parsed_args)
+        self.assertEqual(['delete'], list(command_parser.subparsers.choices.keys()))
+        command_parser.run_command(['delete', '-p', 'mouse'])
+        self.assertEqual('mouse', self.parsed_args.project_name)
+        self.assertEqual(None, self.parsed_args.remote_path)
+        command_parser.run_command(['delete', '-p', 'mouse', '--path', '/data/file1.txt'])
+        self.assertEqual('mouse', self.parsed_args.project_name)
+        self.assertEqual('/data/file1.txt', self.parsed_args.remote_path)

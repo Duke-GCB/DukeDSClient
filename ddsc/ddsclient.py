@@ -444,7 +444,7 @@ class ListCommand(BaseCommand):
         return project_name
 
 
-class DeleteCommand(BaseCommand):
+class DeleteCommand(ClientCommand):
     """
     Delete a single project from the duke-data-service.
     """
@@ -460,12 +460,17 @@ class DeleteCommand(BaseCommand):
         Deletes a single project specified by project_name in args.
         :param args Namespace arguments parsed from the command line
         """
-        project = self.fetch_project(args, must_exist=True, include_children=False)
+        project = self.get_project_by_name_or_id(args)
+        delete_target = project
+        delete_target_name = project.name
+        if args.remote_path:
+            delete_target = project.get_child_for_path(args.remote_path)
+            delete_target_name = "{} path {}".format(delete_target_name, args.remote_path)
         if not args.force:
-            delete_prompt = "Are you sure you wish to delete {} (y/n)?".format(project.name)
+            delete_prompt = "Are you sure you wish to delete {} (y/n)?".format(delete_target_name)
             if not boolean_input_prompt(delete_prompt):
                 return
-        self.remote_store.delete_project(self.create_project_name_or_id_from_args(args))
+        delete_target.delete()
 
 
 class ListAuthRolesCommand(BaseCommand):

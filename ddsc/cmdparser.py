@@ -459,12 +459,17 @@ class CommandParser(object):
 
     def register_delete_command(self, delete_func):
         """
-        Add 'delete' command delete a project from the remote store.
+        Add 'delete' command delete a project or a file/folder within a project from the remote store.
         :param delete_func: function: run when user choses this option.
         """
-        description = "Permanently delete a project."
+        description = "Permanently delete a project or file/folder."
         delete_parser = self.subparsers.add_parser('delete', description=description)
         add_project_name_or_id_arg(delete_parser, help_text_suffix="delete")
+        delete_parser.add_argument('--path',
+                                   metavar='RemotePath',
+                                   type=to_unicode,
+                                   dest='remote_path',
+                                   help="remote path specifying the file/folder to be deleted instead of the entire project")
         _add_force_arg(delete_parser, "Do not prompt before deleting.")
         delete_parser.set_defaults(func=delete_func)
 
