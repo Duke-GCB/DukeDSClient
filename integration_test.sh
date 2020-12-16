@@ -24,3 +24,11 @@ python3 -m ddsc download -p $PROJ $PROJ
 echo "differences:"
 diff --brief -r ddsc/ $PROJ/ddsc/
 rm -rf $PROJ
+
+echo "SDK testing"
+python3 -c 'import DukeDS; DukeDS.upload_file("pythonint_test", "README.md")'
+python3 -c 'import DukeDS; DukeDS.download_file("pythonint_test", "README.md", "/tmp/README.md")'
+echo "differences:"
+diff README.md /tmp/README.md
+
+ddsclient delete -p pythonint_test --force
