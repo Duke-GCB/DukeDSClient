@@ -729,7 +729,7 @@ class UploadContext(object):
         self.watcher = self
         self.local_file = UploadFileInfo(path_data)
 
-    def transferring_item(self, item, increment_amt):
+    def transferring_item(self, item, increment_amt, transferred_bytes=0):
         pass
 
     def start_waiting(self):
