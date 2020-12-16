@@ -1,7 +1,7 @@
 from unittest import TestCase
 from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File, FileDownload, FileUpload, \
-    ChildFinder, PathToFiles, ItemNotFound, ProjectSummary, REMOTE_PATH_SEP
-from ddsc.core.util import KindType
+    ChildFinder, PathToFiles, ItemNotFound, ProjectSummary, REMOTE_PATH_SEP, UploadContext
+from ddsc.core.util import KindType, wait_for_processes, ProgressQueue
 from ddsc.exceptions import DDSUserException
 from mock import patch, Mock, call
 
@@ -843,3 +843,15 @@ class TestProjectSummary(TestCase):
         summary = ProjectSummary(mock_project)
         expected = "1 top level folder, 1 subfolder, 2 files (3 KB)"
         self.assertEqual(str(summary), expected)
+
+
+class TestUploadContext(TestCase):
+    def test_wait_for_process(self):
+        upload_context = UploadContext(Mock(), Mock(), '', Mock())
+        item_size = 1
+        progress_queue = Mock()
+        progress_queue.get.side_effect = [
+            (ProgressQueue.PROCESSED, (10, 1))
+        ]
+        processes = []
+        wait_for_processes(processes, item_size, progress_queue, upload_context, Mock())
