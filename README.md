@@ -9,13 +9,11 @@ For help email <gcb-help@duke.edu>.
 
 - [python](https://www.python.org/) - version 3.5+
 
-__NOTE:__ When installing Python on Windows be sure to check the `Add Python to PATH` checkbox. This will avoid a problem where `pip3` and/or `ddsclient` cannot be found. 
-
 # Installation:
 
 DukeDSClient can be installed using the `pip3` command line program.
 
-To install or upgrade **DukeDSClient** from a Terminal or Command Prompt run the following:
+To install or upgrade **DukeDSClient** from a Terminal run the following:
 ```
 pip3 install --upgrade DukeDSClient
 ```
@@ -24,6 +22,9 @@ The above commmand will install the latest version of DukeDSClient from [PyPI](h
 
 If you receive a permission denied error it may be due to you not having superuser or administrative privileges on your machine. You can run `pip3` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme) or create a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments) to work around this limitation.
 Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for more details.
+
+__NOTE:__ To install Python on Windows use the following instructions: [Install-DukeDSClient-under-Windows](https://github.com/Duke-GCB/DukeDSClient/wiki/Install-DukeDSClient-under-Windows)
+
 
 ### Config file setup.
 
