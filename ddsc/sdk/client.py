@@ -293,6 +293,14 @@ class DDSConnection(object):
     def get_file_url_dict(self, file_id):
         return self.data_service.get_file_url(file_id).json()
 
+    def get_upload(self, upload_id):
+        return self._create_item_response(
+            self.data_service.get_upload(
+                upload_id
+            ),
+            Upload
+        )
+
 
 class BaseResponseItem(object):
     """
@@ -572,8 +580,40 @@ class File(BaseResponseItem):
     def current_size(self):
         return self.current_version['upload']['size']
 
+    def get_upload(self):
+        return self.dds_connection.get_upload(self.current_version["upload"]["id"])
+
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
+
+
+@python_2_unicode_compatible
+class Upload(BaseResponseItem):
+    """
+    Contains upload details based on DDSConnection API response
+    """
+    def __init__(self, dds_connection, data):
+        """
+        :param dds_connection: DDSConnection
+        :param data: dict: dictionary response from DDSConnection API in upload format
+        """
+        super(Upload, self).__init__(dds_connection, data)
+        self.status = UploadStatus(data["status"])
+        if self.name == "file2.txt":
+            self.status.is_consistent = False
+
+    def __str__(self):
+        return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
+
+
+class UploadStatus(object):
+    def __init__(self, data):
+        self.initiated_on = data["initiated_on"]
+        self.completed_on = data["completed_on"]
+        self.is_consistent = data["is_consistent"]
+        self.purged_on = data["purged_on"]
+        self.error_on = data["error_on"]
+        self.error_message = data["error_message"]
 
 
 class FileDownload(BaseResponseItem):

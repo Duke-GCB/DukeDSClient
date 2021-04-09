@@ -9,15 +9,16 @@ from ddsc.core.remotestore import RemoteStore, RemoteAuthRole, ProjectNameOrId
 from ddsc.core.localstore import LocalProject
 from ddsc.core.upload import ProjectUpload
 from ddsc.core.projectuploader import ProjectUploadDryRun
+from ddsc.core.consistency import ProjectChecker
 from ddsc.cmdparser import CommandParser, format_destination_path, replace_invalid_path_chars
 from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
 from ddsc.config import create_config
-from ddsc.sdk.client import Client
-from ddsc.core.download import ProjectFileDownloader
+from ddsc.core.download import ProjectFileDownloader, DDS_TOTAL_HEADER
 from ddsc.exceptions import DDSUserException
-
+from ddsc.sdk.client import Client
+from tabulate import tabulate
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 INVALID_DELIVERY_RECIPIENT_MSG = 'Delivery recipient cannot be a share user. Remove recipient from --share-users and try again.'
@@ -56,6 +57,7 @@ class DDSClient(object):
         parser.register_list_auth_roles_command(self._setup_run_command(ListAuthRolesCommand))
         parser.register_move_command(self._setup_run_command(MoveCommand))
         parser.register_info_command(self._setup_run_command(InfoCommand))
+        parser.register_check_command(self._setup_run_command(CheckCommand))
         return parser
 
     def _setup_run_command(self, command_constructor):
@@ -149,6 +151,7 @@ class BaseCommand(object):
 class ClientCommand(object):
     def __init__(self, config):
         self.client = Client(config)
+        self.config = config
 
     def get_project_by_name_or_id(self, args):
         if args.project_name:
@@ -530,6 +533,27 @@ class InfoCommand(ClientCommand):
         print("ID: {}".format(project.id))
         print("URL: {}".format(project.portal_url()))
         print("Size: {}".format(summary))
+        print()
+
+
+class CheckCommand(ClientCommand):
+    """
+    Checks that a project is consistent.
+    """
+    def run(self, args):
+        project = self.get_project_by_name_or_id(args)
+        checker = ProjectChecker(self.config, project)
+        if checker.files_are_ok():
+            print("Project {} is consistent.".format(project.name))
+        else:
+            print("ERROR: Project {} is not in a consistent state!\n".format(project.name))
+            self.print_bad_uploads_table(checker)
+            sys.exit(1)
+
+    def print_bad_uploads_table(self, checker):
+        headers, data = checker.get_bad_uploads_table_data()
+        print(tabulate(data, headers=headers))
+        print("\nNOTE: Inconsistent files should resolve in a few minutes after starting.")
         print()
 
 
