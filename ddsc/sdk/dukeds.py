@@ -31,9 +31,30 @@ class DukeDS(object):
         """
         Delete a project with the specified name. Raises ItemNotFound if no such project exists
         :param project_name: str: name of the project to delete
-        :return:
         """
         Session().delete_project(project_name)
+
+    @staticmethod
+    def is_project_consistent(project_name):
+        """
+        Check that a project is in a consistent state. When large projects are uploaded the DukeDS service can take
+        a while finish background processing. Before deleting uploaded files you should check that the project is in
+        a consistent state. If there is a problem with the project a message will be printed.
+        :param project_name: str: name of the project to check
+        :return: bool: True if the project is consistent.
+        """
+        return Session().is_project_consistent(project_name)
+
+    @staticmethod
+    def wait_for_project_consistency(project_name, wait_sec=5):
+        """
+        Wait for the project to be in a consistent state. When large projects are uploaded the DukeDS service can take
+        a while finish background processing. Before deleting uploaded files you should check that the project is in
+        a consistent state. If there is a problem with the project a message will be printed.
+        :param project_name: str: name of the project to check
+        :param wait_sec: Seconds to wait before giving up.
+        """
+        return Session().wait_for_project_consistency(project_name, wait_sec=wait_sec)
 
     @staticmethod
     def create_folder(project_name, remote_path):
@@ -266,3 +287,23 @@ class Session(object):
     def move_file_or_folder(self, project_name, source_remote_path, target_remote_path):
         project = self._get_or_create_project(project_name)
         project.move_file_or_folder(source_remote_path, target_remote_path)
+
+    def is_project_consistent(self, project_name):
+        """
+        Check that a project is in a consistent state. When large projects are uploaded the DukeDS service can take
+        a while finish background processing. Before deleting uploaded files you should check that the project is in
+        a consistent state. If there is a problem with the project a message will be printed.
+        :param project_name: str: name of the project to check
+        :return: bool: True if the project is consistent.
+        """
+        project = self._get_project_for_name(project_name)
+        return project.is_consistent()
+
+    def wait_for_project_consistency(self, project_name, wait_sec=5):
+        """
+        Wait for the project to become consistent.
+        :param project_name: name of the project to wait for
+        :param wait_sec: Seconds to wait before giving up.
+        """
+        project = self._get_project_for_name(project_name)
+        project.wait_for_consistency(wait_sec=wait_sec)
