@@ -15,7 +15,7 @@ from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
 from ddsc.config import create_config
-from ddsc.core.download import ProjectFileDownloader, DDS_TOTAL_HEADER
+from ddsc.core.download import ProjectFileDownloader
 from ddsc.exceptions import DDSUserException
 from ddsc.sdk.client import Client
 from tabulate import tabulate

@@ -16,7 +16,6 @@ class UploadDetails(object):
     def is_bad(self):
         return self.inconsistent() or self.had_error()
 
-
     def name(self):
         return self.dds_file.name
 
