@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand, ClientCommand, MoveCommand
 from ddsc.ddsclient import ShareCommand, DeliverCommand, InfoCommand, read_argument_file_contents, \
-    INVALID_DELIVERY_RECIPIENT_MSG, DDSClient, DeleteCommand
+    INVALID_DELIVERY_RECIPIENT_MSG, DDSClient, DeleteCommand, CheckCommand
 from ddsc.exceptions import DDSUserException
 from mock import patch, MagicMock, Mock, call, ANY
 
@@ -536,3 +536,28 @@ class TestDeleteCommand(TestCase):
         mock_client.return_value.get_project_by_name.assert_called_with("mouse")
         mock_project.get_child_for_path.assert_called_with('/data/file1.dat')
         mock_project.get_child_for_path.return_value.delete.assert_called_with()
+
+
+class TestCheckCommand(TestCase):
+    @patch('ddsc.ddsclient.Client')
+    @patch('builtins.print')
+    def test_run(self, mock_print, mock_client):
+        mock_client.return_value.get_project_by_name.return_value.name = 'mouse'
+        cmd = CheckCommand(config=Mock())
+        cmd.run(Mock(project_name='mouse'))
+        mock_print.assert_has_calls([call('Project mouse is consistent.')])
+
+    @patch('ddsc.ddsclient.ProjectChecker')
+    @patch('ddsc.ddsclient.sys')
+    @patch('ddsc.ddsclient.Client')
+    @patch('builtins.print')
+    def test_run_bad(self, mock_print, mock_client, mock_sys, mock_project_checker):
+        mock_project_checker.return_value.files_are_ok.return_value = False
+        mock_project_checker.return_value.get_bad_uploads_table_data.return_value = ['header'], [['data1']]
+        mock_client.return_value.get_project_by_name.return_value.name = 'mouse'
+        cmd = CheckCommand(config=Mock())
+        cmd.run(Mock(project_name='mouse'))
+        mock_print.assert_has_calls([
+            call('ERROR: Project mouse is not in a consistent state!\n')
+        ], any_order=True)
+        mock_sys.exit.assert_called_with(1)

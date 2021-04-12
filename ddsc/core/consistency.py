@@ -11,7 +11,7 @@ class UploadDetails(object):
         return not self.status.is_consistent
 
     def had_error(self):
-        return self.status.error_on
+        return self.status.error_on is not None
 
     def is_bad(self):
         return self.inconsistent() or self.had_error()

@@ -599,8 +599,6 @@ class Upload(BaseResponseItem):
         """
         super(Upload, self).__init__(dds_connection, data)
         self.status = UploadStatus(data["status"])
-        if self.name == "file2.txt":
-            self.status.is_consistent = False
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)

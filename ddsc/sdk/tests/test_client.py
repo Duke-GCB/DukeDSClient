@@ -1,6 +1,6 @@
 from unittest import TestCase
 from ddsc.sdk.client import Client, DDSConnection, BaseResponseItem, Project, Folder, File, FileDownload, FileUpload, \
-    ChildFinder, PathToFiles, ItemNotFound, ProjectSummary, REMOTE_PATH_SEP, UploadContext
+    ChildFinder, PathToFiles, ItemNotFound, ProjectSummary, REMOTE_PATH_SEP, UploadContext, UploadStatus, Upload
 from ddsc.core.util import KindType, wait_for_processes, ProgressQueue
 from ddsc.exceptions import DDSUserException
 from mock import patch, Mock, call
@@ -855,3 +855,41 @@ class TestUploadContext(TestCase):
         ]
         processes = []
         wait_for_processes(processes, item_size, progress_queue, upload_context, Mock())
+
+
+class TestUploadStatus(TestCase):
+    def test_constructor(self):
+        upload_status = UploadStatus({
+            'initiated_on': '2021-01-01',
+            'completed_on': '2021-01-02',
+            'is_consistent': True,
+            'purged_on': '2021-01-03',
+            'error_on': '2021-01-04',
+            'error_message': 'oops'
+        })
+        self.assertEqual(upload_status.initiated_on, '2021-01-01')
+        self.assertEqual(upload_status.completed_on, '2021-01-02')
+        self.assertEqual(upload_status.is_consistent, True)
+        self.assertEqual(upload_status.purged_on, '2021-01-03')
+        self.assertEqual(upload_status.error_on, '2021-01-04')
+        self.assertEqual(upload_status.error_message, 'oops')
+
+
+class TestUpload(TestCase):
+    def test_constructor(self):
+        data = {
+            'id': '123',
+            'name': 'file1.txt',
+            'status': {
+                'initiated_on': '2021-01-01',
+                'completed_on': '2021-01-02',
+                'is_consistent': True,
+                'purged_on': '2021-01-03',
+                'error_on': '2021-01-04',
+                'error_message': 'oops'
+            }
+        }
+        dds_connection = Mock()
+        upload = Upload(dds_connection, data)
+        self.assertEqual(str(upload), 'Upload id:123 name:file1.txt')
+        self.assertEqual(upload.status.initiated_on, '2021-01-01')

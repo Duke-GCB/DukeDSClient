@@ -219,3 +219,11 @@ class TestCommandParser(TestCase):
         command_parser.run_command(['delete', '-p', 'mouse', '--path', '/data/file1.txt'])
         self.assertEqual('mouse', self.parsed_args.project_name)
         self.assertEqual('/data/file1.txt', self.parsed_args.remote_path)
+
+    def test_register_check_command(self):
+        command_parser = CommandParser(version_str='1.0')
+        command_parser.register_check_command(self.set_parsed_args)
+        self.assertEqual(['check'], list(command_parser.subparsers.choices.keys()))
+        command_parser.run_command(['check', '-p', 'mouse'])
+        self.assertEqual(self.parsed_args.project_name, 'mouse')
+        self.assertEqual(self.parsed_args.project_id, None)
