@@ -178,11 +178,6 @@ class UploadCommand(BaseCommand):
         If content is already on remote site it will not be sent.
         :param args: Namespace arguments parsed from the command line.
         """
-
-        #num_workers = self.config.download_workers
-        #if args.workers:
-        #    num_workers = args.workers
-
         project_name_or_id = self.create_project_name_or_id_from_args(args)
         folders = args.folders                  # list of local files/folders to upload into the project
         follow_symlinks = args.follow_symlinks  # should we follow symlinks when traversing folders
