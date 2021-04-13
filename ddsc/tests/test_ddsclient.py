@@ -96,6 +96,7 @@ class TestUploadCommand(TestCase):
         args.folders = ["data", "scripts"]
         args.follow_symlinks = False
         args.dry_run = False
+        args.workers = None
         cmd.run(args)
 
         mock_project_name_or_id.create_from_name.assert_called_with("test")
@@ -109,7 +110,8 @@ class TestUploadCommand(TestCase):
 
         # uploads with local project
         items_to_send = mock_local_project.return_value.count_items_to_send.return_value
-        mock_project_upload.assert_called_with(mock_config, ANY, mock_local_project.return_value, items_to_send)
+        mock_project_upload.assert_called_with(mock_config, ANY, mock_local_project.return_value, items_to_send,
+                                               mock_config.upload_workers)
         mock_project_upload.return_value.run.assert_called_with()
         mock_print.assert_has_calls([
             call(mock_local_project.return_value.count_local_items.return_value.to_str.return_value),
@@ -139,6 +141,7 @@ class TestUploadCommand(TestCase):
         args.folders = ["data", "scripts"]
         args.follow_symlinks = False
         args.dry_run = False
+        args.workers = None
         cmd.run(args)
 
         mock_project_name_or_id.create_from_project_id.assert_called_with("123")
@@ -152,7 +155,8 @@ class TestUploadCommand(TestCase):
 
         # uploads with local project
         items_to_send = mock_local_project.return_value.count_items_to_send.return_value
-        mock_project_upload.assert_called_with(mock_config, ANY, mock_local_project.return_value, items_to_send)
+        mock_project_upload.assert_called_with(mock_config, ANY, mock_local_project.return_value, items_to_send,
+                                               mock_config.upload_workers)
         mock_project_upload.return_value.run.assert_called_with()
 
     @patch("ddsc.ddsclient.LocalProject")
@@ -186,6 +190,7 @@ class TestDownloadCommand(TestCase):
         args.include_paths = None
         args.exclude_paths = None
         args.folder = '/tmp/data'
+        args.workers = None
         cmd.run(args)
 
         mock_client.return_value.get_project_by_name.assert_called_with('mouse')
@@ -193,7 +198,8 @@ class TestDownloadCommand(TestCase):
             cmd.config,
             '/tmp/data',
             mock_client.return_value.get_project_by_name.return_value,
-            path_filter=None
+            None,
+            cmd.config.download_workers
         )
         mock_project_file_downloader.return_value.run.assert_called()
 
@@ -207,6 +213,7 @@ class TestDownloadCommand(TestCase):
         args.include_paths = None
         args.exclude_paths = None
         args.folder = '/tmp/stuff'
+        args.workers = None
         cmd.run(args)
 
         mock_client.return_value.get_project_by_id.assert_called_with('123')
@@ -214,7 +221,8 @@ class TestDownloadCommand(TestCase):
             cmd.config,
             '/tmp/stuff',
             mock_client.return_value.get_project_by_id.return_value,
-            path_filter=None
+            None,
+            cmd.config.download_workers
         )
         mock_project_file_downloader.return_value.run.assert_called()
 

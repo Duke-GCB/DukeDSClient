@@ -9,13 +9,15 @@ class ProjectUpload(object):
     """
     Allows uploading a local project to a remote duke-data-service.
     """
-    def __init__(self, config, project_name_or_id, local_project, items_to_send_count, file_upload_post_processor=None):
+    def __init__(self, config, project_name_or_id, local_project, items_to_send_count, upload_workers,
+                 file_upload_post_processor=None):
         """
         Setup for uploading folders dictionary of paths to project_name using config.
         :param config: Config configuration for performing the upload(url, keys, etc)
         :param project_name_or_id: ProjectNameOrId: name or id of the project we will upload files to
         :param local_project: LocalProject: contains files and folders to upload
         :param items_to_send_count: ItemsToSendCounter
+        :param upload_workers: int: number of workers to use when uploading
         :param file_upload_post_processor: object: has run(data_service, file_response) method to run after uploading
         """
         self.config = config
@@ -24,6 +26,7 @@ class ProjectUpload(object):
         self.local_project = local_project
         self.items_to_send_count = items_to_send_count
         self.file_upload_post_processor = file_upload_post_processor
+        self.upload_workers = upload_workers
 
     @staticmethod
     def create_for_paths(config, remote_store, project_name_or_id, paths, follow_symlinks=False,
@@ -34,6 +37,7 @@ class ProjectUpload(object):
         local_project.update_remote_ids(remote_project)
         items_to_send_count = local_project.count_items_to_send(config.upload_bytes_per_chunk)
         return ProjectUpload(config, project_name_or_id, local_project, items_to_send_count,
+                             upload_workers=config.upload_workers,
                              file_upload_post_processor=file_upload_post_processor)
 
     def run(self):
@@ -42,7 +46,7 @@ class ProjectUpload(object):
         """
         progress_printer = ProgressPrinter(self.items_to_send_count.total_items(), msg_verb='sending')
         upload_settings = UploadSettings(self.config, self.remote_store.data_service, progress_printer,
-                                         self.project_name_or_id, self.file_upload_post_processor)
+                                         self.project_name_or_id, self.upload_workers, self.file_upload_post_processor)
         project_uploader = ProjectUploader(upload_settings)
         project_uploader.run(self.local_project)
         progress_printer.finished()

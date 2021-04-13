@@ -329,6 +329,17 @@ def _add_long_format_option(arg_parser, help_text):
                             dest='long_format')
 
 
+def _add_workers_arg(arg_parser, help_text):
+    """
+    Add workers argument with help_text to arg_parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    :param help_text: str: help text for this argument
+    """
+    arg_parser.add_argument('--workers',
+                            type=int,
+                            help=help_text)
+
+
 class CommandParser(object):
     """
     Root command line parser. Supports the following commands: upload and add_user.
@@ -355,6 +366,7 @@ class CommandParser(object):
         add_project_name_or_id_arg(upload_parser, help_text_suffix="upload files/folders to.")
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
+        _add_workers_arg(upload_parser, "Number of workers to use when uploading. Overrides default when specified.")
         upload_parser.set_defaults(func=upload_func)
 
     def register_add_user_command(self, add_user_func):
@@ -398,6 +410,8 @@ class CommandParser(object):
         include_or_exclude = download_parser.add_mutually_exclusive_group(required=False)
         _add_include_arg(include_or_exclude)
         _add_exclude_arg(include_or_exclude)
+        _add_workers_arg(download_parser,
+                         "Number of workers to use when downloading. Overrides default when specified.")
         download_parser.set_defaults(func=download_func)
 
     def register_share_command(self, share_func):

@@ -211,7 +211,7 @@ class TestProjectFileDownloader(TestCase):
         mock_apply_async.return_value.get.return_value.status.get_status_line.return_value = 'Hash Status Line'
 
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
-                                                        path_filter=None)
+                                                        path_filter=None, num_workers=1)
         project_file_downloader.show_progress_bar = Mock()
         project_file_downloader.run()
 
@@ -230,7 +230,7 @@ class TestProjectFileDownloader(TestCase):
     @patch('ddsc.core.download.multiprocessing')
     def test_download_files(self, mock_multiprocessing):
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
-                                                        path_filter=None)
+                                                        path_filter=None, num_workers=1)
         project_file_downloader.show_progress_bar = Mock()
         project_file_downloader._get_project_files = Mock()
         project_file_downloader._get_project_files.return_value = [
@@ -276,7 +276,7 @@ class TestProjectFileDownloader(TestCase):
     @patch('ddsc.core.download.print')
     def test_show_downloaded_files_status_all_good(self, mock_print, mock_multiprocessing):
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
-                                                        path_filter=None)
+                                                        path_filter=None, num_workers=1)
         file_hash1 = Mock(file_path='/data/file1.txt', expected_hash_value='abcd', algorithm='md5')
         project_file_downloader.download_status_list = [
             FileHashStatus(file_hash1, FileHashStatus.STATUS_OK)
@@ -293,7 +293,7 @@ class TestProjectFileDownloader(TestCase):
     @patch('ddsc.core.download.print')
     def test_show_downloaded_files_status_all_good_warning(self, mock_print, mock_multiprocessing):
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
-                                                        path_filter=None)
+                                                        path_filter=None, num_workers=1)
         file_hash1 = Mock(file_path='/data/file1.txt', expected_hash_value='abcd', algorithm='md5')
         project_file_downloader.download_status_list = [
             FileHashStatus(file_hash1, FileHashStatus.STATUS_WARNING)
@@ -311,7 +311,7 @@ class TestProjectFileDownloader(TestCase):
     @patch('ddsc.core.download.print')
     def test_show_downloaded_files_status_error(self, mock_print, mock_multiprocessing):
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
-                                                        path_filter=None)
+                                                        path_filter=None, num_workers=1)
         file_hash1 = Mock(file_path='/data/file1.txt', expected_hash_value='abcd', algorithm='md5')
         project_file_downloader.download_status_list = [
             FileHashStatus(file_hash1, FileHashStatus.STATUS_FAILED)
@@ -328,7 +328,7 @@ class TestProjectFileDownloader(TestCase):
     @patch('ddsc.core.download.multiprocessing')
     def test_get_project_files_no_filter(self, mock_multiprocessing):
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
-                                                        path_filter=None)
+                                                        path_filter=None, num_workers=1)
         project_file_downloader.show_progress_bar = Mock()
         self.project.get_project_files_generator = Mock()
         self.project.get_project_files_generator.return_value = [
@@ -347,7 +347,8 @@ class TestProjectFileDownloader(TestCase):
     def test_get_project_files_with_filter(self, mock_print, mock_multiprocessing):
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
                                                         path_filter=PathFilter(include_paths=None,
-                                                                               exclude_paths=['/data/file1']))
+                                                                               exclude_paths=['/data/file1']),
+                                                        num_workers=1)
         project_file_downloader.show_progress_bar = Mock()
         self.project.get_project_files_generator = Mock()
         mock_file1 = Mock(path='/data/file1')
@@ -368,7 +369,8 @@ class TestProjectFileDownloader(TestCase):
     def test_get_project_files_with_filter_warnings(self, mock_print, mock_multiprocessing):
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
                                                         path_filter=PathFilter(include_paths=None,
-                                                                               exclude_paths=['/data/fileX']))
+                                                                               exclude_paths=['/data/fileX']),
+                                                        num_workers=1)
         project_file_downloader.show_progress_bar = Mock()
         self.project.get_project_files_generator = Mock()
         mock_file1 = Mock(path='/data/file1')
@@ -393,7 +395,7 @@ class TestProjectFileDownloader(TestCase):
         mock_project_file = Mock(file_url={'host': 'somehost', 'url': 'someurl'})
         mock_project_file.get_local_path.return_value = '/tmp/data.out'
         project_file_downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project,
-                                                        path_filter=None)
+                                                        path_filter=None, num_workers=1)
         project_file_downloader._download_file(mock_pool, mock_project_file)
         mock_os.path.dirname.assert_called_with("/tmp/data.out")
         mock_os.path.exists.assert_called_with(mock_os.path.dirname.return_value)
@@ -404,7 +406,8 @@ class TestProjectFileDownloader(TestCase):
 
     @patch('ddsc.core.download.multiprocessing')
     def test_work_queue_is_full(self, mock_multiprocessing):
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader.num_workers = 3
         self.assertEqual(False, downloader._work_queue_is_full())
         downloader.async_download_results = [1, 2]
@@ -416,7 +419,8 @@ class TestProjectFileDownloader(TestCase):
 
     @patch('ddsc.core.download.multiprocessing')
     def test_work_queue_is_not_empty(self, mock_multiprocessing):
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         self.assertEqual(False, downloader._work_queue_is_not_empty())
         downloader.async_download_results = [1, 2, 3]
         self.assertEqual(True, downloader._work_queue_is_not_empty())
@@ -425,7 +429,8 @@ class TestProjectFileDownloader(TestCase):
     @patch('ddsc.core.download.time')
     def test_wait_for_and_retry_failed_downloads_no_results_ready(self, mock_time, mock_multiprocessing):
         mock_pool = Mock()
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader._pop_ready_download_results = Mock()
         downloader._pop_ready_download_results.return_value = []
         downloader._try_process_message_queue = Mock()
@@ -436,7 +441,8 @@ class TestProjectFileDownloader(TestCase):
     @patch('ddsc.core.download.time')
     def test_wait_for_and_retry_failed_downloads_results_ready(self, mock_time, mock_multiprocessing):
         mock_pool = Mock()
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader._pop_ready_download_results = Mock()
         downloader._pop_ready_download_results.return_value = ['item1']
         downloader._process_download_results = Mock()
@@ -448,7 +454,8 @@ class TestProjectFileDownloader(TestCase):
 
     @patch('ddsc.core.download.multiprocessing')
     def test_try_process_message_queue_empty(self, mock_multiprocessing):
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader.message_queue.get_nowait.side_effect = queue.Empty()
         downloader.show_progress_bar = Mock()
         downloader._try_process_message_queue()
@@ -456,7 +463,8 @@ class TestProjectFileDownloader(TestCase):
 
     @patch('ddsc.core.download.multiprocessing')
     def test_try_process_message_queue_has_data(self, mock_multiprocessing):
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader.message_queue.get_nowait.return_value = ('123', 100, 200, FileDownloadState.DOWNLOADING)
         downloader.show_progress_bar = Mock()
         downloader._try_process_message_queue()
@@ -468,7 +476,8 @@ class TestProjectFileDownloader(TestCase):
     @patch('ddsc.core.download.time')
     def test_show_progress_bar(self, mock_time, mock_sys, mock_multiprocessing):
         mock_time.time.return_value = 100
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader.files_to_download = 20
         downloader.start_time = 0
         downloader.get_download_progress = Mock()
@@ -479,7 +488,8 @@ class TestProjectFileDownloader(TestCase):
 
     @patch('ddsc.core.download.multiprocessing')
     def test_make_spinner_char(self, mock_multiprocessing):
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader.start_time = 0
         self.assertEqual(downloader.make_spinner_char(current_time=0), '|')
         self.assertEqual(downloader.make_spinner_char(current_time=1), '/')
@@ -490,7 +500,8 @@ class TestProjectFileDownloader(TestCase):
 
     @patch('ddsc.core.download.multiprocessing')
     def test_make_download_speed(self, mock_multiprocessing):
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader.start_time = 0
         test_values = [
             # current_time, total_bytes_downloaded, expected
@@ -507,7 +518,8 @@ class TestProjectFileDownloader(TestCase):
 
     @patch('ddsc.core.download.multiprocessing')
     def test_get_download_progress(self, mock_multiprocessing):
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader.files_to_download = 10
         downloader.file_download_statuses = {
             '123': (10, 100, FileDownloadState.DOWNLOADING),
@@ -521,7 +533,8 @@ class TestProjectFileDownloader(TestCase):
 
     @patch('ddsc.core.download.multiprocessing')
     def test_pop_ready_download_results(self, mock_multiprocessing):
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         result1 = Mock()
         result1.ready.return_value = True
         result1.get.return_value = "123"
@@ -549,7 +562,8 @@ class TestProjectFileDownloader(TestCase):
         download_results = [
             result1
         ]
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader.show_progress_bar = Mock()
         downloader._process_download_results(pool, download_results)
         self.assertEqual(downloader.file_download_statuses, {'123': (4000, 4000, 'good')})
@@ -565,7 +579,8 @@ class TestProjectFileDownloader(TestCase):
         download_results = [
             result1
         ]
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader.show_progress_bar = Mock()
         downloader.dds_connection.get_file_download.return_value = Mock(host='somehost', url='/api/v1/datafile.txt')
         downloader._process_download_results(pool, download_results)
@@ -582,7 +597,8 @@ class TestProjectFileDownloader(TestCase):
         download_results = [
             result1
         ]
-        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None)
+        downloader = ProjectFileDownloader(self.config, self.dest_directory, self.project, path_filter=None,
+                                           num_workers=1)
         downloader.show_progress_bar = Mock()
         with self.assertRaises(ValueError) as raised_exception:
             downloader._process_download_results(pool, download_results)

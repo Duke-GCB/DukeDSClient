@@ -196,12 +196,12 @@ class URLExpiredException(Exception):
 
 
 class ProjectFileDownloader(object):
-    def __init__(self, config, dest_directory, project, path_filter):
+    def __init__(self, config, dest_directory, project, path_filter, num_workers):
         self.config = config
         self.dest_directory = dest_directory
         self.project = project
         self.dds_connection = project.dds_connection
-        self.num_workers = config.download_workers
+        self.num_workers = num_workers
         self.path_filter = path_filter
         self.async_download_results = []
         self.message_queue = multiprocessing.Manager().Queue()

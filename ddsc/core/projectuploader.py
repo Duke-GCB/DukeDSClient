@@ -8,15 +8,17 @@ class UploadSettings(object):
     """
     Settings used to upload a project
     """
-    def __init__(self, config, data_service, watcher, project_name_or_id, file_upload_post_processor):
+    def __init__(self, config, data_service, watcher, project_name_or_id, upload_workers, file_upload_post_processor):
         """
         :param config: ddsc.config.Config user configuration settings from YAML file/environment
         :param data_service: DataServiceApi: where we will upload to
         :param watcher: ProgressPrinter we notify of our progress
         :param project_name_or_id: ProjectNameOrId: name or id of the project so we can create it if necessary
+        :param upload_workers: int: number of workers to use when uploading
         :param file_upload_post_processor: object: has run(data_service, file_response) method to run after download
         """
         self.config = config
+        self.upload_workers = upload_workers
         self.data_service = data_service
         self.watcher = watcher
         self.project_name_or_id = project_name_or_id
@@ -100,7 +102,7 @@ class ProjectUploader(object):
         Setup to talk to the data service based on settings.
         :param settings: UploadSettings: settings to use for uploading.
         """
-        self.runner = TaskRunner(settings.config.upload_workers)
+        self.runner = TaskRunner(settings.upload_workers)
         self.settings = settings
         self.small_item_task_builder = SmallItemUploadTaskBuilder(self.settings, self.runner)
         self.small_files = []

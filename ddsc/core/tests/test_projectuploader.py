@@ -21,7 +21,7 @@ class FakeDataServiceAuth(object):
 class TestUploadContext(TestCase):
     def test_can_pickle(self):
         """Make sure we can pickle context since it must be passed to another process."""
-        settings = UploadSettings(None, FakeDataServiceApi(), None, ProjectNameOrId.create_from_name('mouse'), None)
+        settings = UploadSettings(None, FakeDataServiceApi(), None, ProjectNameOrId.create_from_name('mouse'), 1, None)
         params = ('one', 'two', 'three')
         context = UploadContext(settings, params, multiprocessing.Manager().Queue(), 12)
         pickle.dumps(context)
@@ -227,7 +227,7 @@ class TestProjectUploader(TestCase):
         settings = Mock()
         settings.config.upload_bytes_per_chunk = 100
         num_upload_workers = 6
-        settings.config.upload_workers = num_upload_workers
+        settings.upload_workers = num_upload_workers
         uploader = ProjectUploader(settings)
         uploader.process_large_file = Mock()
         small_file_existing = Mock(remote_id='abc123', size=1000)

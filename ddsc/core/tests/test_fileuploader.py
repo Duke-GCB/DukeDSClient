@@ -396,7 +396,7 @@ class TestFileUploader(TestCase):
     @patch('ddsc.core.fileuploader.ParallelChunkProcessor')
     def test_upload(self, mock_parallel_chunkprocessor, mock_file_upload_operations):
         config, data_service, local_file, hash_data, watcher = Mock(), Mock(), Mock(), Mock(), Mock()
-        uploader = FileUploader(config, data_service, local_file, hash_data, watcher)
+        uploader = FileUploader(config, data_service, local_file, hash_data, watcher, upload_workers=4)
         uploader.upload(project_id='mouse', parent_kind='dds-project', parent_id='abc123')
 
         mock_create_upload = mock_file_upload_operations.return_value.create_upload

@@ -29,7 +29,8 @@ class FileUploader(object):
     3) Sends the complete message to finalize the 'upload'
     4) Sends create_file message to remote store with the 'upload' id
     """
-    def __init__(self, config, data_service, local_file, hash_data, watcher, file_upload_post_processor=None):
+    def __init__(self, config, data_service, local_file, hash_data, watcher, upload_workers,
+                 file_upload_post_processor=None):
         """
         Setup for sending to remote store.
         :param config: ddsc.config.Config user configuration settings from YAML file/environment
@@ -37,10 +38,12 @@ class FileUploader(object):
         :param local_file: LocalFile file we are sending to remote store
         :param hash_data: HashData hash calculated for the local file
         :param watcher: ProgressPrinter we notify of our progress
+        :param upload_workers: int: number of workers to use when uploading
         :param file_upload_post_processor: object: has run(data_service, file_response) method to run after download
         """
         self.config = config
         self.data_service = data_service
+        self.upload_workers = upload_workers
         self.upload_operations = FileUploadOperations(self.data_service, watcher)
         self.file_upload_post_processor = file_upload_post_processor
         self.local_file = local_file
@@ -279,6 +282,7 @@ class ParallelChunkProcessor(object):
         self.upload_id = file_uploader.upload_id
         self.watcher = file_uploader.watcher
         self.local_file = file_uploader.local_file
+        self.upload_workers = file_uploader.upload_workers
 
     def run(self):
         """
@@ -288,7 +292,7 @@ class ParallelChunkProcessor(object):
         progress_queue = ProgressQueue(Queue())
         num_chunks = ParallelChunkProcessor.determine_num_chunks(self.config.upload_bytes_per_chunk,
                                                                  self.local_file.size)
-        work_parcels = ParallelChunkProcessor.make_work_parcels(self.config.upload_workers, num_chunks)
+        work_parcels = ParallelChunkProcessor.make_work_parcels(self.upload_workers, num_chunks)
         for (index, num_items) in work_parcels:
             processes.append(self.make_and_start_process(index, num_items, progress_queue))
         wait_for_processes(processes, num_chunks, progress_queue, self.watcher, self.local_file)

@@ -178,6 +178,11 @@ class UploadCommand(BaseCommand):
         If content is already on remote site it will not be sent.
         :param args: Namespace arguments parsed from the command line.
         """
+
+        #num_workers = self.config.download_workers
+        #if args.workers:
+        #    num_workers = args.workers
+
         project_name_or_id = self.create_project_name_or_id_from_args(args)
         folders = args.folders                  # list of local files/folders to upload into the project
         follow_symlinks = args.follow_symlinks  # should we follow symlinks when traversing folders
@@ -200,8 +205,12 @@ class UploadCommand(BaseCommand):
             dry_run = ProjectUploadDryRun(local_project)
             print(dry_run.get_report())
         else:
+            upload_workers = self.config.upload_workers
+            if args.workers:
+                upload_workers = args.workers
             # Upload files and folders
-            project_upload = ProjectUpload(self.config, project_name_or_id, local_project, items_to_send_count)
+            project_upload = ProjectUpload(self.config, project_name_or_id, local_project, items_to_send_count,
+                                           upload_workers)
             project_upload.run()
 
             # Show user results of upload
@@ -242,7 +251,10 @@ class DownloadCommand(ClientCommand):
         if args.include_paths or args.exclude_paths:
             path_filter = PathFilter(args.include_paths, args.exclude_paths)
         destination_path = format_destination_path(folder)
-        downloader = ProjectFileDownloader(self.config, destination_path, project, path_filter=path_filter)
+        num_workers = self.config.download_workers
+        if args.workers:
+            num_workers = args.workers
+        downloader = ProjectFileDownloader(self.config, destination_path, project, path_filter, num_workers)
         downloader.run()
 
 
