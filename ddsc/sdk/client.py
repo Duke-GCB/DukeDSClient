@@ -10,6 +10,7 @@ from ddsc.core.util import KindType, REMOTE_PATH_SEP, humanize_bytes, plural_fmt
 from ddsc.core.moveutil import MoveUtil
 from ddsc.exceptions import DDSUserException
 from future.utils import python_2_unicode_compatible
+from ddsc.core.consistency import ProjectChecker
 
 
 class Client(object):
@@ -409,6 +410,21 @@ class Project(BaseResponseItem):
         path_to_nodes = PathToFiles()
         path_to_nodes.add_paths_for_children_of_node(self)
         return path_to_nodes.paths
+
+    def is_consistent(self):
+        """
+        Check that a project is in a consistent state. When large projects are uploaded the DukeDS service can take
+        a while finish background processing. Before deleting uploaded files you should check that the project is in
+        a consistent state. If there is a problem with the project a message will be printed.
+        :return: bool: True if the project is consistent.
+        """
+        checker = ProjectChecker(self.dds_connection.config, self)
+        if checker.files_are_ok():
+            return True
+        else:
+            print("Project {} is not in a consistent state!\n".format(self.name))
+            checker.print_bad_uploads_table()
+            return False
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)

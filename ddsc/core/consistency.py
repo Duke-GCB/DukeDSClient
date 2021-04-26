@@ -1,4 +1,5 @@
 from ddsc.core.ddsapi import DSResourceNotConsistentError, DSHashMismatchError
+from tabulate import tabulate
 
 
 class UploadDetails(object):
@@ -78,3 +79,9 @@ class ProjectChecker(object):
     def delete_bad_uploads(self):
         for bad_upload in self.get_bad_uploads():
             bad_upload.dds_file.delete()
+
+    def print_bad_uploads_table(self):
+        headers, data = self.get_bad_uploads_table_data()
+        print(tabulate(data, headers=headers))
+        print("\nNOTE: Inconsistent files should resolve in a few minutes after starting.")
+        print()

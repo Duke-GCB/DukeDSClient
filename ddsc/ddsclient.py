@@ -18,7 +18,6 @@ from ddsc.config import create_config
 from ddsc.core.download import ProjectFileDownloader
 from ddsc.exceptions import DDSUserException
 from ddsc.sdk.client import Client
-from tabulate import tabulate
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 INVALID_DELIVERY_RECIPIENT_MSG = 'Delivery recipient cannot be a share user. Remove recipient from --share-users and try again.'
@@ -547,14 +546,8 @@ class CheckCommand(ClientCommand):
             print("Project {} is consistent.".format(project.name))
         else:
             print("ERROR: Project {} is not in a consistent state!\n".format(project.name))
-            self.print_bad_uploads_table(checker)
+            checker.print_bad_uploads_table()
             sys.exit(1)
-
-    def print_bad_uploads_table(self, checker):
-        headers, data = checker.get_bad_uploads_table_data()
-        print(tabulate(data, headers=headers))
-        print("\nNOTE: Inconsistent files should resolve in a few minutes after starting.")
-        print()
 
 
 def boolean_input_prompt(message):
