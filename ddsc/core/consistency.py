@@ -3,8 +3,9 @@ from tabulate import tabulate
 
 
 class UploadDetails(object):
-    def __init__(self, dds_file):
+    def __init__(self, dds_file, remote_path):
         self.dds_file = dds_file
+        self.remote_path = remote_path
         self.dds_upload = dds_file.get_upload()
         self.status = self.dds_upload.status
 
@@ -58,21 +59,22 @@ class ProjectChecker(object):
 
     def get_bad_uploads(self):
         results = []
-        for _, dds_file in self.project.get_path_to_files().items():
-            upload_details = UploadDetails(dds_file)
+        for remote_path, dds_file in self.project.get_path_to_files().items():
+            upload_details = UploadDetails(dds_file, remote_path)
             if upload_details.is_bad():
                 results.append(upload_details)
         return results
 
     def get_bad_uploads_table_data(self):
-        headers = ["File", "Status", "Message", "File ID"]
+        headers = ["File", "Status", "Message", "File ID", "Remote Path"]
         data = []
         for upload_details in self.get_bad_uploads():
             data.append([
                 upload_details.name(),
                 upload_details.status_str(),
                 upload_details.message(),
-                upload_details.file_id()
+                upload_details.file_id(),
+                upload_details.remote_path
             ])
         return headers, data
 

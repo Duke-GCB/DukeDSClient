@@ -10,7 +10,7 @@ class TestUploadDetails(TestCase):
         mock_dds_file.id = '123'
         mock_status = Mock(is_consistent=False, initiated_on='2021-01-01', error_on=None)
         mock_dds_file.get_upload.return_value.status = mock_status
-        upload_details = UploadDetails(mock_dds_file)
+        upload_details = UploadDetails(mock_dds_file, '/data/file1.dat')
         self.assertEqual(upload_details.inconsistent(), True)
         self.assertEqual(upload_details.had_error(), False)
         self.assertEqual(upload_details.is_bad(), True)
@@ -25,7 +25,7 @@ class TestUploadDetails(TestCase):
         mock_dds_file.id = '123'
         mock_status = Mock(is_consistent=True, initiated_on='2021-01-01', error_on='2021-01-02', error_message='bad data')
         mock_dds_file.get_upload.return_value.status = mock_status
-        upload_details = UploadDetails(mock_dds_file)
+        upload_details = UploadDetails(mock_dds_file, '/data/file1.dat')
         self.assertEqual(upload_details.inconsistent(), False)
         self.assertEqual(upload_details.had_error(), True)
         self.assertEqual(upload_details.is_bad(), True)
@@ -40,7 +40,7 @@ class TestUploadDetails(TestCase):
         mock_dds_file.id = '123'
         mock_status = Mock(is_consistent=True, initiated_on='2021-01-01', error_on=None, error_message=None)
         mock_dds_file.get_upload.return_value.status = mock_status
-        upload_details = UploadDetails(mock_dds_file)
+        upload_details = UploadDetails(mock_dds_file, '/data/file1.dat')
         self.assertEqual(upload_details.inconsistent(), False)
         self.assertEqual(upload_details.had_error(), False)
         self.assertEqual(upload_details.is_bad(), False)
@@ -48,6 +48,7 @@ class TestUploadDetails(TestCase):
         self.assertEqual(upload_details.status_str(), 'Ok')
         self.assertEqual(upload_details.file_id(), '123')
         self.assertEqual(upload_details.message(), '')
+        self.assertEqual(upload_details.remote_path, '/data/file1.dat')
 
 
 class TestProjectChecker(TestCase):
@@ -69,9 +70,9 @@ class TestProjectChecker(TestCase):
         dds_file.get_upload.return_value.status.error_on = None
         dds_file.get_upload.return_value.status.initiated_on = '2021-01-01'
         self.project.get_path_to_files.return_value.items.return_value = [
-            (None, dds_file)
+            ("/data/bad/file1.txt", dds_file)
         ]
         self.assertEqual(self.checker.files_are_ok(), False)
         headers, data = self.checker.get_bad_uploads_table_data()
-        self.assertEqual(headers, ['File', 'Status', 'Message', 'File ID'])
-        self.assertEqual(data, [['file1.txt', 'Inconsistent', 'started upload at 2021-01-01', '123']])
+        self.assertEqual(headers, ['File', 'Status', 'Message', 'File ID', 'Remote Path'])
+        self.assertEqual(data, [['file1.txt', 'Inconsistent', 'started upload at 2021-01-01', '123', '/data/bad/file1.txt']])
