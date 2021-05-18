@@ -10,6 +10,7 @@ from ddsc.core.util import KindType, REMOTE_PATH_SEP, humanize_bytes, plural_fmt
 from ddsc.core.moveutil import MoveUtil
 from ddsc.exceptions import DDSUserException
 from future.utils import python_2_unicode_compatible
+from ddsc.core.consistency import ProjectChecker
 
 
 class Client(object):
@@ -293,6 +294,14 @@ class DDSConnection(object):
     def get_file_url_dict(self, file_id):
         return self.data_service.get_file_url(file_id).json()
 
+    def get_upload(self, upload_id):
+        return self._create_item_response(
+            self.data_service.get_upload(
+                upload_id
+            ),
+            Upload
+        )
+
 
 class BaseResponseItem(object):
     """
@@ -401,6 +410,29 @@ class Project(BaseResponseItem):
         path_to_nodes = PathToFiles()
         path_to_nodes.add_paths_for_children_of_node(self)
         return path_to_nodes.paths
+
+    def is_consistent(self):
+        """
+        Check that a project is in a consistent state. When large projects are uploaded the DukeDS service can take
+        a while finish background processing. Before deleting uploaded files you should check that the project is in
+        a consistent state. If there is a problem with the project a message will be printed.
+        :return: bool: True if the project is consistent.
+        """
+        checker = ProjectChecker(self.dds_connection.config, self)
+        if checker.files_are_ok():
+            return True
+        else:
+            print("Project {} is not in a consistent state!\n".format(self.name))
+            checker.print_bad_uploads_table()
+            return False
+
+    def wait_for_consistency(self, wait_sec=5):
+        """
+        Wait for the project to become consistent.
+        :param wait_sec: Seconds to wait before giving up.
+        """
+        checker = ProjectChecker(self.dds_connection.config, self)
+        checker.wait_for_consistency(wait_sec=5)
 
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
@@ -572,8 +604,38 @@ class File(BaseResponseItem):
     def current_size(self):
         return self.current_version['upload']['size']
 
+    def get_upload(self):
+        return self.dds_connection.get_upload(self.current_version["upload"]["id"])
+
     def __str__(self):
         return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
+
+
+@python_2_unicode_compatible
+class Upload(BaseResponseItem):
+    """
+    Contains upload details based on DDSConnection API response
+    """
+    def __init__(self, dds_connection, data):
+        """
+        :param dds_connection: DDSConnection
+        :param data: dict: dictionary response from DDSConnection API in upload format
+        """
+        super(Upload, self).__init__(dds_connection, data)
+        self.status = UploadStatus(data["status"])
+
+    def __str__(self):
+        return u'{} id:{} name:{}'.format(self.__class__.__name__, self.id, self.name)
+
+
+class UploadStatus(object):
+    def __init__(self, data):
+        self.initiated_on = data["initiated_on"]
+        self.completed_on = data["completed_on"]
+        self.is_consistent = data["is_consistent"]
+        self.purged_on = data["purged_on"]
+        self.error_on = data["error_on"]
+        self.error_message = data["error_message"]
 
 
 class FileDownload(BaseResponseItem):

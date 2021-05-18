@@ -16,6 +16,7 @@ setup(name='DukeDSClient',
           'future',
           'six',
           'tenacity==6.2.0',
+          'tabulate'
         ],
         test_suite='nose.collector',
         tests_require=['nose', 'mock'],

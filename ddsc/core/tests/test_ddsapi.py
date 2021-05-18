@@ -6,7 +6,7 @@ from ddsc.core.ddsapi import MultiJSONResponse, DataServiceApi, DataServiceAuth,
 from ddsc.core.ddsapi import MissingInitialSetupError, SoftwareAgentNotFoundError, AuthTokenCreationError, \
     UnexpectedPagingReceivedError, DataServiceError, DSResourceNotConsistentError, \
     retry_until_resource_is_consistent, retry_connection_exceptions, CONNECTION_RETRY_MESSAGE, \
-    RetrySettings, OAuthDataServiceAuth
+    RetrySettings, OAuthDataServiceAuth, DSHashMismatchError
 from mock import MagicMock, Mock, patch, ANY, call
 
 
@@ -514,6 +514,14 @@ class TestDataServiceApi(TestCase):
         url_suffix = ""
         data = None
         with self.assertRaises(DataServiceError):
+            DataServiceApi._check_err(resp, url_suffix, data, allow_pagination=False)
+
+    def test_check_err_with_400_hash_wrong(self):
+        resp = Mock(headers={}, status_code=400)
+        resp.json.return_value = {"reason": "reported hash value does not match size computed by StorageProvider"}
+        url_suffix = ""
+        data = None
+        with self.assertRaises(DSHashMismatchError):
             DataServiceApi._check_err(resp, url_suffix, data, allow_pagination=False)
 
     def test_check_err_with_404(self):

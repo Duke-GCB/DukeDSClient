@@ -294,6 +294,13 @@ class DSResourceNotConsistentError(DataServiceError):
         super(self.__class__, self).__init__(response, url_suffix, request_data)
 
 
+class DSHashMismatchError(DataServiceError):
+    """
+    Exception thrown when a DukeDS resource has an incorrect hash.
+    """
+    pass
+
+
 class DataServiceApi(object):
     """
     Sends json messages and receives responses back from Duke Data Service api.
@@ -459,6 +466,9 @@ class DataServiceApi(object):
         if resp.status_code == 404:
             if resp.json().get("code") == "resource_not_consistent":
                 raise DSResourceNotConsistentError(resp, url_suffix, data)
+        if resp.status_code == 400:
+            if resp.json().get("reason") == "reported hash value does not match size computed by StorageProvider":
+                raise DSHashMismatchError(resp, url_suffix, data)
         raise DataServiceError(resp, url_suffix, data)
 
     def create_project(self, project_name, desc):

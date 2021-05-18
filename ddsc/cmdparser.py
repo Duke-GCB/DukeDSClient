@@ -513,6 +513,19 @@ class CommandParser(object):
         add_project_name_or_id_arg(parser, help_text_suffix="to show the information about")
         parser.set_defaults(func=info_func)
 
+    def register_check_command(self, check_func):
+        """
+        Add 'check' command to verify a project is consistent.
+        :param check_func: function: run when user choses this option.
+        """
+        description = "Check that a project is in a consistent state."
+        check_parser = self.subparsers.add_parser('check', description=description)
+        add_project_name_or_id_arg(check_parser, help_text_suffix="check")
+        check_parser.add_argument('--wait',
+                                  help="Wait for project to become consistent.",
+                                  action='store_true')
+        check_parser.set_defaults(func=check_func)
+
     def run_command(self, args):
         """
         Parse command line arguments and run function registered for the appropriate command.
