@@ -1,6 +1,5 @@
 """ Runs the appropriate command for a user based on arguments. """
 from __future__ import print_function, unicode_literals
-from builtins import input
 import sys
 import datetime
 import time
@@ -11,13 +10,16 @@ from ddsc.core.upload import ProjectUpload
 from ddsc.core.projectuploader import ProjectUploadDryRun
 from ddsc.core.consistency import ProjectChecker, DSHashMismatchError
 from ddsc.cmdparser import CommandParser, format_destination_path, replace_invalid_path_chars
-from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding
+from ddsc.core.util import ProjectDetailsList, verify_terminal_encoding, boolean_input_prompt
 from ddsc.core.pathfilter import PathFilter
 from ddsc.versioncheck import check_version, VersionException, get_internal_version_str
 from ddsc.config import create_config
 from ddsc.core.download import ProjectFileDownloader
 from ddsc.exceptions import DDSUserException
 from ddsc.sdk.client import Client
+from ddsc.azure import AzureListCommand, AzureUploadCommand, AzureAddUserCommand, AzureRemoveUserCommand, \
+    AzureDownloadCommand, AzureShareCommand, AzureDeliverCommand, AzureDeleteCommand, AzureListAuthRolesCommand, \
+    AzureMoveCommand, AzureInfoCommand, AzureCheckCommand
 
 NO_PROJECTS_FOUND_MESSAGE = 'No projects found.'
 INVALID_DELIVERY_RECIPIENT_MSG = 'Delivery recipient cannot be a share user. Remove recipient from --share-users and try again.'
@@ -30,12 +32,14 @@ class DDSClient(object):
     """
     def __init__(self):
         self.show_error_stack_trace = False
+        self.config = None
 
     def run_command(self, args):
         """
         Create a parser and have it parse the args then run the appropriate command.
         :param args: [str] command line args
         """
+        self.config = create_config()
         parser = self._create_parser()
         parser.run_command(args)
 
@@ -45,29 +49,94 @@ class DDSClient(object):
         :return: CommandParser parser with commands attached.
         """
         parser = CommandParser(get_internal_version_str())
-        parser.register_list_command(self._setup_run_command(ListCommand))
-        parser.register_upload_command(self._setup_run_command(UploadCommand))
-        parser.register_add_user_command(self._setup_run_command(AddUserCommand))
-        parser.register_remove_user_command(self._setup_run_command(RemoveUserCommand))
-        parser.register_download_command(self._setup_run_command(DownloadCommand))
-        parser.register_share_command(self._setup_run_command(ShareCommand))
-        parser.register_deliver_command(self._setup_run_command(DeliverCommand))
-        parser.register_delete_command(self._setup_run_command(DeleteCommand))
-        parser.register_list_auth_roles_command(self._setup_run_command(ListAuthRolesCommand))
-        parser.register_move_command(self._setup_run_command(MoveCommand))
-        parser.register_info_command(self._setup_run_command(InfoCommand))
-        parser.register_check_command(self._setup_run_command(CheckCommand))
+        parser.register_list_command(self.list_command)
+        parser.register_upload_command(self.upload_command)
+        parser.register_add_user_command(self.add_user_command)
+        parser.register_remove_user_command(self.remove_user_command)
+        parser.register_download_command(self.download_command)
+        parser.register_share_command(self.share_command)
+        parser.register_deliver_command(self.deliver_command)
+        parser.register_delete_command(self.delete_command)
+        parser.register_list_auth_roles_command(self.list_auth_roles_command)
+        parser.register_move_command(self.move_command)
+        parser.register_info_command(self.info_command)
+        parser.register_check_command(self.check_command)
         return parser
 
-    def _setup_run_command(self, command_constructor):
-        """
-        Create f(args) to run that will create the specified object and call run when invoked.
-        The reason for this complexity is deferring the creation of expensive objects until
-        we have decided to run a command. For instance setting up the data service api if we are just running -h.
-        :param command_constructor: class specifies object to create and pass args to(eventually).
-        :return: func function that will let the command created by command_constructor run with arguments.
-        """
-        return lambda args: self._run_command(command_constructor, args)
+    def use_azure_commands(self, args):
+        return args.azure or self.config.backing_storage == "azure"
+
+    def list_command(self, args):
+        command_constructor = ListCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureListCommand
+        return self._run_command(command_constructor, args)
+
+    def upload_command(self, args):
+        command_constructor = UploadCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureUploadCommand
+        return self._run_command(command_constructor, args)
+
+    def add_user_command(self, args):
+        command_constructor = AddUserCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureAddUserCommand
+        return self._run_command(command_constructor, args)
+
+    def remove_user_command(self, args):
+        command_constructor = RemoveUserCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureRemoveUserCommand
+        return self._run_command(command_constructor, args)
+
+    def download_command(self, args):
+        command_constructor = DownloadCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureDownloadCommand
+        return self._run_command(command_constructor, args)
+
+    def share_command(self, args):
+        command_constructor = ShareCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureShareCommand
+        return self._run_command(command_constructor, args)
+
+    def deliver_command(self, args):
+        command_constructor = DeliverCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureDeliverCommand
+        return self._run_command(command_constructor, args)
+
+    def delete_command(self, args):
+        command_constructor = DeleteCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureDeleteCommand
+        return self._run_command(command_constructor, args)
+
+    def list_auth_roles_command(self, args):
+        command_constructor = ListAuthRolesCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureListAuthRolesCommand
+        return self._run_command(command_constructor, args)
+
+    def move_command(self, args):
+        command_constructor = MoveCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureMoveCommand
+        return self._run_command(command_constructor, args)
+
+    def info_command(self, args):
+        command_constructor = InfoCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureInfoCommand
+        return self._run_command(command_constructor, args)
+
+    def check_command(self, args):
+        command_constructor = CheckCommand
+        if self.use_azure_commands(args):
+            command_constructor = AzureCheckCommand
+        return self._run_command(command_constructor, args)
 
     def _check_pypi_version(self):
         """
@@ -121,7 +190,7 @@ class BaseCommand(object):
                                                          must_exist=must_exist,
                                                          include_children=include_children)
         if include_children:
-            print("Done fetching list of files.".format(project_name_or_id.value))
+            print("Done fetching list of files.")
         return project
 
     def make_user_list(self, emails, usernames):
@@ -555,15 +624,6 @@ class CheckCommand(ClientCommand):
             else:
                 checker.print_bad_uploads_table()
                 sys.exit(1)
-
-
-def boolean_input_prompt(message):
-    if sys.version_info >= (3, 0, 0):
-        result = input(message)
-    else:
-        result = input(message)
-    result = result.upper()
-    return result == "Y" or result == "YES" or result == "T" or result == "TRUE"
 
 
 def read_argument_file_contents(infile):

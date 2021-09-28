@@ -476,3 +476,12 @@ def transfer_speed_str(current_time, start_time, transferred_bytes):
         bytes_per_second = float(transferred_bytes) / (elapsed_seconds + 0.5)
         return '@ {}/s'.format(humanize_bytes(bytes_per_second))
     return ''
+
+
+def boolean_input_prompt(message):
+    if sys.version_info >= (3, 0, 0):
+        result = input(message)
+    else:
+        result = input(message)
+    result = result.upper()
+    return result == "Y" or result == "YES" or result == "T" or result == "TRUE"
