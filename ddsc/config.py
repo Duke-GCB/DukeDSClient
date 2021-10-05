@@ -26,6 +26,7 @@ FILE_EXCLUDE_REGEX_DEFAULT = '^\.DS_Store$|^\.ddsclient$|^\.\_'
 MAX_DEFAULT_WORKERS = 8
 GET_PAGE_SIZE_DEFAULT = 100  # fetch 100 items per page
 DEFAULT_FILE_DOWNLOAD_RETRIES = 5
+DEFAULT_BACKING_STORAGE = "dds"
 
 
 def get_user_config_filename():
@@ -77,6 +78,7 @@ class Config(object):
     GET_PAGE_SIZE = 'get_page_size'                    # page size used for GET pagination requests
     STORAGE_PROVIDER_ID = 'storage_provider_id'        # setting to override the default storage provider
     FILE_DOWNLOAD_RETRIES = 'file_download_retries'    # number of times to retry a failed file download
+    BACKING_STORAGE = 'backing_storage'                # backing storage either "dds" or "azure"
 
     def __init__(self):
         self.values = {}
@@ -238,3 +240,7 @@ class Config(object):
         :return: int: number of retries allowed before failure
         """
         return self.values.get(Config.FILE_DOWNLOAD_RETRIES, DEFAULT_FILE_DOWNLOAD_RETRIES)
+
+    @property
+    def backing_storage(self):
+        return self.values.get(Config.BACKING_STORAGE, DEFAULT_BACKING_STORAGE)
