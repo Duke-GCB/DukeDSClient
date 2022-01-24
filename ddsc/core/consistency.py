@@ -1,5 +1,5 @@
 import time
-from ddsc.core.ddsapi import DSResourceNotConsistentError, DSHashMismatchError
+from ddsc.core.ddsapi import DSResourceNotConsistentError, DSHashMismatchError, DataServiceError
 from tabulate import tabulate
 
 
@@ -52,6 +52,10 @@ class ProjectChecker(object):
             return True
         except (DSResourceNotConsistentError, DSHashMismatchError):
             return False
+        except DataServiceError as e:
+            if e.status_code == 400:
+                return False
+            raise
 
     def _try_fetch_project_files(self):
         # exhaust the project files generator to fetch urls for all files

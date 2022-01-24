@@ -1,5 +1,6 @@
 from unittest import TestCase
 from ddsc.core.consistency import UploadDetails, ProjectChecker, DSResourceNotConsistentError
+from ddsc.core.ddsapi import DataServiceError
 from mock import Mock, patch, call
 
 
@@ -64,6 +65,23 @@ class TestProjectChecker(TestCase):
 
     def test_files_are_ok__error(self):
         self.project.get_project_files_generator.side_effect = DSResourceNotConsistentError(Mock(), Mock(), Mock())
+        dds_file = Mock()
+        dds_file.name = "file1.txt"
+        dds_file.id = "123"
+        dds_file.get_upload.return_value.status.is_consistent = False
+        dds_file.get_upload.return_value.status.error_on = None
+        dds_file.get_upload.return_value.status.initiated_on = '2021-01-01'
+        self.project.get_path_to_files.return_value.items.return_value = [
+            ("/data/bad/file1.txt", dds_file)
+        ]
+        self.assertEqual(self.checker.files_are_ok(), False)
+        headers, data = self.checker.get_bad_uploads_table_data()
+        self.assertEqual(headers, ['File', 'Status', 'Message', 'FileID', 'RemotePath'])
+        self.assertEqual(data, [['file1.txt', 'Inconsistent', 'started upload at 2021-01-01', '123',
+                                 '/data/bad/file1.txt']])
+
+    def test_files_are_ok__DDS_400(self):
+        self.project.get_project_files_generator.side_effect = DataServiceError(Mock(status_code=400), Mock(), Mock())
         dds_file = Mock()
         dds_file.name = "file1.txt"
         dds_file.id = "123"
