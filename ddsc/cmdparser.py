@@ -367,7 +367,6 @@ class CommandParser(object):
         add_project_name_or_id_arg(upload_parser, help_text_suffix="upload files/folders to.")
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
-        _add_azure_arg(upload_parser)
         upload_parser.set_defaults(func=upload_func)
 
     def register_add_user_command(self, add_user_func):
@@ -383,7 +382,6 @@ class CommandParser(object):
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
         _add_auth_role_arg(add_user_parser, default_permissions='project_admin')
-        _add_azure_arg(add_user_parser)
         add_user_parser.set_defaults(func=add_user_func)
 
     def register_remove_user_command(self, remove_user_func):
@@ -397,7 +395,6 @@ class CommandParser(object):
         user_or_email = remove_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
-        _add_azure_arg(remove_user_parser)
         remove_user_parser.set_defaults(func=remove_user_func)
 
     def register_download_command(self, download_func):
@@ -413,7 +410,6 @@ class CommandParser(object):
         include_or_exclude = download_parser.add_mutually_exclusive_group(required=False)
         _add_include_arg(include_or_exclude)
         _add_exclude_arg(include_or_exclude)
-        _add_azure_arg(download_parser)
         download_parser.set_defaults(func=download_func)
 
     def register_share_command(self, share_func):
@@ -433,7 +429,6 @@ class CommandParser(object):
         _add_resend_arg(share_parser, "Resend share")
         _add_message_file(share_parser, "Filename containing a message to be sent with the share. "
                                         "Pass - to read from stdin.")
-        _add_azure_arg(share_parser)
         share_parser.set_defaults(func=share_func)
 
     def register_deliver_command(self, deliver_func):
@@ -458,7 +453,6 @@ class CommandParser(object):
         _add_exclude_arg(include_or_exclude)
         _add_message_file(deliver_parser, "Filename containing a message to be sent with the delivery. "
                                           "Pass - to read from stdin.")
-        _add_azure_arg(deliver_parser)
         deliver_parser.set_defaults(func=deliver_func)
 
     def register_list_command(self, list_func):
@@ -473,7 +467,6 @@ class CommandParser(object):
         add_project_name_or_id_arg(project_name_or_auth_role, required=False,
                                    help_text_suffix="show details for")
         _add_long_format_option(list_parser, 'Display long format.')
-        _add_azure_arg(list_parser)
         list_parser.set_defaults(func=list_func)
 
     def register_delete_command(self, delete_func):
@@ -490,7 +483,6 @@ class CommandParser(object):
                                    dest='remote_path',
                                    help="remote path specifying the file/folder to be deleted instead of the entire project")
         _add_force_arg(delete_parser, "Do not prompt before deleting.")
-        _add_azure_arg(delete_parser)
         delete_parser.set_defaults(func=delete_func)
 
     def register_list_auth_roles_command(self, list_auth_roles_func):
@@ -501,7 +493,6 @@ class CommandParser(object):
         description = "List authorization roles for use with add_user command."
         list_auth_roles_parser = self.subparsers.add_parser('list-auth-roles', description=description)
         list_auth_roles_parser.set_defaults(func=list_auth_roles_func)
-        _add_azure_arg(list_auth_roles_parser)
 
     def register_move_command(self, move_func):
         """
@@ -522,7 +513,6 @@ class CommandParser(object):
                             metavar='Target',
                             type=to_unicode,
                             help='remote path specifying where to move the file/folder to')
-        _add_azure_arg(parser)
         parser.set_defaults(func=move_func)
 
     def register_info_command(self, info_func):
@@ -533,7 +523,6 @@ class CommandParser(object):
         description = "Print information about a project."
         parser = self.subparsers.add_parser('info', description=description)
         add_project_name_or_id_arg(parser, help_text_suffix="to show the information about")
-        _add_azure_arg(parser)
         parser.set_defaults(func=info_func)
 
     def register_check_command(self, check_func):
@@ -547,7 +536,6 @@ class CommandParser(object):
         check_parser.add_argument('--wait',
                                   help="Wait for project to become consistent.",
                                   action='store_true')
-        _add_azure_arg(check_parser)
         check_parser.set_defaults(func=check_func)
 
     def run_command(self, args):

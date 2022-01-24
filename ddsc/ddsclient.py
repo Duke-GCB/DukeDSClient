@@ -64,7 +64,7 @@ class DDSClient(object):
         return parser
 
     def use_azure_commands(self, args):
-        return args.azure or self.config.backing_storage == "azure"
+        return False
 
     def list_command(self, args):
         command_constructor = ListCommand
