@@ -86,7 +86,9 @@ class TestUploadCommand(TestCase):
     @patch("ddsc.ddsclient.ProjectUploadDryRun")
     @patch('ddsc.ddsclient.RemoteStore')
     @patch('ddsc.ddsclient.print')
-    def test_without_dry_run(self, mock_print, mock_remote_store, mock_project_upload_dry_run, mock_local_project,
+    @patch('ddsc.ddsclient.Client')
+    @patch('ddsc.ddsclient.ProjectChecker')
+    def test_without_dry_run(self, mock_project_checker, mock_client, mock_print, mock_remote_store, mock_project_upload_dry_run, mock_local_project,
                              mock_project_name_or_id, mock_project_upload):
         mock_config = MagicMock()
         cmd = UploadCommand(mock_config)
@@ -96,6 +98,7 @@ class TestUploadCommand(TestCase):
         args.folders = ["data", "scripts"]
         args.follow_symlinks = False
         args.dry_run = False
+        args.check = True
         cmd.run(args)
 
         mock_project_name_or_id.create_from_name.assert_called_with("test")
@@ -122,6 +125,8 @@ class TestUploadCommand(TestCase):
             call(mock_project_upload.return_value.get_url_msg.return_value),
         ])
         mock_project_upload.return_value.cleanup.assert_called_with()
+        mock_client.return_value.get_project_by_id.assert_called_with(mock_local_project.return_value.remote_id)
+        mock_project_checker.return_value.wait_for_consistency.assert_called_with()
 
     @patch("ddsc.ddsclient.ProjectUpload")
     @patch("ddsc.ddsclient.ProjectNameOrId")
@@ -129,7 +134,32 @@ class TestUploadCommand(TestCase):
     @patch("ddsc.ddsclient.ProjectUploadDryRun")
     @patch('ddsc.ddsclient.RemoteStore')
     @patch('ddsc.ddsclient.print')
-    def test_without_dry_run_project_id(self, mock_print, mock_remote_store, mock_project_upload_dry_run,
+    @patch('ddsc.ddsclient.Client')
+    @patch('ddsc.ddsclient.ProjectChecker')
+    def test_without_dry_run__no_check(self, mock_project_checker, mock_client, mock_print, mock_remote_store,
+                                       mock_project_upload_dry_run, mock_local_project, mock_project_name_or_id,
+                                       mock_project_upload):
+        mock_config = MagicMock()
+        cmd = UploadCommand(mock_config)
+        args = Mock()
+        args.project_name = "test"
+        args.project_id = None
+        args.folders = ["data", "scripts"]
+        args.follow_symlinks = False
+        args.dry_run = False
+        args.check = False
+        cmd.run(args)
+        mock_client.return_value.get_project_by_id.assert_not_called()
+        mock_project_checker.return_value.wait_for_consistency.assert_not_called()
+
+    @patch("ddsc.ddsclient.ProjectUpload")
+    @patch("ddsc.ddsclient.ProjectNameOrId")
+    @patch("ddsc.ddsclient.LocalProject")
+    @patch("ddsc.ddsclient.ProjectUploadDryRun")
+    @patch('ddsc.ddsclient.RemoteStore')
+    @patch('ddsc.ddsclient.print')
+    @patch('ddsc.ddsclient.Client')
+    def test_without_dry_run_project_id(self, mock_client, mock_print, mock_remote_store, mock_project_upload_dry_run,
                                         mock_local_project, mock_project_name_or_id, mock_project_upload):
         mock_config = MagicMock()
         cmd = UploadCommand(mock_config)
@@ -139,6 +169,7 @@ class TestUploadCommand(TestCase):
         args.folders = ["data", "scripts"]
         args.follow_symlinks = False
         args.dry_run = False
+        args.check = True
         cmd.run(args)
 
         mock_project_name_or_id.create_from_project_id.assert_called_with("123")
@@ -168,6 +199,7 @@ class TestUploadCommand(TestCase):
         args.folders = ["data", "scripts"]
         args.follow_symlinks = False
         args.dry_run = True
+        args.check = True
         cmd.run(args)
 
         mock_local_project.assert_called_with(followsymlinks=False, file_exclude_regex=mock_config.file_exclude_regex)

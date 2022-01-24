@@ -360,13 +360,19 @@ class CommandParser(object):
         Add the upload command to the parser and call upload_func(project_name, folders, follow_symlinks) when chosen.
         :param upload_func: func Called when this option is chosen: upload_func(project_name, folders, follow_symlinks).
         """
-        description = "Uploads local files and folders to a remote host."
+        description = "Uploads local files and folders to a remote store. After files are uploaded this command waits for all files to be valid/downloadable."
         upload_parser = self.subparsers.add_parser('upload', description=description)
         _add_dry_run(upload_parser, help_text="Instead of uploading displays a list of folders/files that "
                                               "need to be uploaded.")
         add_project_name_or_id_arg(upload_parser, help_text_suffix="upload files/folders to.")
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
+        upload_parser.add_argument(
+            "--no-check",
+            help="Skip checking/waiting for uploaded files to be in the valid/downloadable state.",
+            action='store_false',
+            dest='check',
+            default=True)
         upload_parser.set_defaults(func=upload_func)
 
     def register_add_user_command(self, add_user_func):
