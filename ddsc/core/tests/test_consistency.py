@@ -131,9 +131,9 @@ class TestProjectChecker(TestCase):
         ]
         self.checker.wait_for_consistency(wait_sec=10)
         mock_print.assert_has_calls([
-            call('Checking files for project Mouse'),
+            call('Checking files for project Mouse.'),
             call('Project not consistent yet. Waiting.'),
-            call('Checking files for project Mouse'),
+            call('Checking files for project Mouse.'),
             call('Project Mouse is consistent.')
         ])
         mock_time.sleep.assert_called_with(10)

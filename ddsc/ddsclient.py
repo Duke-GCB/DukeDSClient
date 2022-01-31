@@ -64,7 +64,7 @@ class DDSClient(object):
         return parser
 
     def use_azure_commands(self, args):
-        return args.azure or self.config.backing_storage == "azure"
+        return False
 
     def list_command(self, args):
         command_constructor = ListCommand
@@ -253,6 +253,7 @@ class UploadCommand(BaseCommand):
         folders = args.folders                  # list of local files/folders to upload into the project
         follow_symlinks = args.follow_symlinks  # should we follow symlinks when traversing folders
         dry_run = args.dry_run                  # do not upload anything, instead print out what you would upload
+        check_file_consistency = args.check     # should we check download URLs after uploading
 
         # Find files and folders to upload
         local_project = LocalProject(followsymlinks=follow_symlinks, file_exclude_regex=self.config.file_exclude_regex)
@@ -285,6 +286,22 @@ class UploadCommand(BaseCommand):
                 print('\n')
             print(project_upload.get_url_msg())
             project_upload.cleanup()
+
+            # check for consistency unless user passes --no-check flag
+            if check_file_consistency:
+                self.wait_for_consistency(local_project.remote_id)
+
+    def wait_for_consistency(self, project_id):
+        client = Client(self.config)
+        project = client.get_project_by_id(project_id)
+        checker = ProjectChecker(self.config, project)
+        try:
+            checker.wait_for_consistency()
+        except DSHashMismatchError:
+            checker.print_bad_uploads_table()
+            sys.exit(1)
+        finally:
+            client.close()
 
 
 class DownloadCommand(ClientCommand):

@@ -227,3 +227,23 @@ class TestCommandParser(TestCase):
         command_parser.run_command(['check', '-p', 'mouse'])
         self.assertEqual(self.parsed_args.project_name, 'mouse')
         self.assertEqual(self.parsed_args.project_id, None)
+
+    def test_register_upload_command_project_name(self):
+        command_parser = CommandParser(version_str='1.0')
+        command_parser.register_upload_command(self.set_parsed_args)
+        self.assertEqual(['upload'], list(command_parser.subparsers.choices.keys()))
+        command_parser.run_command(['upload', '-p', 'myproj', '/tmp'])
+        self.assertEqual('myproj', self.parsed_args.project_name)
+        self.assertEqual(None, self.parsed_args.project_id)
+        self.assertEqual(['/tmp'], self.parsed_args.folders)
+        self.assertEqual(True, self.parsed_args.check)
+
+    def test_register_upload_command_project_name__no_check(self):
+        command_parser = CommandParser(version_str='1.0')
+        command_parser.register_upload_command(self.set_parsed_args)
+        self.assertEqual(['upload'], list(command_parser.subparsers.choices.keys()))
+        command_parser.run_command(['upload', '-p', 'myproj', '/tmp', '--no-check'])
+        self.assertEqual('myproj', self.parsed_args.project_name)
+        self.assertEqual(None, self.parsed_args.project_id)
+        self.assertEqual(['/tmp'], self.parsed_args.folders)
+        self.assertEqual(False, self.parsed_args.check)

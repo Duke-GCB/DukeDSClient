@@ -99,7 +99,7 @@ class ProjectChecker(object):
     def wait_for_consistency(self, wait_sec=5):
         while True:
             try:
-                print("Checking files for project {}".format(self.project.name))
+                print("Checking files for project {}.".format(self.project.name))
                 self._try_fetch_project_files()
                 # if we are able to fetch all files project is in a consistent state
                 print("Project {} is consistent.".format(self.project.name))
