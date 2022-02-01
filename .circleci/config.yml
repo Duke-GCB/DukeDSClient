@@ -48,6 +48,7 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
+            pip install --upgrade pip
             python setup.py install
             pip install twine
 
