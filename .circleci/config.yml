@@ -5,7 +5,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.6
+      - image: circleci/python:3.7
     working_directory: ~/DukeDSClient
     steps:
       - checkout:
@@ -19,6 +19,7 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
+            pip install --upgrade pip
             python setup.py install
             pip install -r devRequirements.txt
             pip install coveralls
@@ -36,7 +37,7 @@ jobs:
             coverage run --source=ddsc setup.py test
   deploy:
     docker:
-      - image: circleci/python:3.6
+      - image: circleci/python:3.7
     steps:
       - checkout
 

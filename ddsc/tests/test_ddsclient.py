@@ -2,7 +2,8 @@ from __future__ import absolute_import
 from unittest import TestCase
 from ddsc.ddsclient import BaseCommand, UploadCommand, ListCommand, DownloadCommand, ClientCommand, MoveCommand
 from ddsc.ddsclient import ShareCommand, DeliverCommand, InfoCommand, read_argument_file_contents, \
-    INVALID_DELIVERY_RECIPIENT_MSG, DDSClient, DeleteCommand, CheckCommand, DSHashMismatchError
+    INVALID_DELIVERY_RECIPIENT_MSG, DDSClient, DeleteCommand, CheckCommand, DSHashMismatchError, \
+    AZURE_BACKING_STORAGE
 from ddsc.exceptions import DDSUserException
 from mock import patch, MagicMock, Mock, call, ANY
 
@@ -409,6 +410,13 @@ class TestDDSClient(TestCase):
         ddsclient._run_command(command_constructor, mock_args)
         command_constructor.return_value.run.assert_called_with(mock_args)
         command_constructor.return_value.cleanup.assert_called_with()
+
+    @patch('ddsc.ddsclient.create_config')
+    def test_run_command_azure(self, mock_create_config):
+        ddsclient = DDSClient()
+        self.assertFalse(ddsclient.use_azure_commands())
+        ddsclient = DDSClient(backing_storage=AZURE_BACKING_STORAGE)
+        self.assertTrue(ddsclient.use_azure_commands())
 
 
 class TestListCommand(TestCase):

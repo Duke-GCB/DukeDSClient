@@ -16,6 +16,7 @@ class TestConfig(TestCase):
         self.assertEqual(config.upload_bytes_per_chunk, ddsc.config.DDS_DEFAULT_UPLOAD_CHUNKS)
         self.assertEqual(config.upload_workers, min(multiprocessing.cpu_count(), ddsc.config.MAX_DEFAULT_WORKERS))
         self.assertEqual(config.storage_provider_id, None)
+        self.assertEqual(config.azure_delivery_url, ddsc.config.AZ_DELIVERY_URL)
 
     def test_global_then_local(self):
         config = ddsc.config.Config()
@@ -170,3 +171,20 @@ class TestConfig(TestCase):
             with patch('builtins.open', mock_open(read_data='')):
                 config.add_properties('~/.ddsclient')
         self.assertEqual(str(raised_exception.exception), 'Error: Empty config file /home/user/.ddsclient')
+
+    @patch('ddsc.config.os')
+    def test_azure_properties(self, mock_os):
+        config = ddsc.config.Config()
+        some_config = {
+            'azure_subscription_id': '123',
+            'azure_resource_group': '456',
+            'azure_storage_account': '678',
+            'azure_container_name': '890',
+            'azure_delivery_url': 'someurl'
+        }
+        config.update_properties(some_config)
+        self.assertEqual(config.azure_subscription_id, '123')
+        self.assertEqual(config.azure_resource_group, '456')
+        self.assertEqual(config.azure_storage_account, '678')
+        self.assertEqual(config.azure_container_name, '890')
+        self.assertEqual(config.azure_delivery_url, 'someurl')
