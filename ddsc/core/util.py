@@ -485,3 +485,17 @@ def boolean_input_prompt(message):
         result = input(message)
     result = result.upper()
     return result == "Y" or result == "YES" or result == "T" or result == "TRUE"
+
+
+def read_argument_file_contents(infile):
+    """
+    return the contents of a file or "" if infile is None.
+    If the infile is STDIN displays a message to tell user how to quit entering data.
+    :param infile: file handle to read from
+    :return: str: contents of the file
+    """
+    if infile:
+        if infile == sys.stdin:
+            print("Enter message and press CTRL-d when done:")
+        return infile.read()
+    return ""

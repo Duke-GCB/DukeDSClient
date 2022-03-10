@@ -17,6 +17,7 @@ LOCAL_CONFIG_FILENAME = '~/.ddsclient'
 LOCAL_CONFIG_ENV = 'DDSCLIENT_CONF'
 DUKE_DATA_SERVICE_URL = 'https://api.dataservice.duke.edu/api/v1'
 D4S2_SERVICE_URL = 'https://datadelivery.genome.duke.edu/api/v1'
+AZ_DELIVERY_URL = 'https://datadelivery.genome.duke.edu/api/v2'
 MB_TO_BYTES = 1024 * 1024
 DDS_DEFAULT_UPLOAD_CHUNKS = 100 * MB_TO_BYTES
 DDS_DEFAULT_DOWNLOAD_CHUNK_SIZE = 20 * MB_TO_BYTES
@@ -26,7 +27,6 @@ FILE_EXCLUDE_REGEX_DEFAULT = '^\.DS_Store$|^\.ddsclient$|^\.\_'
 MAX_DEFAULT_WORKERS = 8
 GET_PAGE_SIZE_DEFAULT = 100  # fetch 100 items per page
 DEFAULT_FILE_DOWNLOAD_RETRIES = 5
-DEFAULT_BACKING_STORAGE = "dds"
 
 
 def get_user_config_filename():
@@ -78,7 +78,11 @@ class Config(object):
     GET_PAGE_SIZE = 'get_page_size'                    # page size used for GET pagination requests
     STORAGE_PROVIDER_ID = 'storage_provider_id'        # setting to override the default storage provider
     FILE_DOWNLOAD_RETRIES = 'file_download_retries'    # number of times to retry a failed file download
-    BACKING_STORAGE = 'backing_storage'                # backing storage either "dds" or "azure"
+    AZURE_SUBSCRIPTION_ID = 'azure_subscription_id'    # Azure Subscription Id containing the storage account
+    AZURE_RESOURCE_GROUP = 'azure_resource_group'      # Group within subscription containing the storage account
+    AZURE_STORAGE_ACCOUNT = 'azure_storage_account'    # Azure Storage Account Name
+    AZURE_CONTAINER_NAME = 'azure_container_name'      # Container/Bucket/FileSystem name within the Azure Storage Account
+    AZURE_DELIVERY_URL = 'azure_delivery_url'          # Azure Data Delivery URL
 
     def __init__(self):
         self.values = {}
@@ -242,5 +246,21 @@ class Config(object):
         return self.values.get(Config.FILE_DOWNLOAD_RETRIES, DEFAULT_FILE_DOWNLOAD_RETRIES)
 
     @property
-    def backing_storage(self):
-        return self.values.get(Config.BACKING_STORAGE, DEFAULT_BACKING_STORAGE)
+    def azure_subscription_id(self):
+        return self.values.get(Config.AZURE_SUBSCRIPTION_ID)
+
+    @property
+    def azure_resource_group(self):
+        return self.values.get(Config.AZURE_RESOURCE_GROUP)
+
+    @property
+    def azure_storage_account(self):
+        return self.values.get(Config.AZURE_STORAGE_ACCOUNT)
+
+    @property
+    def azure_container_name(self):
+        return self.values.get(Config.AZURE_CONTAINER_NAME)
+
+    @property
+    def azure_delivery_url(self):
+        return self.values.get(Config.AZURE_DELIVERY_URL, AZ_DELIVERY_URL)
