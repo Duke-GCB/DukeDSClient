@@ -176,15 +176,13 @@ class TestConfig(TestCase):
     def test_azure_properties(self, mock_os):
         config = ddsc.config.Config()
         some_config = {
-            'azure_subscription_id': '123',
-            'azure_resource_group': '456',
             'azure_storage_account': '678',
             'azure_container_name': '890',
-            'azure_delivery_url': 'someurl'
+            'azure_delivery_url': 'someurl',
+            'delivery_token': 'secret'
         }
         config.update_properties(some_config)
-        self.assertEqual(config.azure_subscription_id, '123')
-        self.assertEqual(config.azure_resource_group, '456')
         self.assertEqual(config.azure_storage_account, '678')
         self.assertEqual(config.azure_container_name, '890')
         self.assertEqual(config.azure_delivery_url, 'someurl')
+        self.assertEqual(config.delivery_token, 'secret')

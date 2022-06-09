@@ -157,6 +157,18 @@ def add_user_arg(arg_parser):
                                  "You must specify either --email or this flag.")
 
 
+def add_fund_code_arg(arg_parser):
+    """
+    Adds fund_code argument to a parser.
+    :param arg_parser: ArgumentParser parser to add this argument to.
+    """
+    arg_parser.add_argument("--fund-code",
+                            metavar='FundCode',
+                            type=to_unicode,
+                            required=True,
+                            help="Recipient fund code for storage billing purposes.")
+
+
 def add_email_arg(arg_parser):
     """
     Adds user_email parameter to a parser.
@@ -361,6 +373,14 @@ class CommandParser(object):
         self.add_user_func = None
         self.download_func = None
 
+    def _add_azure_container_arg(self, arg_parser):
+        if self.azure_mode:
+            arg_parser.add_argument("-c", "--container",
+                                    metavar='ContainerName',
+                                    type=to_unicode,
+                                    dest='azure_container_name',
+                                    help="Azure Storage container name.")
+
     def register_upload_command(self, upload_func):
         """
         Add the upload command to the parser and call upload_func(project_name, folders, follow_symlinks) when chosen.
@@ -371,6 +391,7 @@ class CommandParser(object):
         _add_dry_run(upload_parser, help_text="Instead of uploading displays a list of folders/files that "
                                               "need to be uploaded.")
         add_project_name_or_id_arg(upload_parser, help_text_suffix="upload files/folders to.")
+        self._add_azure_container_arg(upload_parser)
         _add_folders_positional_arg(upload_parser)
         _add_follow_symlinks_arg(upload_parser)
         upload_parser.add_argument(
@@ -379,6 +400,7 @@ class CommandParser(object):
             action='store_false',
             dest='check',
             default=True)
+
         upload_parser.set_defaults(func=upload_func)
 
     def register_add_user_command(self, add_user_func):
@@ -390,6 +412,7 @@ class CommandParser(object):
         description = "Gives user permission to access a remote project."
         add_user_parser = self.subparsers.add_parser('add-user', description=description)
         add_project_name_or_id_arg(add_user_parser, help_text_suffix="add a user to")
+        self._add_azure_container_arg(add_user_parser)
         user_or_email = add_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
@@ -404,6 +427,7 @@ class CommandParser(object):
         description = "Removes user permission to access a remote project."
         remove_user_parser = self.subparsers.add_parser('remove-user', description=description)
         add_project_name_or_id_arg(remove_user_parser, help_text_suffix="remove a user from")
+        self._add_azure_container_arg(remove_user_parser)
         user_or_email = remove_user_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
@@ -418,6 +442,7 @@ class CommandParser(object):
         description = "Download the contents of a remote remote project to a local folder."
         download_parser = self.subparsers.add_parser('download', description=description)
         add_project_name_or_id_arg(download_parser, help_text_suffix="download")
+        self._add_azure_container_arg(download_parser)
         _add_folder_positional_arg(download_parser)
         include_or_exclude = download_parser.add_mutually_exclusive_group(required=False)
         _add_include_arg(include_or_exclude)
@@ -434,6 +459,7 @@ class CommandParser(object):
                       "If not specified this command gives user download permissions."
         share_parser = self.subparsers.add_parser('share', description=description)
         add_project_name_or_id_arg(share_parser)
+        self._add_azure_container_arg(share_parser)
         user_or_email = share_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
@@ -453,6 +479,7 @@ class CommandParser(object):
                       "acknowledges receiving the data."
         deliver_parser = self.subparsers.add_parser('deliver', description=description)
         add_project_name_or_id_arg(deliver_parser)
+        self._add_azure_container_arg(deliver_parser)
         user_or_email = deliver_parser.add_mutually_exclusive_group(required=True)
         add_user_arg(user_or_email)
         add_email_arg(user_or_email)
@@ -478,6 +505,7 @@ class CommandParser(object):
         _add_project_filter_auth_role_arg(project_name_or_auth_role)
         add_project_name_or_id_arg(project_name_or_auth_role, required=False,
                                    help_text_suffix="show details for")
+        self._add_azure_container_arg(project_name_or_auth_role)
         _add_long_format_option(list_parser, 'Display long format.')
         list_parser.set_defaults(func=list_func)
 
@@ -489,6 +517,7 @@ class CommandParser(object):
         description = "Permanently delete a project or file/folder."
         delete_parser = self.subparsers.add_parser('delete', description=description)
         add_project_name_or_id_arg(delete_parser, help_text_suffix="delete")
+        self._add_azure_container_arg(delete_parser)
         delete_parser.add_argument('--path',
                                    metavar='RemotePath',
                                    type=to_unicode,
@@ -517,6 +546,7 @@ class CommandParser(object):
                       " directory of Target. Target and Source are remote paths that must start with a '/'."
         parser = self.subparsers.add_parser('move', description=description)
         add_project_name_or_id_arg(parser, help_text_suffix="containing a file/folder to move")
+        self._add_azure_container_arg(parser)
         parser.add_argument("source_remote_path",
                             metavar='Source',
                             type=to_unicode,
@@ -535,6 +565,7 @@ class CommandParser(object):
         description = "Print information about a project."
         parser = self.subparsers.add_parser('info', description=description)
         add_project_name_or_id_arg(parser, help_text_suffix="to show the information about")
+        self._add_azure_container_arg(parser)
         parser.set_defaults(func=info_func)
 
     def register_check_command(self, check_func):
@@ -545,6 +576,7 @@ class CommandParser(object):
         description = "Check that a project is in a consistent state."
         check_parser = self.subparsers.add_parser('check', description=description)
         add_project_name_or_id_arg(check_parser, help_text_suffix="check")
+        self._add_azure_container_arg(check_parser)
         check_parser.add_argument('--wait',
                                   help="Wait for project to become consistent.",
                                   action='store_true')

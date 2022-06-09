@@ -94,23 +94,20 @@ class TestDeliveryApi(TestCase):
             'share_user_ids': ['user3', 'user4']
         }
 
-    @patch('ddsc.azure.delivery.DataServiceAuth')
     @patch('ddsc.azure.delivery.requests')
-    def test_create_delivery(self, mock_requests, mock_data_service_auth):
+    def test_create_delivery(self, mock_requests):
         mock_result = Mock(status_code=201)
         mock_result.json.return_value = {"id": "123"}
         mock_requests.post.return_value = mock_result
-        mock_data_service_auth.return_value.get_auth.return_value = 'Secret'
-        api = DeliveryApi(config=Mock(azure_delivery_url='someurl'))
+        api = DeliveryApi(config=Mock(azure_delivery_url='someurl', delivery_token='mytoken'))
         result = api.create_delivery(payload={"data": "here1"})
         self.assertEqual(result, "123")
         mock_requests.post.assert_called_with('someurl/az-deliveries/', data='{"data": "here1"}',
                                               headers={'Content-Type': 'application/json',
-                                                       'X-DukeDS-Authorization': 'Secret'})
+                                                       'Authorization': 'Token mytoken'})
 
-    @patch('ddsc.azure.delivery.DataServiceAuth')
     @patch('ddsc.azure.delivery.requests')
-    def test_find_incomplete_delivery(self, mock_requests, mock_data_service_auth):
+    def test_find_incomplete_delivery(self, mock_requests):
         mock_response = Mock(status_code=200)
         mock_response.json.return_value = [
             {
@@ -123,13 +120,12 @@ class TestDeliveryApi(TestCase):
             },
         ]
         mock_requests.get.return_value = mock_response
-        api = DeliveryApi(config=Mock(azure_delivery_url='someurl'))
+        api = DeliveryApi(config=Mock(azure_delivery_url='someurl', delivery_token='mytoken'))
         result = api.find_incomplete_delivery(payload=self.payload)
         self.assertEqual(result, "888")
 
-    @patch('ddsc.azure.delivery.DataServiceAuth')
     @patch('ddsc.azure.delivery.requests')
-    def test_find_incomplete_delivery_too_many(self, mock_requests, mock_data_service_auth):
+    def test_find_incomplete_delivery_too_many(self, mock_requests):
         mock_response = Mock(status_code=200)
         mock_response.json.return_value = [
             {
@@ -142,13 +138,12 @@ class TestDeliveryApi(TestCase):
             },
         ]
         mock_requests.get.return_value = mock_response
-        api = DeliveryApi(config=Mock(azure_delivery_url='someurl'))
+        api = DeliveryApi(config=Mock(azure_delivery_url='someurl', delivery_token='mytoken'))
         with self.assertRaises(DDSUserException):
             api.find_incomplete_delivery(payload=self.payload)
 
-    @patch('ddsc.azure.delivery.DataServiceAuth')
     @patch('ddsc.azure.delivery.requests')
-    def test_find_incomplete_delivery_not_found(self, mock_requests, mock_data_service_auth):
+    def test_find_incomplete_delivery_not_found(self, mock_requests):
         mock_response = Mock(status_code=200)
         mock_response.json.return_value = [
             {
@@ -161,23 +156,21 @@ class TestDeliveryApi(TestCase):
             },
         ]
         mock_requests.get.return_value = mock_response
-        api = DeliveryApi(config=Mock(azure_delivery_url='someurl'))
+        api = DeliveryApi(config=Mock(azure_delivery_url='someurl', delivery_token='mytoken'))
         with self.assertRaises(DDSUserException):
             api.find_incomplete_delivery(payload=self.payload)
         result = api.find_incomplete_delivery(payload=self.payload, raise_on_not_found=False)
         self.assertEqual(result, None)
 
-    @patch('ddsc.azure.delivery.DataServiceAuth')
     @patch('ddsc.azure.delivery.requests')
-    def test_send_delivery(self, mock_requests, mock_data_service_auth):
-        mock_data_service_auth.return_value.get_auth.return_value = 'Secret'
+    def test_send_delivery(self, mock_requests):
         mock_response = Mock(status_code=200)
         mock_requests.post.return_value = mock_response
-        api = DeliveryApi(config=Mock(azure_delivery_url='someurl'))
+        api = DeliveryApi(config=Mock(azure_delivery_url='someurl', delivery_token='mytoken'))
         api.send_delivery(delivery_id='123')
         mock_requests.post.assert_called_with('someurl/az-deliveries/123/send/',
                                               headers={'Content-Type': 'application/json',
-                                                       'X-DukeDS-Authorization': 'Secret'})
+                                                       'Authorization': 'Token mytoken'})
 
     def test_check_response(self):
         DeliveryApi._check_response(Mock(status_code=200))
@@ -186,4 +179,4 @@ class TestDeliveryApi(TestCase):
         self.assertEqual(str(raised_exception.exception), UNAUTHORIZED_MESSAGE)
         with self.assertRaises(DDSUserException) as raised_exception:
             DeliveryApi._check_response(Mock(status_code=500, url='someurl', text='Some error'))
-        self.assertEqual(str(raised_exception.exception), "Request to someurl failed with 500:\nSome error.")
+        self.assertEqual(str(raised_exception.exception), "Request to someurl failed with 500:\nSome error")

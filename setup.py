@@ -27,7 +27,7 @@ setup(name='DukeDSClient',
         entry_points={
             'console_scripts': [
                 'ddsclient = ddsc.__main__:main',
-                'dds = ddsc.azure.__main__:main'
+                'ddd = ddsc.azure.__main__:main'
             ]
         },
         classifiers=[

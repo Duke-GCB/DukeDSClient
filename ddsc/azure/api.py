@@ -1,12 +1,10 @@
 import re
 import json
 import os.path
-from datetime import datetime, timedelta
-from azure.mgmt.storage import StorageManagementClient
-from azure.storage.filedatalake import DataLakeServiceClient, generate_file_system_sas
+from azure.storage.filedatalake import DataLakeServiceClient
 from azure.core.exceptions import ResourceNotFoundError
-from azure.identity import TokenCachePersistenceOptions, SharedTokenCacheCredential, ChainedTokenCredential, \
-    DeviceCodeCredential
+from azure.identity import DeviceCodeCredential, TokenCachePersistenceOptions, ChainedTokenCredential,\
+    SharedTokenCacheCredential
 from msgraph.core import GraphClient
 from ddsc.azure.azcopy import create_azcopy, group_by_dirname
 from ddsc.azure.delivery import DataDelivery
@@ -91,11 +89,8 @@ class Users(object):
 
 
 class Bucket(object):
-    def __init__(self, credential, subscription_id, resource_group, storage_account, container_name):
-        self.resource_group = resource_group
-        self.storage_mgmt_client = StorageManagementClient(credential=credential, subscription_id=subscription_id)
-        self.service = DataLakeServiceClient(f"https://{storage_account}.dfs.core.windows.net/", credential=credential,
-                                             scopes=DLS_SCOPES)
+    def __init__(self, credential, storage_account, container_name):
+        self.service = DataLakeServiceClient(f"https://{storage_account}.dfs.core.windows.net/", credential=credential)
         self.file_system = self.service.get_file_system_client(file_system=container_name)
         self.azcopy = create_azcopy()
 
@@ -115,28 +110,6 @@ class Bucket(object):
 
     def get_file_properties(self, file_path):
         return self.file_system.get_file_client(file_path).get_file_properties()
-
-    def get_storage_account_key1(self):
-        return self.storage_mgmt_client.storage_accounts.list_keys(
-            resource_group_name=self.resource_group,
-            account_name=self.service.account_name).keys[0].value
-
-    def get_sas_token(self, hours=6):
-        account_key = self.get_storage_account_key1()
-        return generate_file_system_sas(
-            account_name=self.service.account_name,
-            credential=account_key,
-            file_system_name=self.file_system.file_system_name,
-            permission="rwdl",
-            protocol='https',
-            expiry=datetime.utcnow() + timedelta(hours=hours)
-        )
-
-    def get_sas_url(self, path, hours=6):
-        account_name = self.service.account_name
-        bucket_name = self.file_system.file_system_name
-        token = self.get_sas_token(hours=hours)
-        return f"https://{account_name}.blob.core.windows.net/{bucket_name}/{path}?{token}"
 
     def get_url(self, path):
         account_name = self.service.account_name
@@ -254,20 +227,21 @@ class AzureProjectSummary(object):
 
 
 class AzureApi(object):
-    def __init__(self, config, credential, subscription_id, resource_group, storage_account, container_name):
+    def __init__(self, config, credential):
         self.config = config
         self.users = Users(credential)
         self.current_user_netid = self.users.get_current_user_netid()
-        self.bucket = Bucket(credential, subscription_id, resource_group, storage_account, container_name)
+        container_name = config.azure_container_name
+        if not container_name:
+            container_name = self.current_user_netid
+        self.bucket = Bucket(credential, config.azure_storage_account, container_name)
 
     def list_projects(self):
-        path_dicts = self.bucket.get_paths(path=self.current_user_netid, recursive=False)
+        path_dicts = self.bucket.get_paths(path="", recursive=False)
         return [AzureProject(self, path_dict) for path_dict in path_dicts if path_dict["is_directory"] is True]
 
     def get_project_by_name(self, name):
         path = name
-        if "/" not in path:
-            path = f"{self.current_user_netid}/{name}"
         try:
             return AzureProject(self, self.bucket.get_directory_properties(path))
         except ResourceNotFoundError:
@@ -301,9 +275,6 @@ class AzureApi(object):
     def get_file_properties(self, file_path):
         return self.bucket.get_file_properties(file_path)
 
-    def get_sas_url(self):
-        return self.bucket.get_sas_url(path=self.current_user_netid)
-
     def add_user_to_project(self, project, netid, auth_role):
         user_id, user_name = self.users.get_id_and_name(netid)
         role = self.get_auth_role_by_id(auth_role)
@@ -317,15 +288,11 @@ class AzureApi(object):
 
     def upload_paths(self, project_name, paths, dry_run):
         project_path = project_name
-        if "/" not in project_path:
-            project_path = f"{self.current_user_netid}/{project_name}/"
         self.bucket.upload_paths(project_path, paths, dry_run)
         print("\nUpload complete.\nSee azcopy log file for details about transferred files.\n\n")
 
     def download_paths(self, project_name, include_paths, exclude_paths, destination, dry_run):
         project_path = project_name
-        if "/" not in project_path:
-            project_path = f"{self.current_user_netid}/{project_name}/"
         self.bucket.download_paths(project_path, include_paths, exclude_paths, destination, dry_run=dry_run)
         print("\nDownload complete.\nSee azcopy log file for details about transferred files.\n\n")
 
@@ -352,15 +319,10 @@ class AzureApi(object):
 
 
 def create_azure_api(config):
-    # Setup to use token cache or prompt user to login with a URL (DeviceCodeCredential)
     cache_persistence_options = TokenCachePersistenceOptions(allow_unencrypted_storage=True)
     credential = ChainedTokenCredential(
         SharedTokenCacheCredential(),
         DeviceCodeCredential(cache_persistence_options=cache_persistence_options))
     return AzureApi(
         config=config,
-        credential=credential,
-        subscription_id=config.azure_subscription_id,
-        resource_group=config.azure_resource_group,
-        storage_account=config.azure_storage_account,
-        container_name=config.azure_container_name)
+        credential=credential)

@@ -8,6 +8,7 @@ PROJECT_ID_NOT_SUPPORTED_MSG = "Error: The -i/--id flag is not supported with th
 CHECK_COMMAND_NOT_SUPPORTED_MSG = "Error: The check command is not supported or needed for the Azure backend.\n"
 SHARE_NOT_SUPPORTED_MSG = "Error: The share command is not supported for the Azure backend.\n"
 COPY_NOT_SUPPORTED_FOR_AZURE_MSG = "Error: The --copy option is not supported for the Azure backend.\n"
+COMMAND_NOT_SUPPORTED_MSG = "Error: This command is not supported for the Azure backend.\n"
 
 
 class BaseAzureCommand(object):
@@ -74,16 +75,12 @@ class AzureUploadCommand(BaseAzureCommand):
 
 class AzureAddUserCommand(BaseAzureCommand):
     def run(self, args):
-        project = self.get_project(args)
-        netid = self.get_netid(args)
-        self.azure_api.add_user_to_project(project=project, netid=netid, auth_role=args.auth_role)
+        raise DDSUserException(COMMAND_NOT_SUPPORTED_MSG)
 
 
 class AzureRemoveUserCommand(BaseAzureCommand):
     def run(self, args):
-        project = self.get_project(args)
-        netid = self.get_netid(args)
-        self.azure_api.remove_user_from_project(project=project, netid=netid)
+        raise DDSUserException(COMMAND_NOT_SUPPORTED_MSG)
 
 
 class AzureDownloadCommand(BaseAzureCommand):
@@ -135,8 +132,7 @@ class AzureDeleteCommand(BaseAzureCommand):
 
 class AzureListAuthRolesCommand(BaseAzureCommand):
     def run(self, args):
-        for auth_role in self.azure_api.get_auth_roles():
-            print(auth_role.id, "-", auth_role.description)
+        raise DDSUserException(COMMAND_NOT_SUPPORTED_MSG)
 
 
 class AzureMoveCommand(BaseAzureCommand):

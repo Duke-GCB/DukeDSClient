@@ -153,6 +153,9 @@ class DDSClient(object):
             print(str(err), file=sys.stderr)
             time.sleep(TWO_SECONDS)
 
+    def _create_config(self, args):
+        return create_config(allow_insecure_config_file=args.allow_insecure_config_file)
+
     def _run_command(self, command_constructor, args):
         """
         Run command_constructor and call run(args) on the resulting object
@@ -161,7 +164,7 @@ class DDSClient(object):
         """
         verify_terminal_encoding(sys.stdout.encoding)
         self._check_pypi_version()
-        config = create_config(allow_insecure_config_file=args.allow_insecure_config_file)
+        config = self._create_config(args)
         self.show_error_stack_trace = config.debug_mode
         command = command_constructor(config)
         command.run(args)

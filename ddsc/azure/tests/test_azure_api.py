@@ -67,7 +67,7 @@ class TestUsers(TestCase):
 
 class TestBucket(TestCase):
     def setUp(self):
-        self.bucket = Bucket("Credentials", "subscription1", "resourceGroup2", "storageAccount3", "container4")
+        self.bucket = Bucket("Credentials", "storageAccount3", "container4")
         self.bucket.storage_mgmt_client = Mock()
         self.bucket.service = Mock(account_name="storageAccount3")
         self.bucket.file_system = Mock(file_system_name="container4")
@@ -102,16 +102,6 @@ class TestBucket(TestCase):
         result = self.bucket.get_file_properties("user1/mouse/file1.txt")
         fc = self.bucket.file_system.get_file_client.return_value
         self.assertEqual(result, fc.get_file_properties.return_value)
-
-    def test_get_storage_account_key1(self):
-        result = self.bucket.get_storage_account_key1()
-        self.assertEqual(result, "SomeKey")
-
-    @patch('ddsc.azure.api.generate_file_system_sas')
-    def test_get_sas_url(self, mock_generate_file_system_sas):
-        mock_generate_file_system_sas.return_value = "sas=Key"
-        url = self.bucket.get_sas_url("user1/mouse/file1.txt")
-        self.assertEqual(url, "https://storageAccount3.blob.core.windows.net/container4/user1/mouse/file1.txt?sas=Key")
 
     def test_get_url(self):
         url = self.bucket.get_url("user1/mouse/file1.txt")
@@ -239,8 +229,7 @@ class TestAzureApi(TestCase):
     def setUp(self, mock_bucket, mock_users):
         self.config = Mock()
         self.credential = Mock()
-        self.api = AzureApi(config=self.config, credential=self.credential, subscription_id='sub2',
-                            resource_group='rg3', storage_account='sa4', container_name='cn5')
+        self.api = AzureApi(config=self.config, credential=self.credential)
         self.api.current_user_netid = 'user1'
         self.bucket = self.api.bucket
         self.users = self.api.users
@@ -262,7 +251,7 @@ class TestAzureApi(TestCase):
     def test_get_project_by_name(self):
         project = self.api.get_project_by_name(name="mouse")
         self.assertEqual(project.name, "mouse")
-        self.bucket.get_directory_properties.assert_called_with('user1/mouse')
+        self.bucket.get_directory_properties.assert_called_with('mouse')
         self.bucket.get_directory_properties.side_effect = ResourceNotFoundError()
         self.assertEqual(self.api.get_project_by_name(name="mouse"), None)
 
@@ -292,10 +281,6 @@ class TestAzureApi(TestCase):
         self.assertEqual(self.api.get_file_properties("user1/mouse/file1.txt"),
                          self.bucket.get_file_properties.return_value)
 
-    def test_get_sas_url(self):
-        self.assertEqual(self.api.get_sas_url(), self.bucket.get_sas_url.return_value)
-        self.bucket.get_sas_url.assert_called_with(path='user1')
-
     @patch('ddsc.azure.api.print')
     def test_add_user_to_project(self, mock_print):
         self.api.add_user_to_project(Mock(path="user1/mouse"), netid="user2", auth_role="file_uploader")
@@ -315,13 +300,13 @@ class TestAzureApi(TestCase):
     @patch('ddsc.azure.api.print')
     def test_upload_paths(self, mock_print):
         self.api.upload_paths(project_name="mouse", paths="/tmp/data.txt", dry_run=False)
-        self.bucket.upload_paths.assert_called_with('user1/mouse/', '/tmp/data.txt', False)
+        self.bucket.upload_paths.assert_called_with('mouse', '/tmp/data.txt', False)
 
     @patch('ddsc.azure.api.print')
     def test_download_paths(self, mock_print):
         self.api.download_paths(project_name="mouse", include_paths=None, exclude_paths=None, destination="/tmp/mouse",
                                 dry_run=False)
-        self.bucket.download_paths.assert_called_with('user1/mouse/', None, None, '/tmp/mouse', dry_run=False)
+        self.bucket.download_paths.assert_called_with('mouse', None, None, '/tmp/mouse', dry_run=False)
 
     @patch('ddsc.azure.api.print')
     def test_move_path(self, mock_print):
