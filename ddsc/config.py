@@ -37,10 +37,11 @@ def get_user_config_filename():
         return LOCAL_CONFIG_FILENAME
 
 
-def create_config(allow_insecure_config_file=False):
+def create_config(allow_insecure_config_file=False, azure_container_name=None):
     """
     Create config based on /etc/ddsclient.conf and ~/.ddsclient.conf($DDSCLIENT_CONF)
     :param allow_insecure_config_file: bool: when true we will not check ~/.ddsclient permissions.
+    :param azure_container_name: str: customize azure container name or None to use default value
     :return: Config with the configuration to use for DDSClient.
     """
     config = Config()
@@ -49,6 +50,8 @@ def create_config(allow_insecure_config_file=False):
     if user_config_filename == LOCAL_CONFIG_FILENAME and not allow_insecure_config_file:
         verify_file_private(user_config_filename)
     config.add_properties(user_config_filename)
+    if azure_container_name:
+        config.set_azure_container_name(azure_container_name)
     return config
 
 
@@ -74,12 +77,11 @@ class Config(object):
     DOWNLOAD_BYTES_PER_CHUNK = 'download_bytes_per_chunk'  # bytes per chunk we will download
     DEBUG_MODE = 'debug'                               # show stack traces
     D4S2_URL = 'd4s2_url'                              # url for use with the D4S2 (share/deliver service)
+    DELIVERY_TOKEN = 'delivery_token'                  # Token to authenticate with D4S2
     FILE_EXCLUDE_REGEX = 'file_exclude_regex'          # allows customization of which filenames will be uploaded
     GET_PAGE_SIZE = 'get_page_size'                    # page size used for GET pagination requests
     STORAGE_PROVIDER_ID = 'storage_provider_id'        # setting to override the default storage provider
     FILE_DOWNLOAD_RETRIES = 'file_download_retries'    # number of times to retry a failed file download
-    AZURE_SUBSCRIPTION_ID = 'azure_subscription_id'    # Azure Subscription Id containing the storage account
-    AZURE_RESOURCE_GROUP = 'azure_resource_group'      # Group within subscription containing the storage account
     AZURE_STORAGE_ACCOUNT = 'azure_storage_account'    # Azure Storage Account Name
     AZURE_CONTAINER_NAME = 'azure_container_name'      # Container/Bucket/FileSystem name within the Azure Storage Account
     AZURE_DELIVERY_URL = 'azure_delivery_url'          # Azure Data Delivery URL
@@ -246,14 +248,6 @@ class Config(object):
         return self.values.get(Config.FILE_DOWNLOAD_RETRIES, DEFAULT_FILE_DOWNLOAD_RETRIES)
 
     @property
-    def azure_subscription_id(self):
-        return self.values.get(Config.AZURE_SUBSCRIPTION_ID)
-
-    @property
-    def azure_resource_group(self):
-        return self.values.get(Config.AZURE_RESOURCE_GROUP)
-
-    @property
     def azure_storage_account(self):
         return self.values.get(Config.AZURE_STORAGE_ACCOUNT)
 
@@ -261,6 +255,13 @@ class Config(object):
     def azure_container_name(self):
         return self.values.get(Config.AZURE_CONTAINER_NAME)
 
+    def set_azure_container_name(self, container_name):
+        self.values[Config.AZURE_CONTAINER_NAME] = container_name
+
     @property
     def azure_delivery_url(self):
         return self.values.get(Config.AZURE_DELIVERY_URL, AZ_DELIVERY_URL)
+
+    @property
+    def delivery_token(self):
+        return self.values.get(Config.DELIVERY_TOKEN)

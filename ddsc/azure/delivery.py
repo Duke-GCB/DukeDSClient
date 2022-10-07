@@ -1,9 +1,13 @@
 import requests
 import requests.exceptions
 import json
-from ddsc.core.ddsapi import DataServiceAuth
 from ddsc.exceptions import DDSUserException
 from ddsc.core.d4s2 import UNAUTHORIZED_MESSAGE
+
+MISSING_DELIVERY_TOKEN_MSG = """
+ERROR: Missing credential to deliver projects.
+Please add 'delivery_token' to ~/.ddsclient config file.
+"""
 
 
 class DataDelivery(object):
@@ -52,12 +56,13 @@ class DataDelivery(object):
 
 class DeliveryApi(object):
     def __init__(self, config):
-        auth = DataServiceAuth(config)
+        if not config.delivery_token:
+            raise DDSUserException(MISSING_DELIVERY_TOKEN_MSG)
         # Switch to v3 for azure endpoints (Once DDS API is deprecated switch default to v3)
         self.deliveries_url = config.azure_delivery_url + "/az-deliveries/"
         self.json_headers = {
             'Content-Type': 'application/json',
-            'X-DukeDS-Authorization': auth.get_auth()
+            'Authorization': 'Token ' + config.delivery_token
         }
 
     def create_delivery(self, payload):
@@ -105,5 +110,5 @@ class DeliveryApi(object):
         if response.status_code == 401:
             raise DDSUserException(UNAUTHORIZED_MESSAGE)
         if not 200 <= response.status_code < 300:
-            msg_fmt = "Request to {} failed with {}:\n{}."
+            msg_fmt = "Request to {} failed with {}:\n{}"
             raise DDSUserException(msg_fmt.format(response.url, response.status_code, response.text))
