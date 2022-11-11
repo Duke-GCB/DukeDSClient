@@ -20,7 +20,7 @@ setup(name='DukeDSClient',
           'azure-identity',
           'azure-mgmt-storage',
           'azure-storage-file-datalake',
-          'msgraph-core',
+          'msgraph-core==0.2.2',
         ],
         test_suite='nose.collector',
         tests_require=['nose', 'mock'],
@@ -36,6 +36,6 @@ setup(name='DukeDSClient',
             'Topic :: Utilities',
             'License :: OSI Approved :: MIT License'
         ],
-        python_requires='>=3.5',
+        python_requires='>=3.7',
     )
 
