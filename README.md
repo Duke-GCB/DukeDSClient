@@ -1,15 +1,15 @@
 # DukeDSClient [![CircleCI](https://circleci.com/gh/Duke-GCB/DukeDSClient.svg?style=svg)](https://circleci.com/gh/Duke-GCB/DukeDSClient) [![Coverage Status](https://coveralls.io/repos/github/Duke-GCB/DukeDSClient/badge.svg)](https://coveralls.io/github/Duke-GCB/DukeDSClient)
 
-This command line program will allow you to upload, download, and manage projects in the [duke-data-service](https://github.com/Duke-Translational-Bioinformatics/duke-data-service).
+This command line program (`ddd`) will allow you to upload, download, and manage projects in the [DHTS Storage as a Service](https://azurestorage.duhs.duke.edu/). Previously there was a `ddsclient` command line tool that is now deprecated.
 
 For help email <gcb-help@duke.edu>.
 
 
 # Requirements
 
-- [python](https://www.python.org/) - version 3.5+
+- [python](https://www.python.org/) - version 3.7+
 
-__NOTE:__ When installing Python on Windows be sure to check the `Add Python to PATH` checkbox. This will avoid a problem where `pip3` and/or `ddsclient` cannot be found. 
+__NOTE:__ When installing Python on Windows be sure to check the `Add Python to PATH` checkbox. This will avoid a problem where `pip3` and/or `dds` cannot be found. 
 
 # Installation:
 
@@ -25,37 +25,52 @@ The above commmand will install the latest version of DukeDSClient from [PyPI](h
 If you receive a permission denied error it may be due to you not having superuser or administrative privileges on your machine. You can run `pip3` with the [`--user` scheme](https://docs.python.org/3/install/index.html#alternate-installation-the-user-scheme) or create a [virtual environment](https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments) to work around this limitation.
 Please see [the tutorial on installing packages](https://packaging.python.org/tutorials/installing-packages/) for more details.
 
+## Storage Setup
+Before you can use the `ddd` command line tool you must create a File System (container) at https://azurestorage.duhs.duke.edu/. 
+
 ### Config file setup.
 
-DukeDSClient requires a config file containing your credentials used to access the duke-data-service.
-Complete details are available in the [configuration documentation](https://github.com/Duke-GCB/DukeDSClient/wiki/Configuration).
+DukeDSClient requires a config file at `~/.ddsclient` containing settings used to access the backing storge.
+Minimally the config file must contain two fields:
+- `azure_storage_account` - Azure storage account that contains your Azure container
+- `azure_container_name` - Azure container where your projects(top level folders) will exist.
 
-#####  Create credentials and config file
+The simplest way to find these two values is from the **URL** field for your File System (container) at https://azurestorage.duhs.duke.edu/.
 
-[Instructions for adding agent and user keys to the user config file.](https://github.com/Duke-GCB/DukeDSClient/wiki/Agent-User-Keys-(setup))
+For example if the **URL** field is `https://mylab.dfs.core.windows.net/sequencing-data` the `azure_storage_account` field should be `mylab` and the `azure_container_name` should be `sequencing-data`.
+
+The config file is in YAML format so for the above example the contents should be:
+```
+azure_storage_account: mylab
+azure_container_name: sequencing-data
+```
+#### Delivery Config
+
+If you wish to use the **deliver** command you must add a `delivery_token` field to the config file.
+Email <gcb-help@duke.edu> for help getting this token.
 
 ### Usage:
 See general help screen:
 
 ```
-ddsclient -h
+ddd -h
 ```
 
 See help screen for a particular command:
 
 ```
-ddsclient <command> -h
+ddd <command> -h
 ```
 
 All commands take the form:
 ```
-ddsclient <command> <arguments...>
+ddd <command> <arguments...>
 ```
 
 ### Upload:
 
 ```
-ddsclient upload -p <ProjectName> <Folders/Files...>
+ddd upload -p <ProjectName> <Folders/Files...>
 ```
 
 This will create a project with the name ProjectName in the duke data service for your user if one doesn't exist.
@@ -66,13 +81,13 @@ Any items that already exist with the same hash will not be uploaded.
 Example: Upload a folder named 'results' to new or existing project named 'Analyzed Mouse RNA':
 
 ```
-ddsclient upload -p 'Analyzed Mouse RNA' results
+ddd upload -p 'Analyzed Mouse RNA' results
 ```
 
 ### Download:
 
 ```
-ddsclient download -p <ProjectName> [Folder]
+ddd download -p <ProjectName> [Folder]
 ```
 
 This will download the contents of ProjectName into the specified folder.
@@ -83,39 +98,12 @@ If Folder is not specified it will use the name of the project with spaces trans
 Example: Download the contents of project named 'Mouse RNA' into '/tmp/mouserna' :
 
 ```
-ddsclient download -p 'Mouse RNA' /tmp/mouserna
+ddd download -p 'Mouse RNA' /tmp/mouserna
 ```
 
 #### Downloading to a file share
 
 To download a project onto a file share (such as a CIFS share) specify a path within the share for the `Folder` to download directly there.
-
-
-### Add User To Project:
-
-#### Using duke netid:
-
-```
-ddsclient add-user -p <ProjectName> --user <Username> --auth-role 'project_admin'
-```
-
-Example: Grant permission to user with username 'jpb123' for a project named 'Analyzed Mouse RNA' with default permissions:
-
-```
-ddsclient add-user -p 'Analyzed Mouse RNA' --user 'jpb123'
-```
-
-#### Using email:
-
-```
-ddsclient add-user -p <ProjectName> --email <Username> --auth-role 'project_admin'
-```
-
-Example: Grant permission to user with email 'ada.lovelace@duke.edu' for a project named 'Analyzed Mouse RNA' with default permissions:
-
-```
-ddsclient add-user -p 'Analyzed Mouse RNA' --email 'ada.lovelace@duke.edu'
-```
 
 
 ### Developer:
@@ -139,42 +127,3 @@ Run the tests
 ```
 python setup.py test
 ```
-
-
-
-### Data Service Web Portal:
-[Duke Data Service Portal](https://dataservice.duke.edu).
-This also requires a [Duke NetID](https://oit.duke.edu/email-accounts/netid/).
-
-### Upload Settings
-The default upload settings is to use a worker per cpu and upload 100MB chunks.
-You can change this via the `upload_bytes_per_chunk` and `upload_workers` config file options.
-These options should be added to your `~/.ddsclient` config file.
-`upload_workers` should be an integer for the number of upload workers you want.
-`upload_bytes_per_chunk` is the size of chunks to upload. Specify this with MB extension.
-
-Example config file setup to use 4 workers and 200MB chunks:
-```
-upload_workers: 4
-upload_bytes_per_chunk: 200MB
-```
-
-### Alternate Service:
-The default url is `https://api.dataservice.duke.edu/api/v1`.
-You can customize this via the `url` config file option.
-Example config file setup to use the __uatest__ server:
-```
-url: https://apiuatest.dataservice.duke.edu/api/v1
-```
-
-You also can specify an alternate url for use with ddsclient via the `DUKE_DATA_SERVICE_URL` environment variable.
-Here is how you can set the environment variable so ddsclient will connect to the 'dev' url:
-```
-export DUKE_DATA_SERVICE_URL='https://apidev.dataservice.duke.edu/api/v1'
-```
-This will require using the associated portal to get a valid keys.
-
-You will need to specify an `agent_key` and `user_key` in the config file appropriate for the particular service.
-
-
-
